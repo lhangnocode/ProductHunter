@@ -7,7 +7,7 @@ A Micro-SaaS for user to find better price of a product (Tech products) by compa
 #### Web services
 - **Backend**: Python (FastAPI)
 - **Frontend**: React/Next.js
-- **Database**: PostgreSQL with Search extension or Elasticsearch
+- **Database**: PostgreSQL with Search extension Typesense (for product search) or Elasticsearch
 
 #### Crawling services
 - **Crawler**: Python (Scrapy or Playwright)
