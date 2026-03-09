@@ -4,8 +4,8 @@ from sqlalchemy import select
 from typing import List, Optional
 
 from app.db.session import get_db
-from app.models.product import Product
-from app.schemas.product import ProductResponse, ProductCreate, ProductSearchResponse
+from server.app.models.model_product import Product
+from server.app.schemas.schema_product import ProductResponse, ProductCreate, ProductSearchResponse
 
 router = APIRouter()
 
