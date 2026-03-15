@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "producthunter"
+    DEV_API_KEY: str = ""
 
     @property
     def DATABASE_URL(self) -> str:
