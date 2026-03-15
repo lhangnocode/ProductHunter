@@ -24,6 +24,8 @@ curl -X POST http://localhost:8000/api/v1/crawler/products \
 ```
 
 ### Docker Compose
+`docker-compose.yml` now includes both `api` and `postgres` (`postgres:16-alpine`) services.
+
 Build default image tag:
 ```bash
 docker compose build
@@ -37,4 +39,9 @@ IMAGE_TAG=1.0 docker compose build
 PowerShell:
 ```powershell
 $env:IMAGE_TAG="1.0"; docker compose build
+```
+
+Run the stack:
+```bash
+docker compose up -d
 ```
