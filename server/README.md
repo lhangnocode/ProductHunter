@@ -45,3 +45,11 @@ Run the stack:
 ```bash
 docker compose up -d
 ```
+
+Postgres will auto-run `server/db/schema.sql` on first initialization (empty `pg_data` volume) via `/docker-entrypoint-initdb.d`.
+
+If your DB volume already exists and you need to re-run init scripts:
+```bash
+docker compose down -v
+docker compose up -d
+```
