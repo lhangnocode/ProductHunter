@@ -1,8 +1,14 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[2] / ".env",
+        case_sensitive=True,
+    )
+
     PROJECT_NAME: str = "ProductHunter API"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
@@ -25,10 +31,5 @@ class Settings(BaseSettings):
         )
 
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3001", "http://localhost:3000"]
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
 
 settings = Settings()
