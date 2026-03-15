@@ -22,3 +22,19 @@ curl -X POST http://localhost:8000/api/v1/crawler/products \
   -H "X-API-Key: $DEV_API_KEY" \
   -d '{"normalized_name":"iphone 15","slug":"iphone-15","brand":"Apple","category":"phone","main_image_url":"https://example.com/p.jpg"}'
 ```
+
+### Docker Compose
+Build default image tag:
+```bash
+docker compose build
+```
+
+Build with a new version tag (`cloud_producthunt:{ver}`):
+```bash
+IMAGE_TAG=1.0 docker compose build
+```
+
+PowerShell:
+```powershell
+$env:IMAGE_TAG="1.0"; docker compose build
+```

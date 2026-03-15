@@ -1,0 +1,10 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloud_producthunt:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
