@@ -6,5 +6,14 @@ services:
     image: cloud_producthunt:${IMAGE_TAG:-latest}
     env_file:
       - .env
+    environment:
+      POSTGRES_HOST: postgres
     ports:
       - "8000:8000"
+    networks:
+      - shared
+
+networks:
+  shared:
+    external: true
+    name: ${SHARED_NETWORK_NAME:-producthunt_shared}
