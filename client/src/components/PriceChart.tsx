@@ -12,7 +12,7 @@ export function PriceChart({ data }: PriceChartProps) {
   };
 
   return (
-    <div className="h-[300px] w-full mt-6">
+    <div className="h-75 w-full mt-6">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 0, bottom: 0, left: 0 }}>
           <defs>
@@ -41,7 +41,7 @@ export function PriceChart({ data }: PriceChartProps) {
             fontFamily="JetBrains Mono"
           />
           <Tooltip 
-            formatter={(value: number) => [formatPrice(value), 'Giá']}
+            formatter={(value) => value !== undefined ? [formatPrice(value as number), 'Giá'] : []}
             labelStyle={{ color: '#52525b', fontWeight: 500, marginBottom: '4px' }}
             contentStyle={{ 
               borderRadius: '12px', 

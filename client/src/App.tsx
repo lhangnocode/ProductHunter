@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { MOCK_PRODUCTS, Product } from './data/mockData';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Product } from './data/mockData';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
 import { Search, TrendingUp, Heart, Bell, Menu, X, ShoppingBag, Command } from 'lucide-react';
@@ -10,23 +10,47 @@ type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('search');
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [alerts, setAlerts] = useState<{ productId: string; threshold: number }[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return MOCK_PRODUCTS;
-    const query = searchQuery.toLowerCase();
-    return MOCK_PRODUCTS.filter(p => 
-      p.name.toLowerCase().includes(query) || 
-      p.category.toLowerCase().includes(query)
-    );
+    if (!searchQuery.trim()) return products;
+    return products;
+  }, [searchQuery, products]);
+
+  const trendingProducts = useMemo(() => products.filter(p => p.isTrending), [products]);
+  const wishlistedProducts = useMemo(() => products.filter(p => wishlist.includes(p.id)), [wishlist, products]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const baseUrl = 'http://localhost:8000/api/v1';
+        const path = searchQuery.trim() ? `/products/search?name=${encodeURIComponent(searchQuery.trim())}` : '/products';
+        const response = await fetch(`${baseUrl}${path}`, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Server error ${response.status}: ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (Array.isArray(data)) setProducts(data);
+        else setProducts([]);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') setError(err.message || 'Lỗi khi lấy dữ liệu sản phẩm');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProducts();
+    return () => controller.abort();
   }, [searchQuery]);
 
-  const trendingProducts = useMemo(() => MOCK_PRODUCTS.filter(p => p.isTrending), []);
-  const wishlistedProducts = useMemo(() => MOCK_PRODUCTS.filter(p => wishlist.includes(p.id)), [wishlist]);
-  
   const handleAddWishlist = (product: Product) => {
     setWishlist(prev => 
       prev.includes(product.id) 
@@ -48,6 +72,18 @@ export default function App() {
   };
 
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="py-20 text-center text-lg font-medium text-zinc-600">Đang tải dữ liệu sản phẩm...</div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="py-20 text-center text-lg font-medium text-red-600">Lỗi: {error}</div>
+      );
+    }
+
     if (selectedProduct) {
       return (
         <ProductDetail 
@@ -184,7 +220,7 @@ export default function App() {
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
                     {alerts.map(alert => {
-                      const product = MOCK_PRODUCTS.find(p => p.id === alert.productId);
+                      const product = products.find(p => p.id === alert.productId);
                       if (!product) return null;
                       return (
                         <tr key={alert.productId} className="transition-colors hover:bg-zinc-50/50">
@@ -267,7 +303,7 @@ export default function App() {
         </button>
       </div>
 
-      <div className="mx-auto flex max-w-[1600px]">
+      <div className="mx-auto flex max-w-400">
         {/* Sidebar */}
         <aside className={`
           fixed left-0 top-0 z-20 flex h-screen w-72 flex-col border-r border-zinc-200/80 bg-zinc-50/50 transition-transform duration-300 ease-in-out

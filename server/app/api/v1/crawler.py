@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_dev_api_key
 from app.db.session import get_db
-from app.models.model_product import Platform, PlatformProduct, Product
+from app.models.platform import Platform
+from app.models.platform_product import PlatformProduct
+from app.models.product import Product
+
 from app.schemas.schema_crawler import (
     PlatformProductIngestRequest,
     PlatformProductIngestResponse,
@@ -69,7 +72,7 @@ async def upload_platform_product(
     platform_product = result.scalar_one_or_none()
 
     payload_dict = payload.model_dump()
-    if payload_dict["last_crawled_at"] is None:
+    if payload_dict.get("last_crawled_at") is None:
         payload_dict["last_crawled_at"] = datetime.now(timezone.utc)
 
     if platform_product is None:
