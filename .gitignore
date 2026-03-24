@@ -1,8 +1,22 @@
 # Environment variables
 .env
 
+venv/
+
 # Python cache
 __pycache__/
 *.pyc
 
+# IDE / Editor
 /.vscode/
+
+# Virtual Environments
+.venv/
+server/venv/
+services/lazada_crawler/venv/
+
+# Node / Frontend build
+node_modules/
+dist/
+
+*.csv
