@@ -19,4 +19,4 @@ services/lazada_crawler/venv/
 node_modules/
 dist/
 
-.csv
+*.csv
