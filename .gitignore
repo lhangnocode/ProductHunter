@@ -6,3 +6,8 @@ __pycache__/
 *.pyc
 
 /.vscode/
+
+server/venv/
+services/lazada_crawler/venv/
+.venv/
+venv/
