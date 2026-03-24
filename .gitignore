@@ -5,9 +5,15 @@
 __pycache__/
 *.pyc
 
+# IDE / Editor
 /.vscode/
 
+# Virtual Environments
+venv/
+.venv/
 server/venv/
 services/lazada_crawler/venv/
-.venv/
-venv/
+
+# Node / Frontend build
+node_modules/
+dist/
