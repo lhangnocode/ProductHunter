@@ -7,6 +7,10 @@ from playwright_stealth.stealth import Stealth
 import sys
 from urllib.parse import urlparse, parse_qs, quote
 from datetime import datetime
+import re
+import unicodedata
+
+
 
 class LazadaCaptchaError(Exception):
     pass
@@ -18,9 +22,7 @@ class LazadaCrawler:
         self.session = requests.Session()
 
         self.categories_list = [
-            "Mobiles", "Tablets", "Laptops", "Desktops Computers", "Audio",
-            "Security Cameras & Systems", "Cameras & Drones", "Video & Action Camcorder",
-            "Monitors", "Printers", "Smartwatches", "Console Gaming"
+            "Laptops", "Desktops Computers"
         ]
 
         self.session.headers.update({
@@ -208,7 +210,7 @@ class LazadaCrawler:
                 break
         return results_category
     
-    def crawl_all(self, page_start, page_end):
+    def crawl_all(self, page_start, page_end, path_csv):
         try:
             self.refresh_session_manual()
 
@@ -222,11 +224,11 @@ class LazadaCrawler:
             print(f"\n[!] Lỗi không xác định: {e}")
         finally:
             # Dù lỗi hay không cũng sẽ lưu dữ liệu đã cào được
-            self.save_data_to_csv()
+            self.save_data_to_csv(path_csv)
             print("Thời gian kết thúc:", datetime.now())
         
     
-    def save_data_to_csv(self, path_csv="lazada_products.csv"):
+    def save_data_to_csv(self, path_csv):
         df = pd.DataFrame(self.all_results)
         df.to_csv(path_csv, index=False, encoding="utf-8-sig")
         print(f"Đã lưu dữ liệu vào file {path_csv}")
@@ -236,7 +238,8 @@ if __name__ == "__main__":
     start_time = datetime.now()
     print("Thời gian bắt đầu:", start_time)
     crawl_lazada = LazadaCrawler()
-    crawl_lazada.crawl_all(1, 50)
+    path_csv = r"F:\dai_hoc\2526_Ki_2\CDCNNB\ProductHunter\services\lazada_crawler\lazada_product.csv"
+    crawl_lazada.crawl_all(1, 1, path_csv)
     end_time = datetime.now()
     print("Kết thúc:", end_time)
     print("Tổng thời gian:", end_time - start_time)
