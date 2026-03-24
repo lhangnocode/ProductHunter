@@ -5,6 +5,7 @@ from urllib.parse import quote_plus
 
 
 class Settings(BaseSettings):
+    IMAGE_TAG: str = "latest"
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[2] / ".env",
         case_sensitive=True,
