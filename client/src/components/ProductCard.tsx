@@ -22,7 +22,7 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
       onClick={() => onClick(product)}
       className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-zinc-200/50 hover:ring-zinc-300"
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-50">
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-zinc-50">
         <img 
           src={product.image} 
           alt={product.name} 
@@ -36,7 +36,7 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
         )}
       </div>
       
-      <div className="flex flex-grow flex-col p-5">
+      <div className="flex grow flex-col p-5">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-semibold tracking-wider text-indigo-600 uppercase">{product.category}</span>
         </div>

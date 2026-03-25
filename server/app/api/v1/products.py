@@ -15,10 +15,9 @@ async def search_products(
     name: str = Query(..., description="Name Product pro..."),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Product).where(Product.name.ilike(f"%{name}%"))
+    stmt = select(Product).where(Product.normalized_name.ilike(f"%{name}%"))
     result = await db.execute(stmt)
     products = result.scalars().all()
-    
     return products
 
 @router.get("/")

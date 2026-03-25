@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+from uuid import UUID
 
 class ProductPriceBase(BaseModel):
     platform: str
@@ -21,7 +22,7 @@ class ProductPriceResponse(ProductPriceBase):
 
 
 class ProductBase(BaseModel):
-    name: str
+    normalized_name: str
     description: Optional[str] = None
     category: Optional[str] = None
     image_url: Optional[str] = None
@@ -32,7 +33,7 @@ class ProductCreate(ProductBase):
 
 
 class ProductResponse(ProductBase):
-    id: int
+    id: UUID
     normalized_name: Optional[str] = None
     created_at: datetime
     prices: List[ProductPriceResponse] = []

@@ -29,7 +29,7 @@ async def upload_product(
     payload: ProductIngestRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Product).where(Product.slug == payload.slug)
+    stmt = select(Product)
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
 
