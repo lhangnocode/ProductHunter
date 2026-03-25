@@ -7,11 +7,37 @@ from playwright_stealth.stealth import Stealth
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from datetime import datetime
+import uuid
+from decimal import Decimal
+import re
+from datetime import datetime, timezone
 
 class AlibabaCaptchaError(Exception):
     pass
 
 class AlibabaCrawler:
+    def parse_price_to_decimal(self, price_str):
+        """Lấy con số đầu tiên trong chuỗi giá (min price) và chuyển thành Decimal"""
+        if not price_str:
+            return None
+        # Xóa dấu phẩy phân cách hàng nghìn để tránh lỗi parse
+        price_str = price_str.replace(',', '')
+        # Tìm con số (bao gồm cả phần thập phân)
+        match = re.search(r'\d+(\.\d+)?', price_str)
+        if match:
+            return Decimal(match.group(0))
+        return None
+
+    def extract_item_id(self, url):
+        """Bóc tách ID gốc của sản phẩm từ URL của Alibaba"""
+        if not url:
+            return str(uuid.uuid4()) # Fallback nếu không có URL
+        match = re.search(r'_(\d+)\.html', url)
+        if match:
+            return match.group(1)
+        # Nếu URL có định dạng khác, tạo một ID giả dựa trên URL để tránh trùng lặp
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
+
     def __init__(self):
         self.all_results = []
         self.base_url = 'https://www.alibaba.com/trade/search'
@@ -149,11 +175,25 @@ class AlibabaCrawler:
                                             link = 'https:' + link
 
                                         if title and price:
-                                            if not any(item['name'] == title.strip() for item in products_data):
+                                            raw_title = title.strip()
+                                            raw_link = link.strip()
+                                            raw_price = price.strip()
+                                            
+                                            item_id = self.extract_item_id(raw_link)
+                                            current_price_dec = self.parse_price_to_decimal(raw_price)
+                                            
+                                            if not any(item['original_item_id'] == item_id for item in products_data):
                                                 products_data.append({
-                                                    'name': title.strip(),
-                                                    'price': price.strip(),
-                                                    'product_url': link.strip()
+                                                    'product_id': uuid.uuid4(),           # UUID tự sinh cho db của bạn
+                                                    'platform_id': 1,                     # ID của platform (Gán cứng 1 cho Alibaba, bạn tự đổi theo DB của bạn)
+                                                    'raw_name': raw_title,                # Tên gốc lấy về
+                                                    'original_item_id': item_id,          # ID sản phẩm trên Alibaba
+                                                    'url': raw_link,                      # Link sản phẩm
+                                                    'affiliate_url': None,                # Chưa có affiliate
+                                                    'current_price': current_price_dec,   # Decimal
+                                                    'original_price': None,               # Nếu bóc được giá gốc thì điền vào đây
+                                                    'in_stock': True,                     # Mặc định True khi đang hiển thị
+                                                    'last_crawled_at': datetime.now(timezone.utc)
                                                 })
                                             
                                     for key, value in node.items():
@@ -173,9 +213,10 @@ class AlibabaCrawler:
                 if products_data:
                     print(f"[+] Vô mánh! Đã bóc tách thành công {len(products_data)} sản phẩm ở trang {page}.")
                     for p in products_data[:3]:  
-                        print(f"    - {p['name'][:50]}... | {p['price']}")
+                        # Đổi key in ra cho khớp schema mới
+                        print(f"    - {p['raw_name'][:50]}... | Giá: {p['current_price']} | ID: {p['original_item_id']}")
                     
-                    return products_data 
+                    return products_data
                 else:
                     print(f"Cảnh báo: Không parse được sản phẩm ở trang {page} (Có thể do hết trang hoặc lỗi).")
                     return []
