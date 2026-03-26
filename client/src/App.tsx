@@ -27,29 +27,40 @@ export default function App() {
   const wishlistedProducts = useMemo(() => products.filter(p => wishlist.includes(p.id)), [wishlist, products]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const fetchProducts = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const baseUrl = 'http://localhost:8000/api/v1';
-        const path = searchQuery.trim() ? `/products/search?name=${encodeURIComponent(searchQuery.trim())}` : '/products';
-        const response = await fetch(`${baseUrl}${path}`, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`Server error ${response.status}: ${response.statusText}`);
-        }
-        const data = await response.json();
-        if (Array.isArray(data)) setProducts(data);
-        else setProducts([]);
-      } catch (err: any) {
-        if (err.name !== 'AbortError') setError(err.message || 'Lỗi khi lấy dữ liệu sản phẩm');
-      } finally {
-        setIsLoading(false);
+  if (!searchQuery.trim()) {
+    setProducts([]);
+    setIsLoading(false);
+    return;
+  }
+
+  const controller = new AbortController();
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const baseUrl = 'http://localhost:8000/api/v1';
+      const path = `/products/search?name=${encodeURIComponent(searchQuery.trim())}`;
+      
+      const response = await fetch(`${baseUrl}${path}`, { signal: controller.signal });
+      
+      if (!response.ok) {
+        throw new Error(`Server error ${response.status}`);
       }
-    };
-    fetchProducts();
-    return () => controller.abort();
-  }, [searchQuery]);
+      
+      const data = await response.json();
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Lỗi khi lấy dữ liệu');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchProducts();
+  return () => controller.abort();
+}, [searchQuery]); 
 
   const handleAddWishlist = (product: Product) => {
     setWishlist(prev => 

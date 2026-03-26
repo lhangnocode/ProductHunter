@@ -4,7 +4,6 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, 
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-
 from app.db.session import Base
 
 class Product(Base):
