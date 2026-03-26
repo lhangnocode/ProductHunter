@@ -10,7 +10,7 @@ from app.models.platform import Platform
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
 
-from app.schemas.schema_crawler import (
+from server.app.schemas.crawler import (
     PlatformProductIngestRequest,
     PlatformProductIngestResponse,
     ProductIngestRequest,
@@ -29,6 +29,7 @@ async def upload_product(
     payload: ProductIngestRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    #! Se can nhac sau (VINH KHONG DUOC SUA)
     stmt = select(Product).where(Product.slug == payload.slug)
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
@@ -54,7 +55,8 @@ async def upload_platform_product(
     payload: PlatformProductIngestRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    product_result = await db.execute(select(Product.id).where(Product.id == payload.product_id))
+    #! Phai sua sau
+    product_result = await db.execute(select(Product.id).where(Product.id == payload.product_id)) 
     if product_result.scalar_one_or_none() is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product does not exist")
 

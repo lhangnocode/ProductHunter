@@ -6,7 +6,7 @@ from typing import List
 
 from app.db.session import get_db
 from app.models.product import Product
-from app.schemas.schema_product import ProductResponse
+from server.app.schemas.product import ProductResponse
 
 router = APIRouter()
 
