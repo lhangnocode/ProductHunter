@@ -10,7 +10,7 @@ from app.models.platform import Platform
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
 
-from server.app.schemas.crawler import (
+from app.schemas.crawler import (
     PlatformProductIngestRequest,
     PlatformProductIngestResponse,
     ProductIngestRequest,
