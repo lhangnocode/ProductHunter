@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.models.platform import Platform
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
+from app.services.matcher_service import process_and_match_product
 
 from app.schemas.schema_crawler import (
     PlatformProductIngestRequest,
@@ -18,7 +19,6 @@ from app.schemas.schema_crawler import (
 )
 
 router = APIRouter(dependencies=[Depends(require_dev_api_key)])
-
 
 @router.post(
     "/products",
@@ -44,44 +44,50 @@ async def upload_product(
     await db.refresh(product)
     return product
 
-
 @router.post(
-    "/platform-products",
-    response_model=PlatformProductIngestResponse,
+    "/platform-products", 
+    response_model=List[PlatformProductIngestResponse], 
     status_code=status.HTTP_200_OK,
 )
-async def upload_platform_product(
-    payload: PlatformProductIngestRequest,
+async def upload_platform_products_bulk(
+    payload: List[PlatformProductIngestRequest],
+    bg_tasks: BackgroundTasks, 
     db: AsyncSession = Depends(get_db),
 ):
-    product_result = await db.execute(select(Product.id).where(Product.id == payload.product_id))
-    if product_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product does not exist")
-
-    platform_result = await db.execute(select(Platform.id).where(Platform.id == payload.platform_id))
-    if platform_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform does not exist")
-
-    stmt = select(PlatformProduct).where(
-        and_(
-            PlatformProduct.platform_id == payload.platform_id,
-            PlatformProduct.original_item_id == payload.original_item_id,
+    results = []
+    for item in payload:
+        stmt = select(PlatformProduct).where(
+            and_(
+                PlatformProduct.platform_id == item.platform_id,
+                PlatformProduct.original_item_id == item.original_item_id,
+            )
         )
-    )
-    result = await db.execute(stmt)
-    platform_product = result.scalar_one_or_none()
+        result = await db.execute(stmt)
+        platform_product = result.scalar_one_or_none()
 
-    payload_dict = payload.model_dump()
-    if payload_dict.get("last_crawled_at") is None:
-        payload_dict["last_crawled_at"] = datetime.now(timezone.utc)
+        payload_dict = item.model_dump()
+        if payload_dict.get("last_crawled_at") is None:
+            payload_dict["last_crawled_at"] = datetime.now(timezone.utc)
 
-    if platform_product is None:
-        platform_product = PlatformProduct(**payload_dict)
-        db.add(platform_product)
-    else:
-        for field, value in payload_dict.items():
-            setattr(platform_product, field, value)
+        if platform_product is None:
+            platform_product = PlatformProduct(**payload_dict)
+            db.add(platform_product)
+        else:
+            for field, value in payload_dict.items():
+                setattr(platform_product, field, value)
 
-    await db.commit()
-    await db.refresh(platform_product)
-    return platform_product
+        await db.commit()
+        await db.refresh(platform_product)
+        
+
+        if platform_product.product_id is None:
+            raw_name = getattr(platform_product, "name", "") 
+            bg_tasks.add_task(
+                process_and_match_product,
+                platform_product_id=platform_product.id,
+                raw_name=raw_name
+            )
+            
+        results.append(platform_product)
+
+    return results
