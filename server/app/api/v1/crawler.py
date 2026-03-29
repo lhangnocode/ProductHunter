@@ -8,7 +8,7 @@ from app.api.deps import require_dev_api_key
 from app.db.session import get_db
 from app.models.platform import Platform
 from app.models.platform_product import PlatformProduct
-from app.models.product import Product
+from app.handlers.handler_product import upsert_product
 
 from app.schemas.crawler import (
     PlatformProductIngestRequest,
@@ -30,20 +30,7 @@ async def upload_product(
     db: AsyncSession = Depends(get_db),
 ):
     #! Se can nhac sau (VINH KHONG DUOC SUA)
-    stmt = select(Product).where(Product.slug == payload.slug)
-    result = await db.execute(stmt)
-    product = result.scalar_one_or_none()
-
-    if product is None:
-        product = Product(**payload.model_dump())
-        db.add(product)
-    else:
-        for field, value in payload.model_dump().items():
-            setattr(product, field, value)
-
-    await db.commit()
-    await db.refresh(product)
-    return product
+    return await upsert_product(payload=payload, db=db)
 
 
 @router.post(
