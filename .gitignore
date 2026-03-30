@@ -13,7 +13,7 @@ venv/
 .venv/
 server/venv/
 services/lazada_crawler/venv/
-
+typesense-data/
 # Node / Frontend build
 node_modules/
 dist/
