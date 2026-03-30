@@ -1,4 +1,4 @@
-import requests
+from curl_cffi import requests
 import pandas as pd
 import time
 import random
@@ -40,13 +40,14 @@ class AlibabaCrawler:
 
     def __init__(self):
         self.all_results = []
-        self.base_url = 'https://www.alibaba.com/trade/search'
-        self.session = requests.Session()
-
+        self.base_url = 'https://alibaba.com/trade/search'
+        self.session = requests.Session(impersonate="chrome116")
+        self.session.cookies.set('intl_locale', 'vi_VN', domain='.alibaba.com')
+        self.session.cookies.set('aep_usuc_f', 'region=VN&site=vie&b_locale=vi_VN', domain='.alibaba.com')
         self.categories_list = [
-            "smartphones", "laptops", "desktop computers", "bluetooth headphones",
-            "security cameras", "drones", "smartwatches", "gaming consoles"
-        ]
+            "điện thoại thông minh", "máy tính xách tay", "máy tính để bàn", "tai nghe bluetooth",
+            "camera an ninh", "flycam", "đồng hồ thông minh", "máy chơi game"
+         ] 
 
         self.session.headers.update({
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -64,7 +65,7 @@ class AlibabaCrawler:
 
     def refresh_session_manual(self, category="smartphones"):
         encoded_q = quote(category)
-        target_url = f"{self.base_url}?SearchText={encoded_q}&page=1"
+        target_url = f"https://www.alibaba.com/trade/search?SearchText={encoded_q}&page=1"
 
         print("\n" + "!"*50)
         print(" [!] ALIBABA CHẶN: PHÁT HIỆN CAPTCHA THANH TRƯỢT")
@@ -118,15 +119,34 @@ class AlibabaCrawler:
                 raise AlibabaCaptchaError(f"Gạt Captcha thất bại: {e}")
 
             playwright_cookies = context.cookies()
-            new_cookies = {c['name']: c['value'] for c in playwright_cookies}
             new_ua = page.evaluate("navigator.userAgent")
+            
+            # 1. Xóa sạch cookie cũ bị rác trong session
+            self.session.cookies.clear()
+            
+            # 2. Bốc Cookie chuẩn chỉ: Giữ nguyên Domain và Path
+            for cookie in playwright_cookies:
+                self.session.cookies.set(
+                    cookie['name'], 
+                    cookie['value'], 
+                    domain=cookie['domain'], 
+                    path=cookie['path']
+                )
 
-            requests.utils.add_dict_to_cookiejar(self.session.cookies, new_cookies)
+            # 3. Ép lại Cookie Tiếng Việt (Phòng trường hợp Playwright làm mất)
+            self.session.cookies.set('intl_locale', 'vi_VN', domain='.alibaba.com', path='/')
+            self.session.cookies.set('aep_usuc_f', 'region=VN&site=vie&b_locale=vi_VN', domain='.alibaba.com', path='/')
+
+            # 4. Cập nhật User-Agent và thêm Referer (Rất quan trọng để ngụy trang)
             self.session.headers.update({
-                'user-agent': new_ua
+                'user-agent': new_ua,
+                'referer': 'https://www.alibaba.com/',
+                'origin': 'https://www.alibaba.com'
             })
+            # --------------------------------------------------
+            
             browser.close()
-            print("[+] Session đã được làm mới. Alibaba đã thả cửa. Quay lại chế độ cào tự động...\n")
+            print("[+] Session đã được làm mới toàn diện. Bắt đầu cào...\n")
 
     def crawl_page(self, category, page):
         params = {
@@ -167,7 +187,7 @@ class AlibabaCrawler:
                             def find_items(node):
                                 if isinstance(node, dict):
                                     if 'title' in node and ('price' in node or 'priceV2' in node):
-                                        title = node.get('enPureTitle') or node.get('title', '')
+                                        title = node.get('title') or node.get('subject', '')
                                         title = re.sub(r'<[^>]+>', '', title)
                                         price = node.get('price') or node.get('priceV2', '')
                                         link = node.get('productUrl') or node.get('clickEurl', '')
@@ -184,7 +204,7 @@ class AlibabaCrawler:
                                             
                                             if not any(item['original_item_id'] == item_id for item in products_data):
                                                 products_data.append({
-                                                    'product_id': uuid.uuid4(),           # UUID tự sinh cho db của bạn
+                                                    'product_id': None,           
                                                     'platform_id': 1,                     # ID của platform (Gán cứng 1 cho Alibaba, bạn tự đổi theo DB của bạn)
                                                     'raw_name': raw_title,                # Tên gốc lấy về
                                                     'original_item_id': item_id,          # ID sản phẩm trên Alibaba
@@ -245,7 +265,7 @@ class AlibabaCrawler:
             if data:
                 results_category.extend(data)
                 print(f"Đã xong trang {page}. Các trang đã cào có tổng cộng: {len(results_category)} sản phẩm.")
-                time.sleep(random.uniform(3, 7)) 
+                time.sleep(random.uniform(5, 12)) 
             else:
                 print("Không lấy được dữ liệu nữa, dừng lại chuyển từ khóa")
                 break

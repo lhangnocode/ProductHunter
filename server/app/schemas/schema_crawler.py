@@ -2,8 +2,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
-
-from pydantic import BaseModel, ConfigDict
+from app.utils.text_processing import normalize_product_name
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class ProductIngestRequest(BaseModel):
@@ -27,7 +27,7 @@ class ProductIngestResponse(BaseModel):
 
 
 class PlatformProductIngestRequest(BaseModel):
-    product_id: UUID
+    product_id: Optional[UUID] = None
     platform_id: int
     raw_name: Optional[str] = None
     original_item_id: str
@@ -37,13 +37,17 @@ class PlatformProductIngestRequest(BaseModel):
     original_price: Optional[Decimal] = None
     in_stock: bool = True
     last_crawled_at: Optional[datetime] = None
+    @field_validator('raw_name')
+    @classmethod
+    def apply_name_normalization(cls, value: str) -> str:
+        return normalize_product_name(value)
 
 
 class PlatformProductIngestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    product_id: UUID
+    product_id: Optional[UUID] = None
     platform_id: int
     raw_name: Optional[str] = None
     original_item_id: Optional[str] = None
