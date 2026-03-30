@@ -22,6 +22,12 @@ export interface Product {
   history: PriceHistoryPoint[];
   isTrending: boolean;
   fakeDiscountDetected: boolean;
+  stockStatus: 'in-stock' | 'out-of-stock';
+  rating: number;
+  reviewsCount: number;
+  seller: string;
+  lowestEverPrice: number;
+  lastPriceChange: 'down' | 'up' | 'stable';
 }
 
 export const MOCK_PRODUCTS: Product[] = [
@@ -44,6 +50,12 @@ export const MOCK_PRODUCTS: Product[] = [
     ],
     isTrending: true,
     fakeDiscountDetected: false,
+    stockStatus: 'in-stock',
+    rating: 4.9,
+    reviewsCount: 2590,
+    seller: 'Apple Flagship Store',
+    lowestEverPrice: 29500000,
+    lastPriceChange: 'down',
   },
   {
     id: 'p2',
@@ -64,6 +76,12 @@ export const MOCK_PRODUCTS: Product[] = [
     ],
     isTrending: true,
     fakeDiscountDetected: true,
+    stockStatus: 'in-stock',
+    rating: 4.8,
+    reviewsCount: 680,
+    seller: 'Sony Official Store',
+    lowestEverPrice: 6500000,
+    lastPriceChange: 'down',
   },
   {
     id: 'p3',
@@ -82,6 +100,12 @@ export const MOCK_PRODUCTS: Product[] = [
     ],
     isTrending: false,
     fakeDiscountDetected: false,
+    stockStatus: 'in-stock',
+    rating: 4.8,
+    reviewsCount: 1160,
+    seller: 'Samsung Experience Store',
+    lowestEverPrice: 31990000,
+    lastPriceChange: 'down',
   },
   {
     id: 'p4',
@@ -102,6 +126,12 @@ export const MOCK_PRODUCTS: Product[] = [
     ],
     isTrending: true,
     fakeDiscountDetected: true,
+    stockStatus: 'in-stock',
+    rating: 4.9,
+    reviewsCount: 2990,
+    seller: 'Logitech Official Store',
+    lowestEverPrice: 2150000,
+    lastPriceChange: 'stable',
   },
   {
     id: 'p5',
@@ -121,5 +151,11 @@ export const MOCK_PRODUCTS: Product[] = [
     ],
     isTrending: false,
     fakeDiscountDetected: false,
+    stockStatus: 'out-of-stock',
+    rating: 4.9,
+    reviewsCount: 205,
+    seller: 'Dyson Vietnam',
+    lowestEverPrice: 18500000,
+    lastPriceChange: 'down',
   }
 ];
