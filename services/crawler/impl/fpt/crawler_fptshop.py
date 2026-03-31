@@ -371,35 +371,67 @@ class FptTrojanPro(Crawler):
         )
         db.executemany(sql, values)
 
-    def _push_typesense(self, product_ids: Dict[str, str], products: List[Dict[str, object]]) -> None:
-        if not product_ids:
-            return
-        typesense = self.storage.get_typesense_handler()
-        docs: List[Dict[str, object]] = []
-        for product in products:
-            slug = str(product.get("slug") or "")
-            if not slug:
-                continue
-            doc_id = product_ids.get(slug)
-            if not doc_id:
-                continue
-            docs.append(
-                {
-                    "id": str(doc_id),
-                    "normalized_name": product.get("normalized_name") or "",
-                    "slug": slug,
-                }
-            )
+    def _resolve_product_id(
+        self,
+        product: Dict[str, object],
+        cache: Dict[str, str],
+        typesense,
+        typesense_state: Dict[str, bool],
+    ) -> Optional[str]:
+        slug = str(product.get("slug") or "")
+        normalized = str(product.get("normalized_name") or "")
+        cache_key = slug or normalized
+        if cache_key and cache_key in cache:
+            return cache[cache_key]
 
-        if not docs:
-            return
+        if typesense_state.get("enabled") and (normalized or slug):
+            query = normalized or slug
+            try:
+                result = typesense.search("products", query=query)
+                hits = result.get("hits") or []
+                if hits:
+                    doc = hits[0].get("document") or {}
+                    doc_id = doc.get("id")
+                    if doc_id:
+                        resolved = str(doc_id)
+                        if slug:
+                            cache[slug] = resolved
+                        if normalized:
+                            cache[normalized] = resolved
+                        return resolved
+            except Exception as exc:
+                typesense_state["enabled"] = False
+                print(f"[!] Typesense search failed: {exc}")
 
-        try:
-            typesense.ensure_collection()
-            for chunk in self._chunk(docs):
-                typesense.import_documents("products", chunk)
-        except Exception as exc:
-            print(f"[!] Typesense update failed: {exc}")
+        if not slug:
+            return None
+
+        self._upsert_products([product])
+        product_ids = self._fetch_product_ids([slug])
+        resolved = product_ids.get(slug)
+        if not resolved:
+            return None
+
+        if slug:
+            cache[slug] = resolved
+        if normalized:
+            cache[normalized] = resolved
+
+        if typesense_state.get("enabled"):
+            try:
+                typesense.upsert_document(
+                    "products",
+                    {
+                        "id": str(resolved),
+                        "normalized_name": normalized or "",
+                        "slug": slug,
+                    },
+                )
+            except Exception as exc:
+                typesense_state["enabled"] = False
+                print(f"[!] Typesense update failed: {exc}")
+
+        return resolved
 
     def persist_batch(self, parsed_items: List[Tuple[Dict[str, object], Dict[str, object]]]) -> None:
         if not parsed_items:
@@ -407,28 +439,27 @@ class FptTrojanPro(Crawler):
 
         self._ensure_platform()
 
-        products = [item[0] for item in parsed_items]
-        platform_products = [item[1] for item in parsed_items]
+        typesense = self.storage.get_typesense_handler()
+        typesense_state = {"enabled": True}
+        try:
+            typesense.ensure_collection()
+        except Exception as exc:
+            typesense_state["enabled"] = False
+            print(f"[!] Typesense unavailable: {exc}")
 
-        products = self._dedupe_products(products)
-        for chunk in self._chunk(products):
-            self._upsert_products(chunk)
-
-        slugs = [str(product.get("slug")) for product in products if product.get("slug")]
-        product_ids = self._fetch_product_ids(slugs)
+        cache: Dict[str, str] = {}
+        platform_products: List[Dict[str, object]] = []
 
         for product, platform_product in parsed_items:
-            slug = str(product.get("slug") or "")
-            platform_product["product_id"] = product_ids.get(slug)
+            product_id = self._resolve_product_id(product, cache, typesense, typesense_state)
+            if not product_id:
+                continue
+            platform_product["product_id"] = product_id
+            platform_products.append(platform_product)
 
-        platform_products = [
-            record for record in platform_products if record.get("product_id")
-        ]
         platform_products = self._dedupe_platform_products(platform_products)
         for chunk in self._chunk(platform_products):
             self._upsert_platform_products(chunk)
-
-        self._push_typesense(product_ids, products)
 
     def crawl(self) -> None:
         start_time = datetime.now()
