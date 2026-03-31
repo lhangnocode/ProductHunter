@@ -6,6 +6,7 @@ from typing import List
 from app.db.session import get_db
 from app.models.price_record import PriceRecord 
 from app.schemas.price_record import PriceRecordResponse
+from app.models.platform_product import PlatformProduct
 
 router = APIRouter()
 
@@ -53,3 +54,22 @@ async def get_price_record_by_platform_product_id(
     )
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def create_price_record(
+    db: AsyncSession, 
+    platform_product: PlatformProduct, 
+    payload_dict: dict
+):
+    """
+    Tạo một bản ghi lịch sử giá cho Platform Product.
+    """
+    price_record = PriceRecord(
+        platform_product_id=platform_product.id,
+        price=payload_dict.get("current_price"),
+        original_price=payload_dict.get("original_price"),
+        is_flash_sale=payload_dict.get("is_flash_sale", False),
+        # recorded_at sẽ sử dụng server_default=func.now() nếu không truyền
+    )
+    db.add(price_record)
+    return price_record
