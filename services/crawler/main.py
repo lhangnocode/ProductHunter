@@ -11,8 +11,8 @@ def main() -> None:
     fpt_crawler = FptTrojanPro(output_dir=str(BASEOUTPUT_DIR))
     fpt_crawler.crawl()
 
-    # phongvu_crawler = PhongVuCrawler(output_dir=str(BASEOUTPUT_DIR))
-    # phongvu_crawler.crawl()
+    phongvu_crawler = PhongVuCrawler(output_dir=str(BASEOUTPUT_DIR))
+    phongvu_crawler.crawl()
 
 
 if __name__ == "__main__":
