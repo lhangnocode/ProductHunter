@@ -21,7 +21,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary text-white shadow-lg shadow-brand-primary/20">
               <Bird size={18} strokeWidth={2.5} />
             </div>
-            <span className="text-lg font-black tracking-tighter font-display uppercase">PriceHawk<span className="text-brand-primary">.</span></span>
+            <span className="text-lg font-black tracking-tighter font-display uppercase">ProductHunter<span className="text-brand-primary">.</span></span>
           </div>
           
           <div className="hidden md:flex items-center gap-8">
@@ -122,7 +122,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                 </div>
                 <div className="bg-white dark:bg-black/50 px-4 py-1 rounded-full border border-black/5 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-display flex items-center gap-2">
                   <Bird size={10} className="text-brand-primary" />
-                  pricehawk.com
+                  ProductHunter.com
                 </div>
                 <div className="w-10" />
               </div>
@@ -200,7 +200,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
               {t('features')}
             </h2>
             <p className="text-base md:text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium">
-              Discover how PriceHawk helps you save money and make smarter purchasing decisions with our advanced tracking tools.
+              Discover how ProductHunter helps you save money and make smarter purchasing decisions with our advanced tracking tools.
             </p>
           </div>
 
@@ -305,7 +305,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             {[
-              { name: 'Minh Tuấn', role: 'Smart Shopper', text: 'PriceHawk helped me save over 2M VND on my new laptop. The price drop alert was instant!', rating: 5 },
+              { name: 'Minh Tuấn', role: 'Smart Shopper', text: 'ProductHunter helped me save over 2M VND on my new laptop. The price drop alert was instant!', rating: 5 },
               { name: 'Hương Giang', role: 'Deal Hunter', text: 'I love the price history chart. It shows me exactly when a "sale" is actually just a fake discount.', rating: 5 },
               { name: 'Thành Nam', role: 'Tech Enthusiast', text: 'The best tool for tracking tech prices across Shopee and Tiki. Highly recommended!', rating: 5 },
             ].map((review, i) => (
@@ -371,7 +371,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary text-white">
               <Bird size={18} strokeWidth={2.5} />
             </div>
-            <span className="text-lg font-black tracking-tighter font-display uppercase text-slate-900 dark:text-white">PriceHawk<span className="text-brand-primary">.</span></span>
+            <span className="text-lg font-black tracking-tighter font-display uppercase text-slate-900 dark:text-white">ProductHunter<span className="text-brand-primary">.</span></span>
           </div>
           
           <div className="flex items-center gap-8">
@@ -380,7 +380,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             ))}
           </div>
 
-          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest font-display">© 2024 PriceHawk</p>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest font-display">© 2024 ProductHunter</p>
         </div>
       </footer>
 

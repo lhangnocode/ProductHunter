@@ -44,7 +44,7 @@ CREATE TABLE platforms (
 -- =========================
 CREATE TABLE platform_products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    product_id UUID NOT NULL,
+    product_id UUID,
     platform_id INTEGER NOT NULL,
 
     raw_name TEXT,
@@ -55,6 +55,9 @@ CREATE TABLE platform_products (
 
     current_price DECIMAL(12,2),
     original_price DECIMAL(12,2),
+
+    rating DECIMAL(3,2) DEFAULT NULL, -- diem co the la 3.82
+    reviews_count INTEGER DEFAULT 0,  -- so luot danh gia mac dinh la 0
 
     in_stock BOOLEAN DEFAULT TRUE,
     last_crawled_at TIMESTAMP,

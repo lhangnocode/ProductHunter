@@ -735,7 +735,7 @@ function AppContent() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary text-white shadow-lg shadow-brand-primary/20 group-hover:rotate-12 transition-transform">
                 <Bird size={16} strokeWidth={3} />
               </div>
-              <span className="hidden sm:inline font-display uppercase">PriceHawk<span className="text-brand-primary">.</span></span>
+              <span className="hidden sm:inline font-display uppercase">ProductHunter<span className="text-brand-primary">.</span></span>
             </button>
 
             {/* Desktop Search in Navbar */}
