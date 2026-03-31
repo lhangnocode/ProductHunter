@@ -142,6 +142,7 @@ async def search_product(
     if typesense_available:
         try:
             client = typesense_client or _build_typesense_client()
+            await asyncio.to_thread(_ensure_typesense_collection, client)
             logger.info(
                 "Product search using typesense; query=%s limit=%s page=%s",
                 query_value,
