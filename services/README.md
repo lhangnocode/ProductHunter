@@ -2,13 +2,13 @@
 
 ## Architecture
 
-The crawler service is designed to be modular and extensible, allowing for easy integration of new crawlers for different e-commerce platforms. The architecture consists of the following components:
+The crawler service is modular and extensible. It focuses on batch crawling, normalization, and ingestion with optional Typesense search updates. Components:
 
-1. **Base Crawler Class**: An abstract class that defines the common interface and functionality for all crawlers. This class can be extended to create specific crawlers for different platforms.
-2. **Specific Crawler Implementations**: Concrete implementations of the base crawler class for specific e-commerce platforms (e.g., Amazon, eBay, etc.). Each implementation will handle the unique structure and requirements of its respective platform.
-3. **Crawler Manager**: A component responsible for managing the lifecycle of crawlers, including instantiation, execution, and scheduling.
-4. **Data Storage**: A peer component to the base crawler that defines schema and constraints, and exposes public functions for persistence, file handling, and optional ETL helpers used by specific crawlers when needed.
-5. **Error Handling and Logging**: A system for handling errors and logging the crawling process for debugging and monitoring purposes.
+1. **Entry Point**: `services/crawler/main.py` orchestrates one or more crawler runs (cron-safe).
+2. **Base Crawler Class**: `services/crawler/core/crawler.py` defines the shared interface and owns a `StorageManager` instance.
+3. **Specific Crawler Implementations**: Platform crawlers (FPT, Phong Vũ) use Playwright + BeautifulSoup and emit normalized data.
+4. **Storage Layer**: `services/crawler/core/storage/` provides DB and Typesense handlers plus ETL helpers.
+5. **Error Handling and Logging**: Crawl errors are logged per category; Typesense failures are best-effort.
 
 ### Architecture Diagram
 
@@ -44,12 +44,12 @@ The crawler service is designed to be modular and extensible, allowing for easy 
 ```
 
 ## Components
-- **Entry Point**: `services/crawler/main.py` is designed for cron execution and orchestrates one or more crawler runs.
+- **Entry Point**: `services/crawler/main.py` is designed for cron execution and orchestrates crawler runs.
 - **Base Crawler**: `services/crawler/core/crawler.py` defines the abstract interface and owns a shared `StorageManager`.
 - **Storage Manager (Singleton)**: `services/crawler/core/storage/storage_manager.py` wires DB + Typesense handlers once per process.
 - **Database Handler**: `services/crawler/core/storage/database_handler.py` provides a lightweight connection + query layer and loads `.env` DB settings.
-- **Typesense Handler**: `services/crawler/core/storage/typesense_handler.py` handles collection creation, bulk import, and search updates.
-- **Crawler Implementations**: e.g. FPT and Phong Vu crawlers extract product fields and map to server models.
+- **Typesense Handler**: `services/crawler/core/storage/typesense_handler.py` ensures the `products` collection (with infix-enabled fields), bulk import, and search updates.
+- **Crawler Implementations**: FPT and Phong Vũ crawlers extract product fields and map to server models.
 
 ## Data Models (Crawler Output)
 - **products**: `normalized_name`, `slug`, `brand`, `category`, `main_image_url`
@@ -59,12 +59,17 @@ The crawler service is designed to be modular and extensible, allowing for easy 
 1. **Cron triggers** `services/crawler/main.py`.
 2. **Crawler loads** pages per category (Playwright), expands listings, and parses DOM.
 3. **Normalize + map** raw fields into `products` and `platform_products`.
-4. **For each new platform product**:
+4. **Ensure Typesense collection** (`products`) exists with infix-enabled fields.
+5. **For each new platform product**:
    - **Fuzzy match** in Typesense using `normalized_name` / `slug`.
    - **If match found**: use the returned product `id`.
    - **If no match**: create a new product in PostgreSQL, then upsert that product into Typesense.
    - **Insert/update platform product** in PostgreSQL with the resolved `product_id`.
-5. **Persist CSV snapshots** to `services/crawler/output` for recovery/debug.
+6. **Persist CSV snapshots** to `services/crawler/output` for recovery/debug.
+
+## Scheduling
+- Shell wrapper: `services/crawler/run_crawler.sh` runs `python -m services.crawler.main` from the repo root.
+- Cron template: `services/crawler/crawler.cron` schedules daily runs at 1 AM (edit paths before installing).
 
 ## Error Handling
 - Crawl errors are logged per category; the crawler continues with the next category.
