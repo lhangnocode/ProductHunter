@@ -44,7 +44,7 @@ CREATE TABLE platforms (
 -- =========================
 CREATE TABLE platform_products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    product_id UUID NOT NULL,
+    product_id UUID,
     platform_id INTEGER NOT NULL,
 
     raw_name TEXT,

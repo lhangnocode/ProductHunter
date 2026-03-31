@@ -1,0 +1,1 @@
+"""FPT Shop crawler implementation."""

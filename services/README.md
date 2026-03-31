@@ -42,3 +42,6 @@ The crawler service is designed to be modular and extensible, allowing for easy 
 
    Error Handling + Logging (cross-cutting across all components)
 ```
+
+## Flow
+- Entry point: main.py with cron job to run crawler
