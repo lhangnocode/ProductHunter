@@ -1,30 +1,27 @@
 ### Project context
 
-A Micro-SaaS for user to find better price of a product (Tech products) by comparing prices across different e-commerce platforms (Shopee, Lazada, Amazon, TaoBao, TiKi etc.).
+A Micro-SaaS for users to find better prices for tech products by comparing listings across multiple e-commerce platforms.
 
 ### Tech stack
 
 #### Web services
-- **Backend**: Python (FastAPI)
-- **Frontend**: React/Next.js
-- **Database**: PostgreSQL with Search extension Typesense (for product search) or Elasticsearch
+- **Backend**: Python (FastAPI + async SQLAlchemy)
+- **Frontend**: React (Vite)
+- **Database**: PostgreSQL
+- **Search**: Typesense (`products` collection with infix-enabled fields)
 
 #### Crawling services
-- **Crawler**: Python (Scrapy or Playwright)
-- **Task scheduling**: Cron jobs (Linux)
+- **Crawler**: Python (Playwright + BeautifulSoup)
+- **Task scheduling**: Cron jobs (Linux) via `services/crawler/run_crawler.sh`
 
 #### Deployment
-- **Containerization**: Docker
-- **Provider**: 
-    - On-premises with Tailscale Tunneling (Backend and Crawlers)
-    - Frontend hosted on Vercel (Free hosting)
+- **Containerization**: Docker Compose (API + Postgres + Typesense)
+- **Provider**:
+    - On-premises with Tailscale tunneling (backend and crawlers)
+    - Frontend hosted separately (static/Vite build)
 
 ### Strategy
-- The SaaS will only support tech products to narrow down the scope and focus on a specific market.
-- Data collection will be done through 2 strategy:
-    - Crawling: Regularly scheduled crawlers will fetch product data from various e-commerce platforms.
-    - Data from users: Extension that reads product information from the user's browser and sends it to the backend for price comparison. (May require user permission and compliance with privacy policies).
-- The backend will provide APIs for the frontend to fetch product information and price comparisons.
-- The producst name will be encoded for searching by using techniques like TF-IDF or word embeddings to improve search accuracy and relevance.
-    - Product name -> Normalization (lowercase, remove special characters) -> Vectorization. For searching
-    - Product find -> Distance vectorization -> Sort by distance: Threshold 0.8. Cosine similarity or Euclidean distance.
+- The SaaS focuses on tech products to narrow scope and improve catalog quality.
+- Data collection is currently crawler-driven with scheduled runs and API ingestion.
+- The backend exposes APIs for search and comparison, using Typesense for ranking with a Postgres fallback.
+- Future user-driven ingestion (browser extension) remains an optional roadmap item.
