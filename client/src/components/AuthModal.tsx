@@ -56,7 +56,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary text-white shadow-xl shadow-brand-primary/20">
                   <Bird size={20} strokeWidth={2.5} />
                 </div>
-                <span className="text-xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">PriceHawk</span>
+                <span className="text-xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">ProductHunter</span>
               </div>
               <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                 <X size={20} />
@@ -65,7 +65,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
             <div className="mb-8">
               <h2 className="text-3xl font-black text-slate-950 dark:text-white font-display leading-[1.1] tracking-tighter uppercase">
-                {isLogin ? t('welcomeBack') : t('joinPriceHawk')}
+                {isLogin ? t('welcomeBack') : t('joinProductHunter')}
               </h2>
               <p className="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed">
                 {isLogin ? t('loginToSeeWishlist') : t('createAccountForAlerts')}
