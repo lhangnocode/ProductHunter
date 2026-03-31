@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-
 from app.db.session import get_db
 from app.models.product import Product
 from app.schemas.product import ProductResponse

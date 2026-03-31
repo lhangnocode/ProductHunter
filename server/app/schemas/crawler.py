@@ -27,7 +27,7 @@ class ProductIngestResponse(BaseModel):
 
 
 class PlatformProductIngestRequest(BaseModel):
-    product_id: UUID
+    product_id: Optional[UUID] = None
     platform_id: int
     raw_name: Optional[str] = None
     original_item_id: str
@@ -43,7 +43,7 @@ class PlatformProductIngestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    product_id: UUID
+    product_id: Optional[UUID] = None
     platform_id: int
     raw_name: Optional[str] = None
     original_item_id: Optional[str] = None

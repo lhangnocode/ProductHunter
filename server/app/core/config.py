@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "producthunter"
     DEV_API_KEY: str = ""
+    
+    TYPESENSE_HOST: str = "localhost"
+    TYPESENSE_PORT: int = 8108
     TYPESENSE_API_KEY: str = ""
 
     @property

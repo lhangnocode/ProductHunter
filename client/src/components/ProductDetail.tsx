@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Product, PlatformData } from '../data/mockData';
+import { Product } from '../data/mockData';
 import { PriceChart } from './PriceChart';
-import { ArrowLeft, ExternalLink, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface ProductDetailProps {
   product: Product;
@@ -13,11 +15,21 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ product, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
+  const { t, language } = useLanguage();
+  const { theme } = useTheme();
   const [alertThreshold, setAlertThreshold] = useState<string>('');
   const [alertSet, setAlertSet] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const formatPrice = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+    const locale = language === 'vi' ? 'vi-VN' : 'en-US';
+    const currency = language === 'vi' ? 'VND' : 'USD';
+    const convertedValue = language === 'en' ? value / 25000 : value;
+    return new Intl.NumberFormat(locale, { 
+      style: 'currency', 
+      currency: currency,
+      maximumFractionDigits: language === 'en' ? 2 : 0
+    }).format(convertedValue);
   };
 
   const handleSetAlert = () => {
@@ -32,169 +44,348 @@ export function ProductDetail({ product, onBack, onAddWishlist, onSetAlert, isWi
   const sortedPlatforms = [...product.platforms].sort((a, b) => a.price - b.price);
   const bestPlatform = sortedPlatforms[0];
 
+  const getPlatformStyle = (name: string) => {
+    switch(name.toLowerCase()) {
+      case 'shopee': return 'bg-[#ee4d2d] text-white';
+      case 'lazada': return 'bg-[#0f136d] text-white';
+      case 'tiki': return 'bg-[#1a94ff] text-white';
+      default: return 'bg-zinc-800 text-white';
+    }
+  };
+
+  const getRecommendation = () => {
+    if (product.fakeDiscountDetected) {
+      return {
+        type: 'warning',
+        title: t('cautionBuy'),
+        desc: t('cautionBuyDesc'),
+        icon: AlertTriangle,
+        color: 'text-rose-600',
+        bg: 'bg-rose-50 dark:bg-rose-900/10',
+        ring: 'ring-rose-600/10 dark:ring-rose-500/20'
+      };
+    }
+    if (product.isTrending) {
+      return {
+        type: 'good',
+        title: t('goldenTimeBuy'),
+        desc: t('goldenTimeBuyDesc'),
+        icon: CheckCircle2,
+        color: 'text-brand-success',
+        bg: 'bg-brand-success/5 dark:bg-brand-success/10',
+        ring: 'ring-brand-success/20 dark:ring-brand-success/30'
+      };
+    }
+    return {
+      type: 'neutral',
+      title: t('stablePrice'),
+      desc: t('stablePriceDesc'),
+      icon: Info,
+      color: 'text-brand-accent',
+      bg: 'bg-brand-accent/5 dark:bg-brand-accent/10',
+      ring: 'ring-brand-accent/20 dark:ring-brand-accent/30'
+    };
+  };
+
+  const rec = getRecommendation();
+
+  const isLowestEver = product.platforms.some(p => p.price <= product.lowestEverPrice);
+  const isDropping = product.lastPriceChange === 'down';
+
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      initial={{ opacity: 0, y: 20, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -10, scale: 0.98 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-zinc-200/50"
+      exit={{ opacity: 0, y: -20, scale: 0.99 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_30px_60px_rgba(0,0,0,0.4)] border border-slate-200/60 dark:border-slate-800/60"
     >
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white/80 p-4 backdrop-blur-xl">
-        <button 
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 p-4 backdrop-blur-xl">
+        <motion.button 
+          whileHover={{ x: -2 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onBack}
-          className="group flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-900"
+          className="group flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-black text-slate-500 transition-all hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-slate-100 border border-slate-200/50 dark:border-slate-700/50 font-display uppercase tracking-[0.2em]"
         >
-          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-          Quay lại
-        </button>
+          <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
+          {t('back')}
+        </motion.button>
         <div className="flex gap-2">
-          <button 
-            onClick={() => onAddWishlist(product)}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${isWishlisted ? 'bg-rose-50 text-rose-500 ring-1 ring-rose-200' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600'}`}
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-950 dark:hover:text-slate-300 shadow-sm border border-slate-200/50 dark:border-slate-700/50"
           >
-            <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
-          </button>
+            <Share2 size={16} />
+            {copied && (
+              <motion.div 
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950 px-2.5 py-1 text-[9px] font-black text-white shadow-lg"
+              >
+                Copied!
+              </motion.div>
+            )}
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onAddWishlist(product)}
+            className={`flex h-9 w-9 items-center justify-center rounded-full transition-all shadow-sm border ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary/50' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-950 dark:hover:text-slate-300 border-slate-200/50 dark:border-slate-700/50'}`}
+          >
+            <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
+          </motion.button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-12">
         {/* Left Column: Image & Basic Info */}
-        <div className="border-b border-zinc-100 bg-zinc-50/30 p-6 md:p-10 lg:col-span-4 lg:border-b-0 lg:border-r">
-          <div className="mb-8 aspect-square overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200/50">
-            <img 
+        <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/20 p-8 md:p-12 lg:col-span-5 lg:border-b-0 lg:border-r lg:border-slate-100 dark:lg:border-slate-800">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center p-8"
+          >
+            <motion.img 
               src={product.image} 
               alt={product.name} 
-              className="h-full w-full object-cover"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
               referrerPolicy="no-referrer"
             />
-          </div>
+          </motion.div>
           
-          <div>
-            <div className="mb-3 inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-indigo-600 ring-1 ring-inset ring-indigo-500/10">
+          <motion.div
+            initial={{ y: 15, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="mb-4 inline-flex items-center rounded-sm bg-brand-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.25em] text-brand-primary border border-brand-primary/20 font-display">
               {product.category}
             </div>
-            <h1 className="mb-6 text-2xl font-bold leading-tight tracking-tight text-zinc-900">{product.name}</h1>
+            <h1 className="mb-6 text-4xl font-black leading-[1.05] tracking-tighter text-slate-950 dark:text-white font-display uppercase">{product.name}</h1>
             
-            {product.fakeDiscountDetected && (
-              <div className="mb-8 flex items-start gap-3 rounded-2xl bg-rose-50 p-4 ring-1 ring-inset ring-rose-600/10">
-                <AlertTriangle className="mt-0.5 shrink-0 text-rose-600" size={18} />
-                <div>
-                  <h4 className="text-sm font-semibold text-rose-900">Cảnh báo giá ảo</h4>
-                  <p className="mt-1 text-xs leading-relaxed text-rose-700/80">Sản phẩm này có dấu hiệu tăng giá trước khi giảm. Hãy xem biểu đồ lịch sử giá để quyết định.</p>
-                </div>
+            <div className="mb-8 flex flex-wrap gap-4">
+              <div className="flex items-center gap-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20 dark:border-amber-500/10 backdrop-blur-sm">
+                <Star size={16} className="fill-amber-400 text-amber-400" />
+                <span className="text-sm font-black text-amber-700 dark:text-amber-400">{product.rating}</span>
+                <span className="text-[10px] font-bold text-amber-600/50 dark:text-amber-400/50">({product.reviewsCount})</span>
               </div>
-            )}
-
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200/50">
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <Bell size={16} className="text-zinc-400" /> Nhận thông báo khi giá giảm
-              </h3>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <input 
-                  type="text" 
-                  placeholder="Nhập mức giá..." 
-                  value={alertThreshold}
-                  onChange={(e) => setAlertThreshold(e.target.value)}
-                  className="w-full rounded-xl border-0 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-900 ring-1 ring-inset ring-zinc-200 transition-all placeholder:text-zinc-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-indigo-600"
-                />
-                <button 
-                  onClick={handleSetAlert}
-                  className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-zinc-800 active:scale-95 sm:w-auto"
-                >
-                  {alertSet ? <><CheckCircle2 size={16} className="text-emerald-400" /> Đã đặt</> : 'Đặt báo giá'}
-                </button>
+              <div className="flex items-center gap-2 rounded-xl bg-slate-100/60 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
+                <Package size={16} className="text-slate-500" />
+                <span className={`text-sm font-black ${product.stockStatus === 'in-stock' ? 'text-brand-success' : 'text-rose-500'}`}>
+                  {product.stockStatus === 'in-stock' ? t('inStock') : t('outOfStock')}
+                </span>
               </div>
             </div>
-          </div>
+
+            {/* Recommendation Badge */}
+            <motion.div 
+              initial={{ x: -15, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className={`mb-8 flex items-start gap-4 rounded-[1.5rem] p-5 shadow-xl border ${rec.bg} ${rec.ring.replace('ring-', 'border-')}`}
+            >
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/90 dark:bg-slate-900/90 shadow-md border border-white/20 dark:border-slate-800/50 ${rec.color}`}>
+                <rec.icon size={24} className={rec.type === 'warning' ? 'animate-pulse' : ''} />
+              </div>
+              <div>
+                <h4 className={`text-base font-black font-display uppercase tracking-tight ${rec.color.replace('text-', 'text-').replace('600', '950')}`}>{rec.title}</h4>
+                <p className={`mt-1 text-[11px] font-bold leading-relaxed opacity-80 ${rec.color.replace('text-', 'text-').replace('600', '700')}`}>{rec.desc}</p>
+              </div>
+            </motion.div>
+
+            {/* Deal Analysis Box */}
+            <motion.div
+              initial={{ y: 15, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.35 }}
+              className="mb-8 overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-slate-900 via-brand-dark to-slate-900 p-[1px] text-white shadow-2xl shadow-brand-primary/10"
+            >
+              <div className="rounded-[1.45rem] bg-slate-900/80 p-7 backdrop-blur-2xl">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary font-display">
+                    <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
+                  </h3>
+                  {isLowestEver && (
+                    <span className="animate-bounce rounded-full bg-brand-success px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-brand-success/30">
+                      {t('lowestEver')}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('lowestEver')}</span>
+                    <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(product.lowestEverPrice)}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${isDropping ? 'bg-brand-success/20 text-brand-success border-brand-success/30 shadow-lg shadow-brand-success/5' : 'bg-slate-800/50 text-slate-400 border-slate-700/50'}`}>
+                      <TrendingDown size={24} />
+                    </div>
+                    <p className="text-[11px] font-bold leading-relaxed text-slate-300">
+                      {isDropping ? t('buyNowStimulus') : t('waitStimulus')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="rounded-[1.5rem] bg-white dark:bg-slate-800 p-6 shadow-2xl shadow-slate-200/10 dark:shadow-black/10 border border-slate-200/60 dark:border-slate-700/60">
+              <h3 className="mb-5 flex items-center gap-2 text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest font-display">
+                <Bell size={16} className="text-brand-primary" /> {t('notifyPriceDrop')}
+              </h3>
+              <div className="flex flex-col gap-3">
+                <div className="relative group">
+                  <span className="absolute inset-y-0 left-5 flex items-center font-mono text-sm font-black text-slate-400 group-focus-within:text-brand-primary transition-colors">₫</span>
+                  <input 
+                    type="text" 
+                    placeholder={t('enterPrice')}
+                    value={alertThreshold}
+                    onChange={(e) => setAlertThreshold(e.target.value)}
+                    className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-900 py-4 pl-10 pr-5 text-sm font-black text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 transition-all placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-inset focus:ring-brand-primary outline-none shadow-inner"
+                  />
+                </div>
+                <motion.button 
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={handleSetAlert}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-brand-primary px-6 py-4 text-[11px] font-black text-white shadow-xl transition-all hover:bg-slate-800 dark:hover:bg-brand-primary/90 uppercase tracking-widest"
+                >
+                  {alertSet ? <><CheckCircle2 size={18} className="text-brand-success" /> {t('priceAlertSet')}</> : t('setPriceAlert')}
+                </motion.button>
+              </div>
+            </div>
+
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 p-4 border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Verified</p>
+                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Data Source</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 p-4 border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success border border-brand-success/20">
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Real-time</p>
+                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Price Updates</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* Right Column: Comparison & History */}
-        <div className="p-6 md:p-10 lg:col-span-8">
+        <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
           
           {/* Price Comparison List */}
           <section className="mb-12">
-            <h2 className="mb-6 flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900">
-              So sánh giá các sàn
+            <h2 className="mb-8 flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white font-display uppercase">
+              <ShoppingCart size={24} className="text-brand-primary" />
+              {t('comparePlatforms')}
             </h2>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {sortedPlatforms.map((platform, idx) => {
                 const isBest = idx === 0;
                 return (
-                  <div 
+                  <motion.div 
                     key={platform.name} 
-                    className={`group flex flex-col justify-between gap-4 rounded-2xl p-4 transition-all sm:flex-row sm:items-center ${
+                    initial={{ x: 15, opacity: 0 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 + idx * 0.05 }}
+                    whileHover={{ x: 4 }}
+                    className={`group flex flex-col justify-between gap-5 rounded-[1.5rem] p-6 transition-all sm:flex-row sm:items-center border ${
                       isBest 
-                        ? 'bg-emerald-50/50 ring-1 ring-emerald-200' 
-                        : 'bg-white ring-1 ring-zinc-200 hover:bg-zinc-50 hover:ring-zinc-300'
+                        ? 'bg-brand-primary/5 dark:bg-brand-primary/10 border-brand-primary/20 shadow-sm' 
+                        : 'bg-slate-50/40 dark:bg-slate-900/40 border-slate-200/50 dark:border-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-white shadow-sm
-                        ${platform.name === 'Shopee' ? 'bg-orange-500' : platform.name === 'Lazada' ? 'bg-indigo-600' : 'bg-blue-500'}
-                      `}>
-                        {platform.name[0]}
+                    <div className="flex items-center gap-5">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-black text-white shadow-lg border border-white/10 ${getPlatformStyle(platform.name)}`}>
+                        {platform.name === 'Shopee' ? <ShoppingBag size={20} /> : <span className="text-xl">{platform.name[0]}</span>}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-zinc-900">{platform.name}</span>
-                          {isBest && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">Rẻ nhất</span>}
+                          <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platform.name}</span>
+                          {isBest && <span className="rounded-full bg-brand-success px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-white">{t('cheapest')}</span>}
                         </div>
-                        <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
-                          <div className="flex items-center gap-1">
+                        <div className="mt-1 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/10 px-2 py-0.5">
                             <Star size={12} className="fill-amber-400 text-amber-400" />
-                            <span className="font-medium text-zinc-700">{platform.rating}</span>
-                            <span>({platform.reviews})</span>
+                            <span className="text-slate-700 dark:text-amber-400">{platform.rating}</span>
                           </div>
-                          <span className="h-3 w-px bg-zinc-300"></span>
-                          <span>{platform.shippingFee === 0 ? <span className="font-medium text-emerald-600">Freeship</span> : `Ship: ${formatPrice(platform.shippingFee)}`}</span>
+                          <span className="h-3 w-px bg-slate-200 dark:bg-slate-800"></span>
+                          <span className="flex items-center gap-1.5">
+                            {platform.shippingFee === 0 ? <span className="text-brand-success font-black">{t('freeShipping')}</span> : `${t('shipping')}: ${formatPrice(platform.shippingFee)}`}
+                          </span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between sm:justify-end sm:gap-6">
-                      <div className="flex flex-col text-right">
-                        <span className={`font-mono text-lg font-bold tracking-tight ${isBest ? 'text-emerald-600' : 'text-zinc-900'}`}>
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 sm:border-0 sm:pt-0 sm:justify-end sm:gap-8">
+                      <div className="flex flex-col text-left sm:text-right">
+                        <span className={`font-mono text-2xl font-black tracking-tighter ${isBest ? 'text-brand-primary' : 'text-slate-950 dark:text-white'}`}>
                           {formatPrice(platform.price)}
                         </span>
                         {platform.originalPrice > platform.price && (
-                          <span className="font-mono text-xs text-zinc-400 line-through">
+                          <span className="mt-1 font-mono text-[11px] font-bold text-slate-400 dark:text-slate-500 line-through opacity-50">
                             {formatPrice(platform.originalPrice)}
                           </span>
                         )}
                       </div>
-                      <a 
+                      <motion.a 
                         href={platform.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className={`flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition-all active:scale-95 ${
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`flex items-center justify-center rounded-xl px-5 py-3 text-[10px] font-black transition-all border uppercase tracking-widest ${
                           isBest 
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                            : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200'
+                            ? 'bg-brand-primary text-white border-brand-primary/40 hover:bg-brand-primary/90 shadow-2xl shadow-brand-primary/20' 
+                            : 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                         }`}
                       >
-                        Tới nơi bán
-                      </a>
+                        {t('goToSeller')}
+                        <ExternalLink size={14} className="ml-2 opacity-50" />
+                      </motion.a>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
           </section>
 
           {/* Price History Chart */}
-          <section>
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-bold tracking-tight text-zinc-900">Lịch sử giá (6 tháng)</h2>
-              <div className="flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
-                <TrendingDown size={14} className="text-emerald-500" />
-                Đang có xu hướng giảm
+          <motion.section
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="mb-8 flex items-center justify-between">
+              <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white font-display uppercase tracking-tight">{t('priceHistory6Months')}</h2>
+              <div className="flex items-center gap-2 rounded-full bg-brand-success/10 px-4 py-2 text-[10px] font-black text-brand-success border border-brand-success/20 backdrop-blur-sm uppercase tracking-widest">
+                <TrendingDown size={16} />
+                {t('trendingDown')}
               </div>
             </div>
-            <div className="rounded-2xl bg-white p-6 ring-1 ring-zinc-200/50">
+            <div className="rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 p-8 shadow-sm border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-xl">
               <PriceChart data={product.history} />
             </div>
-          </section>
+          </motion.section>
 
         </div>
       </div>

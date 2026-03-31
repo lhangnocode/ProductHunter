@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, select
@@ -8,7 +9,7 @@ from app.api.deps import require_dev_api_key
 from app.db.session import get_db
 from app.models.platform import Platform
 from app.models.platform_product import PlatformProduct
-from app.models.product import Product
+from app.handlers.handler_product import upsert_product
 
 from app.schemas.crawler import (
     PlatformProductIngestRequest,
@@ -30,60 +31,42 @@ async def upload_product(
     db: AsyncSession = Depends(get_db),
 ):
     #! Se can nhac sau (VINH KHONG DUOC SUA)
-    stmt = select(Product).where(Product.slug == payload.slug)
-    result = await db.execute(stmt)
-    product = result.scalar_one_or_none()
-
-    if product is None:
-        product = Product(**payload.model_dump())
-        db.add(product)
-    else:
-        for field, value in payload.model_dump().items():
-            setattr(product, field, value)
-
-    await db.commit()
-    await db.refresh(product)
-    return product
+    return await upsert_product(payload=payload, db=db)
 
 
 @router.post(
-    "/platform-products",
-    response_model=PlatformProductIngestResponse,
+    "/platform-products", 
+    response_model=List[PlatformProductIngestResponse], 
     status_code=status.HTTP_200_OK,
 )
-async def upload_platform_product(
-    payload: PlatformProductIngestRequest,
+async def upload_platform_products_bulk(
+    payload: List[PlatformProductIngestRequest],
     db: AsyncSession = Depends(get_db),
 ):
-    #! Phai sua sau
-    product_result = await db.execute(select(Product.id).where(Product.id == payload.product_id)) 
-    if product_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product does not exist")
-
-    platform_result = await db.execute(select(Platform.id).where(Platform.id == payload.platform_id))
-    if platform_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform does not exist")
-
-    stmt = select(PlatformProduct).where(
-        and_(
-            PlatformProduct.platform_id == payload.platform_id,
-            PlatformProduct.original_item_id == payload.original_item_id,
+    results = []
+    for item in payload:
+        stmt = select(PlatformProduct).where(
+            and_(
+                PlatformProduct.platform_id == item.platform_id,
+                PlatformProduct.original_item_id == item.original_item_id,
+            )
         )
-    )
-    result = await db.execute(stmt)
-    platform_product = result.scalar_one_or_none()
+        result = await db.execute(stmt)
+        platform_product = result.scalar_one_or_none()
 
-    payload_dict = payload.model_dump()
-    if payload_dict.get("last_crawled_at") is None:
-        payload_dict["last_crawled_at"] = datetime.now(timezone.utc)
+        payload_dict = item.model_dump()
+        if payload_dict.get("last_crawled_at") is None:
+            payload_dict["last_crawled_at"] = datetime.now(timezone.utc)
 
-    if platform_product is None:
-        platform_product = PlatformProduct(**payload_dict)
-        db.add(platform_product)
-    else:
-        for field, value in payload_dict.items():
-            setattr(platform_product, field, value)
+        if platform_product is None:
+            platform_product = PlatformProduct(**payload_dict)
+            db.add(platform_product)
+        else:
+            for field, value in payload_dict.items():
+                setattr(platform_product, field, value)
+        await db.commit()
+        await db.refresh(platform_product)
+         
+        results.append(platform_product)
 
-    await db.commit()
-    await db.refresh(platform_product)
-    return platform_product
+    return results
