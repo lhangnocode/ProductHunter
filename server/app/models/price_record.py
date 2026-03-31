@@ -1,6 +1,6 @@
 from sqlalchemy import Column, BigInteger, Numeric, Boolean, TIMESTAMP, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
-from app.db.base_class import Base
+from app.db.session import Base
 
 class PriceRecord(Base):
     __tablename__ = "price_records"
