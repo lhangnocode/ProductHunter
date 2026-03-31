@@ -7,11 +7,11 @@ from typing import List
 from app.db.session import get_db
 from app.handlers.handler_product import search_product
 from app.models.product import Product
-from app.schemas.product import ProductResponse
+from app.schemas.product import ProductResponse, ProductSearchItem
 
 router = APIRouter()
 
-@router.get("/search", response_model=List[ProductResponse])
+@router.get("/search", response_model=List[ProductSearchItem])
 async def search_products( 
     name: str = Query(..., description="Name Product pro..."),
     limit: int = Query(20, ge=1, le=100),
