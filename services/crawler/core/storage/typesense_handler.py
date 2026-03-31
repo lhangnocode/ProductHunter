@@ -8,19 +8,18 @@ try:
     import requests
 except Exception:  # pragma: no cover - optional dependency
     requests = None
-
+    
+DEFAULT_COLLECTION_SCHEMA = {
+    "name": "products",
+    "fields": [
+        {"name": "id", "type": "string"},
+        {"name": "normalized_name", "type": "string"},
+        {"name": "slug", "type": "string"},
+    ],
+}
 
 class TypesenseHandler:
     """Minimal Typesense HTTP client for product search collection."""
-
-    DEFAULT_COLLECTION_SCHEMA = {
-        "name": "products",
-        "fields": [
-            {"name": "id", "type": "string"},
-            {"name": "normalized_name", "type": "string"},
-            {"name": "slug", "type": "string"},
-        ],
-    }
 
     def __init__(
         self,
@@ -40,7 +39,7 @@ class TypesenseHandler:
 
     def ensure_collection(self, schema: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         session = self._get_session()
-        schema = schema or self.DEFAULT_COLLECTION_SCHEMA
+        schema = schema or DEFAULT_COLLECTION_SCHEMA
         name = schema.get("name", "products")
         url = f"{self._base_url()}/collections/{name}"
         response = session.get(url, headers=self._headers(), timeout=self.timeout)

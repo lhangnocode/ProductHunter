@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 import sqlite3
-from typing import Any, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Iterable, Optional, Sequence
 from urllib.parse import urlparse
 
 
 class DatabaseHandler:
     """Lightweight DB handler with connect + query helpers."""
 
-    def __init__(self, db_url: str) -> None:
-        self.db_url = db_url
+    def __init__(self, db_url: Optional[str] = None) -> None:
+        self._load_env_file()
+        self.db_url = db_url or self._build_db_url()
         self._conn = None
 
     def connect(self) -> Any:
@@ -69,3 +72,33 @@ class DatabaseHandler:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+
+    def _load_env_file(self) -> None:
+        env_path = Path(__file__).resolve().parents[3] / ".env"
+        if not env_path.exists():
+            return
+
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+    def _build_db_url(self) -> str:
+        env_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
+        if env_url:
+            return env_url
+
+        host = os.getenv("POSTGRES_HOST")
+        port = os.getenv("POSTGRES_PORT", "5432")
+        user = os.getenv("POSTGRES_USER")
+        password = os.getenv("POSTGRES_PASSWORD", "")
+        db_name = os.getenv("POSTGRES_DB")
+
+        if host and user and db_name:
+            if password:
+                return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
+            return f"postgresql://{user}@{host}:{port}/{db_name}"
+
+        return "sqlite:///crawler.db"
