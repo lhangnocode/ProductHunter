@@ -13,8 +13,8 @@ DEFAULT_COLLECTION_SCHEMA = {
     "name": "products",
     "fields": [
         {"name": "id", "type": "string"},
-        {"name": "normalized_name", "type": "string"},
-        {"name": "slug", "type": "string"},
+        {"name": "normalized_name", "type": "string", "infix": True},
+        {"name": "slug", "type": "string", "infix": True},
     ],
 }
 
