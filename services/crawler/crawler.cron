@@ -1,0 +1,3 @@
+# Run ProductHunter crawler daily at 1 AM.
+# Replace /path/to/ProductHunter with the absolute repo path.
+0 1 * * * /bin/bash /path/to/ProductHunter/services/crawler/run_crawler.sh >> /path/to/ProductHunter/services/crawler/output/cron.log 2>&1
