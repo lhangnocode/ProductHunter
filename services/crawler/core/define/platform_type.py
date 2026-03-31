@@ -1,0 +1,10 @@
+class PlatformType:
+    GENERAL = 0,
+    SHOPEE = 1,
+    TIKISHOP = 2,
+    TIKI = 3,
+    LAZADA = 4,
+    ALIBABA = 5,
+    CELLPHONES = 6,
+    FPTSHOP = 7,
+    PHONGVU = 8,
