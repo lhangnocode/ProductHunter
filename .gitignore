@@ -18,3 +18,5 @@ typesense-data/
 # Node / Frontend build
 node_modules/
 dist/
+
+*.csv
