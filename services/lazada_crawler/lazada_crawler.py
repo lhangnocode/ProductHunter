@@ -9,14 +9,115 @@ from urllib.parse import urlparse, parse_qs, quote
 from datetime import datetime
 import re
 import unicodedata
+import os
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+API_BASE_URL = API_BASE_URL = f"http://{os.getenv('SERVER_IP', 'localhost')}:{os.getenv('PORT', '3000')}/api/v1"
+DEV_API_KEY = os.getenv("DEV_API_KEY")
+
+headers = {
+    "X-API-KEY": DEV_API_KEY,
+    "Content-Type": "application/json"
+}
+
+FIXED_PRODUCT_ID = "e9f7fea1-5adb-49dc-8b33-968e6424b3d3"
+FIXED_PLATFORM_ID = 4  # Lazada
 
 
+def slugify(text: str) -> str:
+    # Chuyển tiếng Việt có dấu thành không dấu
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    return text.strip('-')
+
+def normalize_price(price_str):
+    if not price_str: return None
+    try:
+        # Xóa các ký tự không phải số (ví dụ "đ800,000" -> 800000)
+        clean_price = re.sub(r'[^\d]', '', str(price_str))
+        return float(clean_price)
+    except:
+        return None
+
+def format_url(url):
+    if not url:
+        return ""
+    if url.startswith("//"):
+        return f"https:{url}"
+    return url
+
+def push_to_db(scraped_items):
+    """
+    scraped_items: Danh sách các dictionary sản phẩm cào được
+    """
+    print(f"\n--- Bắt đầu đẩy {len(scraped_items)} sản phẩm vào Database ---")
+    
+    success_count = 0
+    fail_count = 0
+    consecutive_errors = 0  # Biến đếm lỗi liên tiếp
+    MAX_CONSECUTIVE_ERRORS = 5 # Nếu lỗi 5 lần liên tục thì dừng hẳn
+
+    for item in scraped_items:
+        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+            print(f"\n[!!!] ĐÃ XẢY RA {MAX_CONSECUTIVE_ERRORS} LỖI LIÊN TIẾP. DỪNG PUSH ĐỂ KIỂM TRA API.")
+            break
+
+        try:
+            # Chuẩn bị dữ liệu theo PlatformProductIngestRequest
+            # Lưu ý: Các key item.get() phải khớp với key bạn lưu trong hàm crawl_category
+            platform_payload = {
+                "product_id": FIXED_PRODUCT_ID,
+                "platform_id": FIXED_PLATFORM_ID,
+                "raw_name": item.get('name'),
+                "original_item_id": str(item.get('ID')),
+                "url": format_url(item.get('itemUrl') or item.get('url')),
+                "affiliate_url": None,
+                "current_price": normalize_price(item.get('price')),
+                "original_price": normalize_price(item.get('originalPriceShow')),
+                "in_stock": item.get('inStock', True),
+                "last_crawled_at": datetime.now().isoformat()
+            }
+
+            # Endpoint push trực tiếp vào bảng platform_products
+            plat_res = requests.post(
+                # f"{API_BASE_URL}/crawler/platform-products", 
+                f"http://100.103.194.32:8000/api/v1/crawler/platform-products", 
+                json=platform_payload, 
+                headers=headers,
+                timeout=10
+            )
+            
+            if plat_res.status_code in [200, 201]:
+                success_count += 1
+                print(f"[OK] {item.get('name')[:40]}...")
+            elif plat_res.status_code == 409:
+                # Nếu API của bạn có check UniqueConstraint, nó sẽ trả về 409 nếu item_id đã tồn tại
+                print(f"[!] Sản phẩm đã tồn tại (Skip): {item.get('ID')}")
+                fail_count += 1
+            else:
+                print(f"[Error] {plat_res.status_code}: {plat_res.text}")
+                fail_count += 1
+                consecutive_errors += 1 
+
+        except Exception as e:
+            print(f"[Exception] Lỗi khi xử lý item {item.get('ID')}: {e}")
+            fail_count += 1
+            consecutive_errors += 1 
+
+    print(f"\n--- Hoàn thành: Thành công {success_count}, Thất bại {fail_count} ---")
 
 class LazadaCaptchaError(Exception):
     pass
 
 class LazadaCrawler:
     def __init__(self):
+        self.server_ip = os.getenv("SERVER_IP", "localhost")
+        self.server_port = os.getenv("PORT", "3000")
+        self.dev_api_key = os.getenv("DEV_API_KEY")
+
+
         self.all_results = []
         self.api_url = 'https://www.lazada.vn/catalog/'
         self.session = requests.Session()
@@ -196,11 +297,26 @@ class LazadaCrawler:
             data = self.crawl_page(category=category, page=page)
             if data:
                 for item in data:
+                    raw_url = item.get('itemUrl', '')
+                    clean_url = f"https:{raw_url}" if raw_url.startswith('//') else raw_url
                     product = {
-                        'ID': item.get('itemId'),
-                        'name': item.get('name'),
+                        # Các trường cho bảng platform_products
+                        'original_item_id': item.get('itemId'),
+                        'raw_name': item.get('name'),
+                        'current_price': item.get('price'),
+                        'original_price': item.get('originalPriceShow'), # Giá gốc trước khi giảm
+                        'url': clean_url,
+                        'in_stock': item.get('inStock'),
+                        'location': item.get('location'),
+                        
+                        # Các trường bổ sung để hỗ trợ điền vào bảng products (bảng cha)
                         'brand_name': item.get('brandName'),
-                        'price': item.get('price'),
+                        'main_image_url': item.get('image'),
+                        'category_name': category, # Tên ngành hàng bạn đang cào
+                        
+                        # Metadata để quản lý
+                        'platform_name': 'Lazada',
+                        'last_crawled_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                     results_category.append(product)
                 print(f"Đã xong trang {page}. Các trang đã cào có tổng cộng: {len(results_category)} sản phẩm.")
@@ -225,6 +341,7 @@ class LazadaCrawler:
         finally:
             # Dù lỗi hay không cũng sẽ lưu dữ liệu đã cào được
             self.save_data_to_csv(path_csv)
+            push_to_db(self.all_results)
             print("Thời gian kết thúc:", datetime.now())
         
     
