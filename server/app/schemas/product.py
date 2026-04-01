@@ -3,6 +3,8 @@ from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
 
+from app.schemas.platform import PlatformPriceItem
+
 class ProductPriceBase(BaseModel):
     platform: str
     price: float
@@ -10,7 +12,6 @@ class ProductPriceBase(BaseModel):
     product_url: str
     seller: Optional[str] = None
     in_stock: int = 1
-
 
 class ProductPriceResponse(ProductPriceBase):
     id: int
@@ -20,30 +21,38 @@ class ProductPriceResponse(ProductPriceBase):
     class Config:
         from_attributes = True
 
-
 class ProductBase(BaseModel):
     normalized_name: str
-    normalized_name: str
+    # Đã xóa dòng normalized_name bị trùng
     description: Optional[str] = None
     category: Optional[str] = None
     image_url: Optional[str] = None
 
-
 class ProductCreate(ProductBase):
     pass
 
-
 class ProductResponse(ProductBase):
     id: UUID
-    id: UUID
-    normalized_name: Optional[str] = None
+    # Đã xóa dòng id bị trùng
     created_at: datetime
     prices: List[ProductPriceResponse] = []
 
     class Config:
         from_attributes = True
 
-
 class ProductSearchResponse(BaseModel):
     total: int
     items: List[ProductResponse]
+
+class ProductCompareGroup(BaseModel):
+    id: UUID
+    normalized_name: str
+    slug: str
+    main_image_url: Optional[str] = None
+    lowest_price: Optional[float] = None 
+    platforms: List[PlatformPriceItem]
+
+class SearchCompareResponse(BaseModel):
+    keyword: str
+    total_results: int
+    data: List[ProductCompareGroup]
