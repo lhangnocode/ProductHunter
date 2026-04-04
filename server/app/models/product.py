@@ -20,3 +20,4 @@ class Product(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     platform_products = relationship("PlatformProduct", back_populates="product")
+    price_alerts = relationship("PriceAlert", back_populates="product", cascade="all, delete-orphan")
