@@ -13,7 +13,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
-API_BASE_URL = API_BASE_URL = f"http://{os.getenv('SERVER_IP', 'localhost')}:{os.getenv('PORT', '3000')}/api/v1"
+API_BASE_URL = f"http://{os.getenv('SERVER_IP', 'localhost')}:{os.getenv('PORT', '3000')}/api/v1"
 DEV_API_KEY = os.getenv("DEV_API_KEY")
 
 headers = {
