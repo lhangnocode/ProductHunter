@@ -402,7 +402,7 @@ import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { fetchPriceHistory } from '../services/api'; // Đảm bảo đã import hàm này
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis } from '../services/api'; // Đảm bảo đã import hàm này
 
 interface ProductDetailProps {
   platformProduct: any; // Nhận dữ liệu phẳng từ DB
@@ -414,38 +414,59 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
-  console.log("Dữ liệu nhận được trong Detail:", platformProduct);
   const { t, language } = useLanguage();
   const [historyData, setHistoryData] = useState<any[]>([]);
+  const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
+
 
   // 1. Ép kiểu dữ liệu từ DB (String -> Number)
   const currentPrice = parseFloat(platformProduct.current_price) || 0;
   const originalPrice = parseFloat(platformProduct.original_price) || 0;
 
+  useEffect(() => {
+    if (platformProduct) {
+      console.log("Dữ liệu sản phẩm hiện tại:", platformProduct.raw_name);
+    }
+  }, [platformProduct?.id]); 
+
   // 2. useEffect gọi API lấy lịch sử giá thật
   useEffect(() => {
-    async function loadHistory() {
+    async function loadHistoryAndAnalysis() {
       setLoading(true);
       try {
-        const data = await fetchPriceHistory(initialPlatformId);
-        const formatted = data.map(record => ({
+        const [historyRes, analysisRes] = await Promise.all([
+          fetchPriceHistory(initialPlatformId),
+          fetchPriceAnalysis(initialPlatformId, currentPrice, originalPrice)
+        ]);
+
+        // Xử lý dữ liệu Lịch sử (để vẽ biểu đồ)
+        const formattedHistory = historyRes.map(record => ({
           date: new Date(record.recorded_at).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
             month: 'short',
             day: 'numeric'
           }),
           price: Number(record.price)
         }));
-        setHistoryData(formatted);
+        setHistoryData(formattedHistory);
+        setAnalysis(analysisRes)
       } catch (err) {
         console.error("Lỗi lấy lịch sử giá:", err);
       } finally {
         setLoading(false);
       }
     }
-    loadHistory();
-  }, [initialPlatformId, language]);
+    loadHistoryAndAnalysis();
+  }, [initialPlatformId, language, platformProduct.current_price, platformProduct.original_price]);
+
+  const getStatusStyles = (status: string) => {
+    switch(status) {
+      case 'extreme': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-950/30 dark:text-rose-400';
+      case 'fake': return 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:text-amber-400';
+      case 'good': return 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400';
+      default: return 'text-slate-600 bg-slate-50 border-slate-100 dark:bg-slate-800 dark:text-slate-400';
+    }
+  };
 
   const formatPrice = (value: number) => {
     const locale = language === 'vi' ? 'vi-VN' : 'en-US';
@@ -460,47 +481,167 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
 
   const getPlatformName = (id: number) => {
     switch(id) {
-      case 7: return 'Shopee';
-      case 8: return 'Lazada';
+      case 7: return 'FPT Shop';
+      case 8: return 'Phong Vũ';
       default: return 'Sàn khác';
     }
   };
 
   const platformName = getPlatformName(platformProduct.platform_id);
 
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60"
-    >
-      {/* Header Buttons */}
+//   return (
+//     <div 
+//       initial={{ opacity: 0, y: 20 }}
+//       animate={{ opacity: 1, y: 0 }}
+//       className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60"
+//     >
+//       {/* Header Buttons */}
+//       <div className="sticky top-0 z-30 flex items-center justify-between border-b p-4 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
+//         <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase border rounded-full">
+//           <ArrowLeft size={14} /> {t('back')}
+//         </button>
+//         <div className="flex gap-2">
+//            <button onClick={() => onAddWishlist(platformProduct)} className={`h-9 w-9 flex items-center justify-center rounded-full border ${isWishlisted ? 'bg-brand-primary text-white' : ''}`}>
+//               <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
+//            </button>
+//         </div>
+//       </div>
+
+//       <div className="grid grid-cols-1 lg:grid-cols-12">
+//         {/* Cột trái: Ảnh & Thông tin cơ bản */}
+//         <div className="p-8 md:p-12 lg:col-span-5 border-r dark:border-slate-800">
+//           <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8">
+//             <img 
+//               src={platformProduct.main_image_url || "https://picsum.photos/seed/product/400/400"} 
+//               alt={platformProduct.raw_name} 
+//               className="h-full w-full object-contain"
+//             />
+//           </div>
+          
+//           <div className="mb-4 inline-flex items-center rounded-sm bg-brand-primary/10 px-2 py-1 text-[9px] font-black uppercase text-brand-primary">
+//             {platformProduct.category || "Electronics"}
+//           </div>
+//           <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display">
+//             {platformProduct.raw_name}
+//           </h1>
+          
+//           <div className="mb-8 flex flex-wrap gap-4">
+//             <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20">
+//               <Star size={16} className="fill-amber-400 text-amber-400" />
+//               <span className="text-sm font-black text-amber-700 dark:text-amber-400">{platformProduct.rating || '0.0'}</span>
+//             </div>
+//             <div className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40">
+//               <Package size={16} className="text-slate-500" />
+//               <span className={`text-sm font-black ${platformProduct.in_stock ? 'text-brand-success' : 'text-rose-500'}`}>
+//                 {platformProduct.in_stock ? t('inStock') : t('outOfStock')}
+//               </span>
+//             </div>
+//           </div>
+
+//           {/* Deal Analysis Box */}
+//           <div className="mb-8 rounded-[1.5rem] bg-slate-900 p-7 text-white shadow-2xl">
+//               <div className="mb-6 flex items-center justify-between">
+//                 <h3 className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-primary font-display">
+//                   <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
+//                 </h3>
+//               </div>
+//               <div className="flex items-center justify-between border-b border-white/10 pb-5">
+//                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá hiện tại</span>
+//                   <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(currentPrice)}</span>
+//               </div>
+//           </div>
+//         </div>
+
+//         {/* Cột phải: Lịch sử và Thông tin sàn */}
+//         <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
+//           <section className="mb-12">
+//             <h2 className="mb-8 flex items-center gap-3 text-2xl font-black uppercase text-slate-950 dark:text-white font-display">
+//               <ShoppingCart size={24} className="text-brand-primary" />
+//               {t('comparePlatforms')}
+//             </h2>
+            
+//             {/* Vì dữ liệu phẳng, ta chỉ hiển thị 1 sàn duy nhất đã chọn */}
+//             <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between">
+//               <div className="flex items-center gap-5">
+//                 <div className="h-12 w-12 flex items-center justify-center bg-orange-500 rounded-xl text-white font-bold text-xl">
+//                   {platformName[0]}
+//                 </div>
+//                 <div>
+//                   <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platformName}</span>
+//                   <p className="text-[11px] font-bold text-slate-400">Đang xem lịch sử giá tại sàn này</p>
+//                 </div>
+//               </div>
+//               <a href={platformProduct.url} target="_blank" className="bg-brand-primary text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase">
+//                 {t('goToSeller')}
+//               </a>
+//             </div>
+//           </section>
+
+//           {/* Biểu đồ lịch sử giá thật - Sửa Layout ở đây */}
+//           <section>
+//             <div className="mb-8 flex items-center justify-between">
+//               <h2 className="text-2xl font-black uppercase text-slate-950 dark:text-white font-display">{t('priceHistory6Months')}</h2>
+//             </div>
+            
+//             {/* Div cha cố định h-[400px], không dùng items-center nếu có biểu đồ bên trong */}
+//             <div className="relative rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 h-[400px] w-full overflow-hidden">
+//               {loading ? (
+//                 <div className="absolute inset-0 flex items-center justify-center">
+//                   <p className="italic text-slate-400 animate-pulse text-sm">Đang truy vấn lịch sử giá từ DB...</p>
+//                 </div>
+//               ) : historyData.length > 0 ? (
+//                 <div className="h-full w-full p-6">
+//                   <PriceChart data={historyData} />
+//                 </div>
+//               ) : (
+//                 <div className="absolute inset-0 flex items-center justify-center">
+//                   <p className="text-slate-400 text-sm">Chưa có dữ liệu lịch sử giá cho sản phẩm này.</p>
+//                 </div>
+//               )}
+//             </div>
+//           </section>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+return (
+    <div className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60">
+      
+      {/* 1. Header Buttons */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b p-4 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
-        <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase border rounded-full">
+        <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase border rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
           <ArrowLeft size={14} /> {t('back')}
         </button>
         <div className="flex gap-2">
-           <button onClick={() => onAddWishlist(platformProduct)} className={`h-9 w-9 flex items-center justify-center rounded-full border ${isWishlisted ? 'bg-brand-primary text-white' : ''}`}>
+           <button onClick={() => onAddWishlist(platformProduct)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
               <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
            </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12">
-        {/* Cột trái: Ảnh & Thông tin cơ bản */}
-        <div className="p-8 md:p-12 lg:col-span-5 border-r dark:border-slate-800">
-          <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8">
+        
+        {/* 2. Cột trái: Ảnh & Thông tin cơ bản */}
+        <div className="p-8 md:p-12 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800">
+          <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8 border border-slate-100 dark:border-slate-700">
             <img 
               src={platformProduct.main_image_url || "https://picsum.photos/seed/product/400/400"} 
               alt={platformProduct.raw_name} 
               className="h-full w-full object-contain"
             />
           </div>
+
+          {/* Badge trạng thái từ hàm getStatusStyles của bạn */}
+          {analysis && (
+            <div className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] border shadow-sm ${getStatusStyles(analysis.deal_status)}`}>
+              <Zap size={12} className="fill-current" />
+              {analysis.deal_label}
+            </div>
+          )}
           
-          <div className="mb-4 inline-flex items-center rounded-sm bg-brand-primary/10 px-2 py-1 text-[9px] font-black uppercase text-brand-primary">
-            {platformProduct.category || "Electronics"}
-          </div>
-          <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display">
+          <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display leading-tight">
             {platformProduct.raw_name}
           </h1>
           
@@ -517,62 +658,101 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
             </div>
           </div>
 
-          {/* Deal Analysis Box */}
-          <div className="mb-8 rounded-[1.5rem] bg-slate-900 p-7 text-white shadow-2xl">
+          {/* Deal Analysis Box (Đoạn bạn vừa thêm) */}
+          <div className={`mb-8 rounded-[2rem] p-7 text-white shadow-2xl relative overflow-hidden transition-all duration-500 ${
+            analysis?.deal_status === 'fake' 
+              ? 'bg-amber-950/40 border border-amber-500/30' 
+              : 'bg-slate-900 border border-white/5'
+          }`}>
+            <div className="relative z-10">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-primary font-display">
+                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-primary font-display tracking-widest">
                   <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
                 </h3>
+                {analysis && (
+                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${getStatusStyles(analysis.deal_status)}`}>
+                    {analysis.deal_label}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center justify-between border-b border-white/10 pb-5">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá hiện tại</span>
-                  <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(currentPrice)}</span>
-              </div>
-          </div>
-        </div>
 
-        {/* Cột phải: Lịch sử và Thông tin sàn */}
+              <div className="space-y-5">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Giá hiện tại</span>
+                    <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(currentPrice)}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Thấp nhất lịch sử</span>
+                    <span className="font-mono text-xl font-black text-white/90">
+                      {analysis ? formatPrice(analysis.lowest_ever_price) : formatPrice(currentPrice)}
+                    </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Trung bình 30 ngày</span>
+                    <span className="font-mono text-xl font-black text-white/90">
+                      {analysis ? formatPrice(analysis.avg_price_30d) : formatPrice(currentPrice)}
+                    </span>
+                </div>
+                <div className="pt-2">
+                  <p className="text-[11px] font-bold text-slate-300 leading-relaxed italic">
+                    {analysis?.deal_status === 'fake' 
+                      ? "⚠️ Sản phẩm có dấu hiệu nâng giá ảo. Hãy kiểm tra biểu đồ bên dưới."
+                      : analysis?.deal_status === 'extreme'
+                      ? "🚀 Rẻ vô đối! Đây là mức giá thấp nhất từng ghi nhận được."
+                      : "ℹ️ Giá cả đang ở mức ổn định so với lịch sử niêm yết."}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Zap size={140} className="absolute -bottom-10 -right-10 text-white/5 rotate-12 pointer-events-none" />
+          </div>
+        </div> {/* Đóng cột trái */}
+
+        {/* 3. Cột phải: So sánh & Lịch sử */}
         <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
           <section className="mb-12">
             <h2 className="mb-8 flex items-center gap-3 text-2xl font-black uppercase text-slate-950 dark:text-white font-display">
               <ShoppingCart size={24} className="text-brand-primary" />
               {t('comparePlatforms')}
             </h2>
-            
-            {/* Vì dữ liệu phẳng, ta chỉ hiển thị 1 sàn duy nhất đã chọn */}
-            <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between">
+            <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-5">
-                <div className="h-12 w-12 flex items-center justify-center bg-orange-500 rounded-xl text-white font-bold text-xl">
+                <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl ${platformProduct.platform_id === 7 ? 'bg-[#ee4d2d]' : 'bg-[#003da5]'}`}>
                   {platformName[0]}
                 </div>
                 <div>
                   <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platformName}</span>
-                  <p className="text-[11px] font-bold text-slate-400">Đang xem lịch sử giá tại sàn này</p>
+                  <p className="text-[11px] font-bold text-slate-400">Đang xem dữ liệu từ sàn này</p>
                 </div>
               </div>
-              <a href={platformProduct.url} target="_blank" className="bg-brand-primary text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase">
+              <a href={platformProduct.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90">
                 {t('goToSeller')}
               </a>
             </div>
           </section>
 
-          {/* Biểu đồ lịch sử giá thật */}
           <section>
             <div className="mb-8 flex items-center justify-between">
               <h2 className="text-2xl font-black uppercase text-slate-950 dark:text-white font-display">{t('priceHistory6Months')}</h2>
             </div>
-            <div className="rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 p-8 border min-h-[350px] flex items-center justify-center">
+            <div className="relative rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 h-[400px] w-full overflow-hidden">
               {loading ? (
-                <p className="italic text-slate-400 animate-pulse">Đang truy vấn lịch sử giá từ DB...</p>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="italic text-slate-400 animate-pulse text-sm">Đang tải...</p>
+                </div>
               ) : historyData.length > 0 ? (
-                <PriceChart data={historyData} />
+                <div className="h-full w-full p-6">
+                   <PriceChart data={historyData} />
+                </div>
               ) : (
-                <p className="text-slate-400">Chưa có dữ liệu lịch sử giá cho sản phẩm này.</p>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="text-slate-400 text-sm">Chưa có dữ liệu lịch sử giá.</p>
+                </div>
               )}
             </div>
           </section>
-        </div>
-      </div>
-    </motion.div>
+        </div> {/* Đóng cột phải */}
+      </div> {/* Đóng Grid */}
+    </div> 
   );
 }

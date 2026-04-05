@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models.price_record import PriceRecord 
 from app.schemas.price_record import PriceRecordResponse
 from app.models.platform_product import PlatformProduct
+from app.handlers.handler_price_record import analyze_price_status
 
 router = APIRouter()
 
@@ -74,3 +75,13 @@ async def create_price_record(
     )
     db.add(price_record)
     return price_record
+
+
+@router.get("/price-analysis/{platform_product_id}")
+async def get_price_analysis(
+    platform_product_id: str, 
+    current_price: float, 
+    original_price: float, 
+    db: AsyncSession = Depends(get_db)
+):
+    return await analyze_price_status(db, platform_product_id, current_price, original_price)
