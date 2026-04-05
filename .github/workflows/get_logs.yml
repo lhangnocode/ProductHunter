@@ -31,7 +31,7 @@ jobs:
             ssh -i ~/.ssh/id_ed25519 $USER@$HOST '
               set -e
               cd /home/pi/ProductHunter/server
-              docker compose logs --n=1000
+              docker compose logs -n 1000
             '
 
         
