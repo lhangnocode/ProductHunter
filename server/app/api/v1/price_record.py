@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from uuid import UUID
 
 from app.db.session import get_db
 from app.models.price_record import PriceRecord 
@@ -37,11 +38,11 @@ async def get_all_price_records(
     return result.scalars().all()
 
 @router.get(
-    "/price-records/{product_id}",
+    "/price-records/{platform_product_id}",
     response_model=List[PriceRecordResponse]
 )
 async def get_price_record_by_platform_product_id(
-    platform_product_id: str, # UUID truyền vào từ URL
+    platform_product_id: UUID, # UUID truyền vào từ URL
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -50,7 +51,7 @@ async def get_price_record_by_platform_product_id(
     stmt = (
         select(PriceRecord)
         .where(PriceRecord.platform_product_id == platform_product_id)
-        .order_by(PriceRecord.recorded_at.desc())
+        .order_by(PriceRecord.recorded_at.asc())
     )
     result = await db.execute(stmt)
     return result.scalars().all()
