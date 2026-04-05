@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'server/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
+      - 'services/**'  # Cú pháp này sẽ bắt mọi thay đổi bên trong thư mục services
 
 jobs:
   deploy:

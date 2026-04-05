@@ -30,6 +30,18 @@ class Settings(BaseSettings):
     TYPESENSE_PORT: int = 8108
     TYPESENSE_API_KEY: str = ""
 
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    MAIL_USERNAME: str = "default@email.com"
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = "noreply@producthunt.com"
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+
     @property
     def DATABASE_URL(self) -> str:
         user = quote_plus(self.POSTGRES_USER)
