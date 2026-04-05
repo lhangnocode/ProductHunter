@@ -25,3 +25,19 @@ export async function fetchPriceHistory(platformProductId: string): Promise<Pric
   
   return response.json();
 }
+
+export interface PriceAnalysis {
+  deal_status: 'extreme' | 'fake' | 'good' | 'slight' | 'stable';
+  deal_label: string;
+  lowest_ever_price: number;
+  avg_price_30d: number;
+  current_price: number;
+}
+
+export async function fetchPriceAnalysis(id: string, current: number, original: number): Promise<PriceAnalysis> {
+  const response = await fetch(
+    `${CONFIG.API_URL}/price_record/price-analysis/${id}?current_price=${current}&original_price=${original}`
+  );
+  if (!response.ok) throw new Error('Analysis failed');
+  return response.json();
+}

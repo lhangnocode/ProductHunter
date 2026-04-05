@@ -1,6 +1,6 @@
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.models.price_record import PriceRecord
 from typing import Dict, Any
 
@@ -27,7 +27,8 @@ async def analyze_price_status(
         lowest_ever = current_price
 
     # 2. Tính giá trung bình 30 ngày gần nhất
-    thirty_days_ago = datetime.now() - timedelta(days=30)
+    utc_now = datetime.now(timezone.utc)
+    thirty_days_ago = utc_now - timedelta(days=30)
     stmt_avg = select(func.avg(PriceRecord.price)).where(
         and_(
             PriceRecord.platform_product_id == platform_product_id,
