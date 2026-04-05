@@ -19,6 +19,8 @@ class PlatformProduct(Base):
     affiliate_url = Column(Text, nullable=True)
     current_price = Column(Numeric(12, 2), nullable=True)
     original_price = Column(Numeric(12, 2), nullable=True)
+    rating = Column(Numeric(3, 2), nullable=True)
+    reviews_count = Column(Integer, nullable=False, default=0, server_default="0")
     in_stock = Column(Boolean, nullable=False, default=True, server_default="true")
     last_crawled_at = Column(DateTime(timezone=True), nullable=True)
 
