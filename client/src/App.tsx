@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { MOCK_PRODUCTS, Product } from './data/mockData';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Search, TrendingUp, Heart, Bell, Menu, X, Command, Bird, Zap, User, ChevronRight, LogOut, LogIn, Sun, Moon, Languages, ChevronDown, Trash2, ExternalLink, CheckCircle2, Clock, ArrowRight, Smartphone, Home, Headphones, Watch } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { searchPlatformProducts } from './services/api';
 
 type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';
@@ -33,8 +34,10 @@ function AppContent() {
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
 
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
+  const handleProductClick = (product: any) => {
+    setSelectedPlatformProduct(product);
+    setCurrentPlatformId(product.id);
+
     setRecentlyViewed(prev => {
       const filtered = prev.filter(id => id !== product.id);
       const next = [product.id, ...filtered].slice(0, 4);
@@ -51,39 +54,94 @@ function AppContent() {
 
   const categories = ['All', 'Electronics', 'Audio', 'Accessories', 'Home Appliances'];
 
+  const [platformProducts, setPlatformProducts] = useState<any[]>([]);
+  const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPlatformId, setCurrentPlatformId] = useState<string>('');
+  
+  useEffect(() => {
+    const fetchSearchData = async () => {
+      if (!searchQuery.trim()) {
+        setPlatformProducts([]);
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const data = await searchPlatformProducts(searchQuery); 
+        setPlatformProducts(data); // Lưu vào platformProducts
+      } catch (error) {
+        console.error("Lỗi truy vấn DB:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchSearchData, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // 3. Cập nhật useMemo
   const searchResults = useMemo(() => {
-    let results = [...MOCK_PRODUCTS];
+    let results = [...platformProducts];
+    // Lọc theo Category tại Frontend (nếu Backend chưa lọc)
     if (activeFilter !== 'All') {
       results = results.filter(p => p.category === activeFilter);
     }
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      results = results.filter(p => 
-        p.name.toLowerCase().includes(query) || 
-        p.category.toLowerCase().includes(query)
-      );
-    }
 
-    // Apply sorting
+    // Sắp xếp (Sorting) dựa trên trường current_price của DB
     results.sort((a, b) => {
-      const aMinPrice = Math.min(...a.platforms.map(p => p.price));
-      const bMinPrice = Math.min(...b.platforms.map(p => p.price));
+      const aPrice = parseFloat(a.current_price) || 0;
+      const bPrice = parseFloat(b.current_price) || 0;
 
       switch (sortBy) {
-        case 'price-asc':
-          return aMinPrice - bMinPrice;
-        case 'price-desc':
-          return bMinPrice - aMinPrice;
-        case 'rating':
-          return b.rating - a.rating;
-        case 'trending':
-        default:
-          return (a.isTrending === b.isTrending) ? 0 : a.isTrending ? -1 : 1;
+        case 'price-asc': return aPrice - bPrice;
+        case 'price-desc': return bPrice - aPrice;
+        case 'rating': return (b.rating || 0) - (a.rating || 0);
+        default: return 0; // Trending logic có thể thêm sau nếu DB có trường này
       }
     });
-
     return results;
-  }, [searchQuery, activeFilter, sortBy]);
+  }, [platformProducts, activeFilter, sortBy]);
+
+  // 4. Cập nhật hàm điều hướng
+  const handleNavigateToDetail = (platformProduct: any, platformId: string) => {
+    setSelectedPlatformProduct(platformProduct);
+    setCurrentPlatformId(platformId);
+  };
+
+
+  // const searchResults = useMemo(() => {
+  //   let results = [...MOCK_PRODUCTS];
+  //   if (activeFilter !== 'All') {
+  //     results = results.filter(p => p.category === activeFilter);
+  //   }
+  //   if (searchQuery.trim()) {
+  //     const query = searchQuery.toLowerCase();
+  //     results = results.filter(p => 
+  //       p.name.toLowerCase().includes(query) || 
+  //       p.category.toLowerCase().includes(query)
+  //     );
+  //   }
+
+  //   // Apply sorting
+  //   results.sort((a, b) => {
+  //     const aMinPrice = Math.min(...a.platforms.map(p => p.price));
+  //     const bMinPrice = Math.min(...b.platforms.map(p => p.price));
+
+  //     switch (sortBy) {
+  //       case 'price-asc':
+  //         return aMinPrice - bMinPrice;
+  //       case 'price-desc':
+  //         return bMinPrice - aMinPrice;
+  //       case 'rating':
+  //         return b.rating - a.rating;
+  //       case 'trending':
+  //       default:
+  //         return (a.isTrending === b.isTrending) ? 0 : a.isTrending ? -1 : 1;
+  //     }
+  //   });
+
+  //   return results;
+  // }, [searchQuery, activeFilter, sortBy]);
 
   const trendingProducts = useMemo(() => MOCK_PRODUCTS.filter(p => p.isTrending), []);
   const wishlistedProducts = useMemo(() => MOCK_PRODUCTS.filter(p => wishlist.includes(p.id)), [wishlist]);
@@ -136,15 +194,36 @@ function AppContent() {
     }
   };
 
+  // const renderContent = () => {
+  //   if (selectedProduct) {
+  //     return (
+  //       <ProductDetail 
+  //         product={selectedProduct} 
+  //         onBack={() => setSelectedProduct(null)}
+  //         onAddWishlist={handleAddWishlist}
+  //         onSetAlert={handleSetAlert}
+  //         isWishlisted={wishlist.includes(selectedProduct.id)}
+  //       />
+  //     );
+  //   }
+
   const renderContent = () => {
-    if (selectedProduct) {
+    // 1. Kiểm tra state mới: selectedPlatformProduct
+    if (selectedPlatformProduct) {
       return (
         <ProductDetail 
-          product={selectedProduct} 
-          onBack={() => setSelectedProduct(null)}
-          onAddWishlist={handleAddWishlist}
-          onSetAlert={handleSetAlert}
-          isWishlisted={wishlist.includes(selectedProduct.id)}
+          // 2. Truyền prop đúng tên: platformProduct
+          platformProduct={selectedPlatformProduct} 
+          
+          // 3. QUAN TRỌNG: Phải truyền thêm ID để lấy lịch sử giá
+          initialPlatformId={currentPlatformId} 
+          
+          onBack={() => setSelectedPlatformProduct(null)}
+          onAddWishlist={() => showToast(t('addedToWishlist'), 'success')}
+          onSetAlert={() => showToast(t('priceAlertSet'), 'success')}
+          
+          // 4. Kiểm tra wishlist dựa trên ID của platformProduct
+          isWishlisted={wishlist.includes(selectedPlatformProduct.id)}
         />
       );
     }
