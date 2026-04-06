@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'server/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
+      - 'services/**'  # Cú pháp này sẽ bắt mọi thay đổi bên trong thư mục services
 
 jobs:
   deploy:
@@ -39,4 +44,13 @@ jobs:
             cd /home/pi/ProductHunter/server
             git pull origin main
             docker compose up -d --build
+            for i in {1..15}; do
+              if curl -fsS http://localhost:8000/health > /dev/null; then
+                echo "API health check passed"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "API health check failed"
+            exit 1
           '

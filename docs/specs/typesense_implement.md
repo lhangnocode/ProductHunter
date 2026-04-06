@@ -34,8 +34,8 @@ Minimal schema (JSON):
   "name": "products",
   "fields": [
     { "name": "id", "type": "string" },
-    { "name": "normalized_name", "type": "string" },
-    { "name": "slug", "type": "string" }
+    { "name": "normalized_name", "type": "string", "infix": true },
+    { "name": "slug", "type": "string", "infix": true }
   ]
 }
 ```

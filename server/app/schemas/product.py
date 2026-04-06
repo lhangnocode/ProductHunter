@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -24,6 +24,7 @@ class ProductPriceResponse(ProductPriceBase):
 class ProductBase(BaseModel):
     normalized_name: str
     # Đã xóa dòng normalized_name bị trùng
+    
     description: Optional[str] = None
     category: Optional[str] = None
     image_url: Optional[str] = None
@@ -44,6 +45,7 @@ class ProductSearchResponse(BaseModel):
     total: int
     items: List[ProductResponse]
 
+
 class ProductCompareGroup(BaseModel):
     id: UUID
     normalized_name: str
@@ -56,3 +58,16 @@ class SearchCompareResponse(BaseModel):
     keyword: str
     total_results: int
     data: List[ProductCompareGroup]
+=======
+
+class ProductSearchItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    normalized_name: str
+    slug: str
+    brand: Optional[str] = None
+    category: Optional[str] = None
+    main_image_url: Optional[str] = None
+    created_at: datetime
+

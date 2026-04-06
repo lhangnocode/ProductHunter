@@ -81,4 +81,7 @@ async def get_all_platform_products(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi truy vấn dữ liệu: {str(e)}"
+
         )
+
+

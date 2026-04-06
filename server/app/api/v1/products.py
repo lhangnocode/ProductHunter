@@ -6,14 +6,18 @@ from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import false, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+
 from app.db.session import get_db
+from app.handlers.handler_product import search_product
 from app.models.product import Product
 from app.schemas.product import ProductCompareGroup, ProductResponse, SearchCompareResponse
 from app.schemas.platform import PlatformPriceItem
 from sqlalchemy.orm import selectinload
 
+
+
 router = APIRouter()
-# 1. Xác định vị trí file products.py hiện tại
+
 # current_file = Path(__file__).resolve()
 # server_dir = current_file.parents[3] 
 # MOCK_FILE_PATH = server_dir / "mock_data" / "mock_platform_data.json"
@@ -78,14 +82,14 @@ MOCK_PLATFORM_DATA = [
   }
 ]
 
-@router.get("/search", response_model=List[ProductResponse])
+@router.get("/search", response_model=List[ProductSearchItem])
 async def search_products( 
     name: str = Query(..., description="Name Product pro..."),
-    db: AsyncSession = Depends(get_db)
+    limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Product).where(Product.normalized_name.ilike(f"%{name}%"))
-    result = await db.execute(stmt)
-    products = result.scalars().all()
+    products = await search_product(name, db=db, limit=limit, page=page)
     return products
 
 @router.get("/")
@@ -95,6 +99,7 @@ async def get_all_products(skip: int = 0, limit: int = 100, db: AsyncSession = D
     products = result.scalars().all()
     
     return products
+
 
 
 
@@ -164,8 +169,8 @@ async def search_and_compare_mock(
     db: AsyncSession = Depends(get_db) 
 ):
     print(f"\n{'='*40}")
-    print(f"🚀 BẮT ĐẦU TÌM KIẾM VỚI TỪ KHÓA: '{q}'")
-    print(f"📦 Số dữ liệu đang có trong file JSON: {len(MOCK_PLATFORM_DATA)} records")
+    print(f" BẮT ĐẦU TÌM KIẾM VỚI TỪ KHÓA: '{q}'")
+    print(f" Số dữ liệu đang có trong file JSON: {len(MOCK_PLATFORM_DATA)} records")
     print(f"{'='*40}")
 
     # 1. Tìm trong DB
@@ -173,13 +178,13 @@ async def search_and_compare_mock(
     result = await db.execute(query)
     db_products = result.scalars().all()
 
-    print(f"🔍 Bước 1: Database tìm thấy {len(db_products)} sản phẩm khớp từ khóa.")
+    print(f" Bước 1: Database tìm thấy {len(db_products)} sản phẩm khớp từ khóa.")
     
     matched_groups = []
 
     for product in db_products:
         product_id_str = str(product.id)
-        print(f"   👉 Check DB Product: [{product.normalized_name}] | ID: {product_id_str}")
+        print(f"    Check DB Product: [{product.normalized_name}] | ID: {product_id_str}")
         
         # 2. Tìm trong JSON
         platforms_for_this_product = [
@@ -187,10 +192,10 @@ async def search_and_compare_mock(
             if str(item.get("product_id")).strip().lower() == product_id_str.strip().lower()
         ]
 
-        print(f"   ✅ Có {len(platforms_for_this_product)} link sàn khớp với ID này trong JSON.")
+        print(f"    Có {len(platforms_for_this_product)} link sàn khớp với ID này trong JSON.")
 
         if not platforms_for_this_product:
-            print("   ❌ BỎ QUA vì không có link sàn nào!")
+            print("   BỎ QUA vì không có link sàn nào!")
             continue
 
         lowest_price = min(
@@ -208,7 +213,7 @@ async def search_and_compare_mock(
         )
         matched_groups.append(group)
 
-    print(f"🎯 KẾT LUẬN: Trả về cho Frontend {len(matched_groups)} nhóm sản phẩm.\n")
+    print(f" KẾT LUẬN: Trả về cho Frontend {len(matched_groups)} nhóm sản phẩm.\n")
 
     matched_groups.sort(key=lambda x: x.lowest_price if x.lowest_price else 999999999)
 
@@ -217,3 +222,4 @@ async def search_and_compare_mock(
         total_results=len(matched_groups),
         data=matched_groups
     )
+
