@@ -10,7 +10,7 @@ from typing import List
 from app.db.session import get_db
 from app.handlers.handler_product import search_product
 from app.models.product import Product
-from app.schemas.product import ProductCompareGroup, ProductResponse, SearchCompareResponse
+from app.schemas.product import ProductCompareGroup, ProductResponse, SearchCompareResponse, ProductSearchItem
 from app.schemas.platform import PlatformPriceItem
 from sqlalchemy.orm import selectinload
 
@@ -222,4 +222,3 @@ async def search_and_compare_mock(
         total_results=len(matched_groups),
         data=matched_groups
     )
-

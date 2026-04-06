@@ -58,7 +58,7 @@ class SearchCompareResponse(BaseModel):
     keyword: str
     total_results: int
     data: List[ProductCompareGroup]
-=======
+
 
 class ProductSearchItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
