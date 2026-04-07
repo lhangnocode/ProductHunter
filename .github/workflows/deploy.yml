@@ -8,7 +8,7 @@ on:
       - 'server/**'
       - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
-      - 'services/**'  # Cú pháp này sẽ bắt mọi thay đổi bên trong thư mục services
+      - 'services/**' 
 
 jobs:
   deploy:
