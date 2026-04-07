@@ -3,10 +3,14 @@ import { motion } from 'motion/react';
 import { Bird, ArrowRight, Bell, ShieldAlert, Play, TrendingDown, History, Star, ShoppingCart, Store, ShoppingBag, Package, Users, Heart } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { useLanguage } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext'; // 1. Import useUser
 
 export function LandingPage({ onStart }: { onStart: () => void }) {
   const [isAuthOpen, setIsAuthOpen] = React.useState(false);
   const { t } = useLanguage();
+  
+  // 2. Lấy state user từ Context
+  const { user } = useUser(); 
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] dark:bg-[#050505] text-slate-900 dark:text-slate-100 selection:bg-brand-primary selection:text-white overflow-x-hidden font-sans transition-colors duration-300 relative">
@@ -36,19 +40,41 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             ))}
           </div>
 
+          {/* 3. SỬA LẠI KHỐI NÀY: Kiểm tra user có tồn tại không */}
           <div className="flex items-center gap-3 sm:gap-4">
-            <button 
-              onClick={() => setIsAuthOpen(true)}
-              className="hidden sm:block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors font-display"
-            >
-              {t('login')}
-            </button>
-            <button 
-              onClick={onStart}
-              className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-primary dark:hover:bg-brand-primary dark:hover:text-white transition-all active:scale-95 shadow-xl shadow-black/10 dark:shadow-white/10 font-display"
-            >
-              {t('startNow')}
-            </button>
+            {user ? (
+              // HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP
+              <>
+                <div className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200 font-display">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary text-white shadow-md">
+                    {user.full_name?.[0] || 'U'}
+                  </div>
+                  <span>{user.full_name}</span>
+                </div>
+                <button 
+                  onClick={onStart}
+                  className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-secondary transition-all active:scale-95 shadow-xl shadow-brand-primary/20 font-display"
+                >
+                  Vào ứng dụng
+                </button>
+              </>
+            ) : (
+              // HIỂN THỊ KHI CHƯA ĐĂNG NHẬP
+              <>
+                <button 
+                  onClick={() => setIsAuthOpen(true)}
+                  className="hidden sm:block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors font-display"
+                >
+                  {t('login')}
+                </button>
+                <button 
+                  onClick={onStart}
+                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-primary dark:hover:bg-brand-primary dark:hover:text-white transition-all active:scale-95 shadow-xl shadow-black/10 dark:shadow-white/10 font-display"
+                >
+                  {t('startNow')}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, User, Lock, Bird, ArrowRight } from 'lucide-react';
+import { X, Mail, User, Lock, Bird, ArrowRight, Loader2 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
-
 import { useLanguage } from '../context/LanguageContext';
+import { authService } from '../services/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,22 +14,52 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const { login } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { setAuthData } = useUser();
   const { showToast } = useToast();
   const { t } = useLanguage();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || (!isLogin && !name)) {
+    if (!email || !password || (!isLogin && !name)) {
       showToast(t('fillAllInfo'), 'error');
       return;
     }
-    
-    // Mock login/register
-    login(email, isLogin ? t('user') : name);
-    showToast(isLogin ? t('loginSuccess') : t('registerSuccess'));
-    onClose();
+
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        // LUỒNG ĐĂNG NHẬP
+        const tokens = await authService.login(email, password);
+        localStorage.setItem('refresh_token', tokens.refresh_token);
+
+        const userData = await authService.getMe(tokens.access_token);
+        setAuthData(tokens.access_token, userData);
+
+        showToast(t('loginSuccess'), 'success');
+        onClose();
+      } else {
+        // LUỒNG ĐĂNG KÝ
+        await authService.register(email, password, name);
+        showToast(t('registerSuccess'), 'success');
+
+        // Đăng ký xong, tự động đăng nhập
+        const tokens = await authService.login(email, password);
+        localStorage.setItem('refresh_token', tokens.refresh_token);
+        const userData = await authService.getMe(tokens.access_token);
+        setAuthData(tokens.access_token, userData);
+
+        onClose();
+      }
+    } catch (error: any) {
+      showToast(error.message || 'Có lỗi xảy ra, vui lòng thử lại', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -81,10 +111,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     placeholder={t('fullName')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-12 pr-5 text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-inset focus:ring-brand-primary outline-none font-display"
+                    disabled={isLoading}
+                    /* Dùng text-sm, font-medium, xóa uppercase và font-display */
+                    className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-12 pr-5 text-sm font-medium text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-brand-primary outline-none disabled:opacity-50"
                   />
                 </div>
               )}
+
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                 <input
@@ -92,24 +125,37 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   placeholder={t('yourEmail')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-12 pr-5 text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-inset focus:ring-brand-primary outline-none font-display"
+                  disabled={isLoading}
+               
+                  className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-12 pr-5 text-sm font-medium text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-brand-primary outline-none disabled:opacity-50"
                 />
               </div>
+
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                 <input
                   type="password"
                   placeholder={t('password')}
-                  className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-12 pr-5 text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-inset focus:ring-brand-primary outline-none font-display"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-12 pr-5 text-sm font-medium text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-brand-primary outline-none disabled:opacity-50"
                 />
               </div>
 
               <button
                 type="submit"
-                className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-brand-primary py-4 text-[11px] font-black text-white shadow-xl shadow-brand-primary/20 transition-all hover:bg-brand-secondary active:scale-95 uppercase tracking-widest font-display"
+                disabled={isLoading}
+                className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-brand-primary py-4 text-[11px] font-black text-white shadow-xl shadow-brand-primary/20 transition-all hover:bg-brand-secondary active:scale-95 uppercase tracking-widest font-display disabled:opacity-70 disabled:pointer-events-none"
               >
-                {isLogin ? t('login') : t('register')}
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                {isLoading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <>
+                    {isLogin ? t('login') : t('register')}
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </button>
             </form>
 
