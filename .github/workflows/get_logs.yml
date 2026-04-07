@@ -20,7 +20,7 @@ jobs:
 
       - name: Get server logs over SSH on tailnet
         env:
-          HOST: 100.103.194.32
+          HOST: 100.116.215.34
           USER: pi
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
