@@ -180,6 +180,20 @@
     "last_crawled_at": "2026-03-29T10:00:00.000Z"
   },
   {
+    "product_id": "f5c74f39-6305-41b3-a197-59f77e2af4b5",
+    "platform_id": 5,
+    "raw_name": "Laptop Gaming Asus TUF FX506 Core i7 10750H/ Ram 16Gb/ SSD Mvme 512Gb/ GTX 1650Ti/ 15.6'' IPS FHD 144H",
+    "original_item_id": "cps_f5c7_06",
+    "url": "https://cellphones.com.vn/asus-tuf-gaming-fx506",
+    "affiliate_url": "https://cellphones.com.vn/asus-tuf-gaming-fx506?utm_source=producthunter&cps_aff=ID",
+    "current_price": 18900000,
+    "original_price": 17500000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+
+
+  {
     "product_id": "cdf3da19-9f7b-40db-8888-613ac38a7b4d",
     "platform_id": 8,
     "raw_name": "Laptop Dell 15 DC15255 DC5R5802W1 /R5-7530U/16GB/512GB/15.6FHD120Hz",
@@ -512,6 +526,126 @@
     "affiliate_url": "https://shopee.vn/lenovo-k4e?utm_source=producthunter&aff_sub=ID",
     "current_price": 7250000,
     "original_price": 8500000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "ea588b12-f86d-4a76-929e-aafed0000000",
+    "platform_id": 1,
+    "raw_name": "Điện thoại Tecno Spark 40C (8GB/256GB) - Hàng Chính Hãng",
+    "original_item_id": "sp_ea58_01",
+    "url": "https://shopee.vn/tecno-spark-40c-8gb-256gb",
+    "affiliate_url": "https://shopee.vn/tecno-spark-40c?utm_source=producthunter&aff_sub=YOUR_ID",
+    "current_price": 2850000,
+    "original_price": 3200000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "ea588b12-f86d-4a76-929e-aafed0000000",
+    "platform_id": 4,
+    "raw_name": "[Mã Giảm 5%] Tecno Spark 40C 8GB/256GB Pin 5000mAh",
+    "original_item_id": "lz_ea58_02",
+    "url": "https://www.lazada.vn/products/tecno-spark-40c",
+    "affiliate_url": "https://www.lazada.vn/products/tecno-spark-40c?utm_source=producthunter&click_id=ID",
+    "current_price": 2790000,
+    "original_price": 3200000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "ea588b12-f86d-4a76-929e-aafed0000000",
+    "platform_id": 5,
+    "raw_name": "Tecno Spark 40C 8GB 256GB - Bảo hành 13 tháng",
+    "original_item_id": "cps_ea58_03",
+    "url": "https://cellphones.com.vn/tecno-spark-40c",
+    "affiliate_url": "https://cellphones.com.vn/tecno-spark-40c?utm_source=producthunter&cps_aff=ID",
+    "current_price": 2990000,
+    "original_price": 3190000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
+    "platform_id": 1,
+    "raw_name": "Xiaomi POCO M7 Pro 5G (8GB/256GB) Màn hình 120Hz Camera 64MP",
+    "original_item_id": "sp_3291_01",
+    "url": "https://shopee.vn/xiaomi-poco-m7-pro-5g",
+    "affiliate_url": "https://shopee.vn/xiaomi-poco-m7-pro-5g?utm_source=producthunter&aff_sub=ID",
+    "current_price": 5200000,
+    "original_price": 5990000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
+    "platform_id": 2,
+    "raw_name": "Điện Thoại Xiaomi POCO M7 Pro 5G 8GB/256GB - Hàng Chính Hãng",
+    "original_item_id": "tk_3291_02",
+    "url": "https://tiki.vn/xiaomi-poco-m7-pro",
+    "affiliate_url": "https://tiki.vn/xiaomi-poco-m7-pro?utm_source=producthunter&aff_sub=ID",
+    "current_price": 5350000,
+    "original_price": 5990000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
+    "platform_id": 5,
+    "raw_name": "Xiaomi POCO M7 Pro 5G 8GB 256GB",
+    "original_item_id": "cps_3291_03",
+    "url": "https://cellphones.com.vn/xiaomi-poco-m7-pro",
+    "affiliate_url": "https://cellphones.com.vn/xiaomi-poco-m7-pro?utm_source=producthunter&cps_aff=ID",
+    "current_price": 5490000,
+    "original_price": 5990000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
+    "platform_id": 7,
+    "raw_name": "Xiaomi POCO M7 Pro 5G 8GB-256GB Đen",
+    "original_item_id": "fpt_3291_04",
+    "url": "https://fptshop.com.vn/dien-thoai/xiaomi-poco-m7-pro",
+    "affiliate_url": "https://fptshop.com.vn/dien-thoai/xiaomi-poco-m7-pro?utm_source=producthunter",
+    "current_price": 5690000,
+    "original_price": 5990000,
+    "in_stock": false,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "b0c1e8a9-45f2-4c28-8d1e-8a9d01234567",
+    "platform_id": 10,
+    "raw_name": "Apple iPhone 6 64GB Factory Unlocked Smartphone",
+    "original_item_id": "amz_b0c1_01",
+    "url": "https://amazon.com/iphone-6-64gb",
+    "affiliate_url": "https://amazon.com/iphone-6-64gb?tag=producthunter-20",
+    "current_price": 3746900,
+    "original_price": 4500000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "b0c1e8a9-45f2-4c28-8d1e-8a9d01234567",
+    "platform_id": 11,
+    "raw_name": "Apple iPhone 6 Space Gray 64GB",
+    "original_item_id": "flk_b0c1_02",
+    "url": "https://flipkart.com/iphone-6",
+    "affiliate_url": "https://flipkart.com/iphone-6?affid=producthunter",
+    "current_price": 3799900,
+    "original_price": 4500000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "b0c1e8a9-45f2-4c28-8d1e-8a9d01234567",
+    "platform_id": 12,
+    "raw_name": "iPhone 6 64GB Refurbished Excellent Condition",
+    "original_item_id": "eby_b0c1_03",
+    "url": "https://ebay.in/iphone-6",
+    "affiliate_url": "https://ebay.in/iphone-6?campid=producthunter",
+    "current_price": 3699900,
+    "original_price": 4200000,
     "in_stock": true,
     "last_crawled_at": "2026-03-29T10:00:00.000Z"
   }

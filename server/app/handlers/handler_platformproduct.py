@@ -164,3 +164,4 @@ async def get_platform_products_by_product_id(
     result = await db.execute(stmt)
     platform_products: List[PlatformProduct] = list(result.scalars().unique().all())
     return platform_products
+
