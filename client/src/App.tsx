@@ -10,7 +10,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Search, TrendingUp, Heart, Bell, Menu, X, Command, Bird, Zap, User, ChevronRight, LogOut, LogIn, Sun, Moon, Languages, ChevronDown, Trash2, ExternalLink, CheckCircle2, Clock, ArrowRight, Smartphone, Home, Headphones, Watch } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { searchPlatformProducts } from './services/api';
+import { searchPlatformProducts } from './services/price_record_api';
 
 type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';

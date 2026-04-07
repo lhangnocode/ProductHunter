@@ -402,7 +402,7 @@ import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis } from '../services/api'; // Đảm bảo đã import hàm này
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis } from '../services/price_record_api'; // Đảm bảo đã import hàm này
 
 interface ProductDetailProps {
   platformProduct: any; // Nhận dữ liệu phẳng từ DB
