@@ -49,7 +49,7 @@ async def set_price_alert(
     return result.scalar_one()
 
 # ==========================================
-# 2. HÀM DÀNH CHO HỆ THỐNG (Crawler gọi để check)
+#! 2. HÀM DÀNH CHO HỆ THỐNG (Crawler gọi để check)
 # ==========================================
 async def check_and_trigger_alerts(
     db: AsyncSession, 
