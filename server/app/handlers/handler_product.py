@@ -227,4 +227,7 @@ async def search_product(
     )
     result = await db.execute(stmt)
     products: List[Product] = list(result.scalars().unique().all())
+
     return products
+
+
