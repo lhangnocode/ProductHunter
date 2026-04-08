@@ -58,11 +58,10 @@ async def search_products_list(
     else:
         products = [] 
 
-    validated_products = [ProductSearchResponse.model_validate(p) for p in products]
-    return SearchPaginatedResponse(
-        keyword=q,
-        current_page=page,
-        total_pages=total_pages,
-        total_results=total_results,
-        data=validated_products
-    )
+    return {
+        "keyword": q,
+        "current_page": page,
+        "total_pages": total_pages,
+        "total_results": total_results,
+        "data": products 
+    }

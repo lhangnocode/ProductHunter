@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -32,30 +32,18 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     pass
 
-
-class ProductResponse(ProductBase):
-    id: UUID
+class ProductResponse(ProductBase): # Giả sử bạn đã import ProductBase
     id: UUID
     normalized_name: Optional[str] = None
     created_at: datetime
-    prices: List[ProductPriceResponse] = []
+    prices: List[ProductPriceResponse] = [] 
 
-    class Config:
-        from_attributes = True
-
-
-class ProductSearchResponse(BaseModel):
-    total: int
-    items: List[ProductResponse]
-
-    class Config:
-        from_attributes = True  
-     
-
-
+    
+    model_config = ConfigDict(from_attributes=True)    
+    
 class SearchPaginatedResponse(BaseModel):
     keyword: str
     current_page: int
     total_pages: int
     total_results: int
-    data: List[ProductSearchResponse]
+    data: List[ProductResponse]
