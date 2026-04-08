@@ -47,3 +47,15 @@ class ProductResponse(ProductBase):
 class ProductSearchResponse(BaseModel):
     total: int
     items: List[ProductResponse]
+
+    class Config:
+        from_attributes = True  
+     
+
+
+class SearchPaginatedResponse(BaseModel):
+    keyword: str
+    current_page: int
+    total_pages: int
+    total_results: int
+    data: List[ProductSearchResponse]
