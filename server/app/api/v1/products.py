@@ -1,13 +1,15 @@
 # app/api/products.py
 import math
-
+from sqlalchemy.orm import selectinload
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.session import get_db
 from app.models.product import Product
-from app.schemas.product import ProductResponse, ProductSearchResponse, SearchPaginatedResponse
+from app.schemas.product import ProductResponse, SearchPaginatedResponse
+from app.models.platform_product import PlatformProduct
+
 
 router = APIRouter()
 
@@ -46,13 +48,13 @@ async def search_products_list(
 
     if total_results > 0:
         stmt = (
-            select(Product)
-            .where(Product.normalized_name.ilike(f"%{q}%"))
-            .order_by(Product.created_at.desc()) 
-            .offset(offset)
-            .limit(limit)
-        )
-        
+        select(PlatformProduct)
+        .join(Product, PlatformProduct.product_id == Product.id)
+        .options(selectinload(PlatformProduct.platform))
+        .where(Product.normalized_name.ilike(f"%{q}%"))
+        .offset(offset)
+        .limit(limit)
+    )
         result = await db.execute(stmt)
         products = result.scalars().all()
     else:

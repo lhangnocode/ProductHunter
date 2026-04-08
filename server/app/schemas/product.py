@@ -1,7 +1,9 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Any, Optional, List
 from datetime import datetime
 from uuid import UUID
+
+
 
 class ProductPriceBase(BaseModel):
     platform: str
@@ -38,12 +40,27 @@ class ProductResponse(ProductBase): # Giả sử bạn đã import ProductBase
     created_at: datetime
     prices: List[ProductPriceResponse] = [] 
 
-    
     model_config = ConfigDict(from_attributes=True)    
+
+class PlatformProductResponse(BaseModel):
+    id: UUID
+    product_id: UUID
+    platform: str
+    price: Optional[float] = None
+    url: Optional[str] = None
+
+    @field_validator("platform", mode="before")
+    @classmethod
+    def extract_platform_name(cls, v: Any) -> str:
+        if hasattr(v, "name"):
+            return v.name
+        return str(v)
     
+    model_config = ConfigDict(from_attributes=True)
+
 class SearchPaginatedResponse(BaseModel):
     keyword: str
     current_page: int
     total_pages: int
     total_results: int
-    data: List[ProductResponse]
+    data: List[PlatformProductResponse]

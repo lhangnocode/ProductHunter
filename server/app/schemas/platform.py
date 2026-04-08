@@ -1,6 +1,7 @@
 from typing import Optional 
 from pydantic import BaseModel, Field
 
+
 class PlatformCreateRequest(BaseModel):
     name: str = Field(..., example="Shopee")
     base_url: str
@@ -14,3 +15,4 @@ class PlatformResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
