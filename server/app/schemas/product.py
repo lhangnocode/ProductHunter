@@ -3,8 +3,6 @@ from typing import Any, Optional, List
 from datetime import datetime
 from uuid import UUID
 
-
-
 class ProductPriceBase(BaseModel):
     platform: str
     price: float
@@ -45,6 +43,7 @@ class ProductResponse(ProductBase): # Giả sử bạn đã import ProductBase
 class PlatformProductResponse(BaseModel):
     id: UUID
     product_id: UUID
+    raw_name: Optional[str] = None
     platform: str
     price: Optional[float] = None
     url: Optional[str] = None
