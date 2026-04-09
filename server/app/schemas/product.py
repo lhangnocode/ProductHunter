@@ -33,7 +33,7 @@ class ProductCreate(ProductBase):
     pass
 
 
-class ProductResponse(ProductBase): =
+class ProductResponse(ProductBase): 
     id: UUID
     normalized_name: Optional[str] = None
 
