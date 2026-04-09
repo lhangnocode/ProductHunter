@@ -56,6 +56,9 @@ CREATE TABLE platform_products (
     current_price DECIMAL(12,2),
     original_price DECIMAL(12,2),
 
+    rating DECIMAL(3,2) DEFAULT NULL, -- diem co the la 3.82
+    reviews_count INTEGER DEFAULT 0,  -- so luot danh gia mac dinh la 0
+
     in_stock BOOLEAN DEFAULT TRUE,
     last_crawled_at TIMESTAMP,
 

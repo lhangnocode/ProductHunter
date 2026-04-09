@@ -46,13 +46,3 @@ class ProductNormalizer:
         text = re.sub(r'\s+', ' ', text).strip()
 
         return text
-
-# === KIỂM TRA THỬ ===
-if __name__ == "__main__":
-    normalizer = ProductNormalizer()
-    
-    shopee_name = "[Mã ELSONY giảm 5%] Tai nghe bluetooth không dây Sony WH-1000XM5 Chống Ồn Chủ Động - Hàng Chính Hãng VNA"
-    lazada_name = "Tai nghe chụp tai Sony WH 1000XM5 Hi-Res Audio, Bảo hành 12 tháng (Đen)"
-    
-    print("Shopee Normalized :", normalizer.normalize(shopee_name))
-    print("Lazada Normalized :", normalizer.normalize(lazada_name))

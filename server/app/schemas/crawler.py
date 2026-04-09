@@ -35,6 +35,8 @@ class PlatformProductIngestRequest(BaseModel):
     affiliate_url: Optional[str] = None
     current_price: Optional[Decimal] = None
     original_price: Optional[Decimal] = None
+    rating: Optional[Decimal] = None # Cho phép null nếu chưa có đánh giá
+    reviews_count: int = 0           # Mặc định là 0 lượt đánh giá
     in_stock: bool = True
     last_crawled_at: Optional[datetime] = None
 
@@ -51,5 +53,7 @@ class PlatformProductIngestResponse(BaseModel):
     affiliate_url: Optional[str] = None
     current_price: Optional[Decimal] = None
     original_price: Optional[Decimal] = None
+    rating: Optional[Decimal] = None 
+    reviews_count: int
     in_stock: bool
     last_crawled_at: Optional[datetime] = None

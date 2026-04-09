@@ -1,5 +1,7 @@
+import datetime
 from typing import Optional 
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class PlatformCreateRequest(BaseModel):
@@ -15,4 +17,14 @@ class PlatformResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PlatformPriceItem(BaseModel):
+    platform_id: int
+    url: str
+    affiliate_url: Optional[str] = None
+    current_price: Optional[float] = None
+    original_price: Optional[float] = None
+    in_stock: bool
+    last_crawled_at: Optional[datetime] = None
 

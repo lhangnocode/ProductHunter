@@ -1,7 +1,10 @@
+
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Any, Optional, List
 from datetime import datetime
 from uuid import UUID
+
+from app.schemas.platform import PlatformPriceItem
 
 class ProductPriceBase(BaseModel):
     platform: str
@@ -11,7 +14,6 @@ class ProductPriceBase(BaseModel):
     seller: Optional[str] = None
     in_stock: int = 1
 
-
 class ProductPriceResponse(ProductPriceBase):
     id: int
     product_id: int
@@ -20,21 +22,21 @@ class ProductPriceResponse(ProductPriceBase):
     class Config:
         from_attributes = True
 
-
 class ProductBase(BaseModel):
     normalized_name: str
-    normalized_name: str
+   
     description: Optional[str] = None
     category: Optional[str] = None
     image_url: Optional[str] = None
 
-
 class ProductCreate(ProductBase):
     pass
 
-class ProductResponse(ProductBase): # Giả sử bạn đã import ProductBase
+
+class ProductResponse(ProductBase): =
     id: UUID
     normalized_name: Optional[str] = None
+
     created_at: datetime
     prices: List[ProductPriceResponse] = [] 
 
@@ -54,7 +56,6 @@ class PlatformProductResponse(BaseModel):
         if hasattr(v, "name"):
             return v.name
         return str(v)
-    
     model_config = ConfigDict(from_attributes=True)
 
 class SearchPaginatedResponse(BaseModel):
@@ -63,3 +64,35 @@ class SearchPaginatedResponse(BaseModel):
     total_pages: int
     total_results: int
     data: List[PlatformProductResponse]
+
+class ProductSearchResponse(BaseModel):
+    total: int
+    items: List[ProductResponse]
+
+
+class ProductCompareGroup(BaseModel):
+    id: UUID
+    normalized_name: str
+    slug: str
+    main_image_url: Optional[str] = None
+    lowest_price: Optional[float] = None 
+    platforms: List[PlatformPriceItem]
+
+class SearchCompareResponse(BaseModel):
+    keyword: str
+    total_results: int
+    data: List[ProductCompareGroup]
+
+
+class ProductSearchItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    normalized_name: str
+    slug: str
+    brand: Optional[str] = None
+    category: Optional[str] = None
+    main_image_url: Optional[str] = None
+    created_at: datetime
+
+

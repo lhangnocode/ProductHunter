@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '../services/auth';
 
-interface User {
+export interface User {
+  id: string;
   email: string;
-  name: string;
+  full_name: string;
+  plan: number;
 }
 
 interface UserContextType {
   user: User | null;
-  login: (email: string, name: string) => void;
+  isLoadingUser: boolean;
+  setAuthData: (token: string, user: User) => void;
   logout: () => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
@@ -22,26 +26,52 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [alerts, setAlerts] = useState<{ productId: string; threshold: number }[]>([]);
 
-  // Load from localStorage on mount
+  // Khôi phục Session khi ứng dụng khởi động
   useEffect(() => {
-    const savedUser = localStorage.getItem('hawk_user');
+    const initAuth = async () => {
+      // 1. Kiểm tra xem trên thanh URL có token không (Do Social Login trả về)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlAccessToken = urlParams.get('access_token');
+      const urlRefreshToken = urlParams.get('refresh_token');
+
+      if (urlAccessToken && urlRefreshToken) {
+        // Lưu token vào localStorage
+        localStorage.setItem('access_token', urlAccessToken);
+        localStorage.setItem('refresh_token', urlRefreshToken);
+
+        // Xóa token trên thanh URL đi để bảo mật và UI đẹp
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // 2. Load User Profile như bình thường
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        try {
+          // Hàm authService.getMe() bạn đã làm ở bài trước
+          const userData = await authService.getMe(token);
+          setUser(userData);
+        } catch (error) {
+          console.error("Session expired:", error);
+          logout();
+        }
+      }
+      setIsLoadingUser(false);
+    };
+
+    initAuth();
+
+    // Load các dữ liệu phụ trợ
     const savedWishlist = localStorage.getItem('hawk_wishlist');
     const savedAlerts = localStorage.getItem('hawk_alerts');
-
-    if (savedUser) setUser(JSON.parse(savedUser));
     if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
     if (savedAlerts) setAlerts(JSON.parse(savedAlerts));
   }, []);
 
-  // Save to localStorage on changes
-  useEffect(() => {
-    if (user) localStorage.setItem('hawk_user', JSON.stringify(user));
-    else localStorage.removeItem('hawk_user');
-  }, [user]);
-
+  // Sync dữ liệu phụ trợ
   useEffect(() => {
     localStorage.setItem('hawk_wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
@@ -50,18 +80,22 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('hawk_alerts', JSON.stringify(alerts));
   }, [alerts]);
 
-  const login = (email: string, name: string) => {
-    setUser({ email, name });
+  // Hàm được gọi sau khi Login thành công từ AuthModal
+  const setAuthData = (token: string, userData: User) => {
+    localStorage.setItem('access_token', token);
+    setUser(userData);
   };
 
   const logout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     setUser(null);
   };
 
   const toggleWishlist = (productId: string) => {
-    setWishlist(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId) 
+    setWishlist(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
   };
@@ -91,8 +125,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ 
-      user, login, logout, 
+    <UserContext.Provider value={{
+      user, isLoadingUser, setAuthData, logout,
       wishlist, toggleWishlist, clearWishlist,
       alerts, setAlert, removeAlert, clearAlerts
     }}>

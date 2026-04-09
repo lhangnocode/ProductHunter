@@ -1,10 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
+@variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Outfit", sans-serif;
-  --font-brand: "Space Grotesk", sans-serif;
+  /* Thay Inter bằng Be Vietnam Pro cho nội dung chính */
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  
+  /* Thay Outfit bằng Montserrat cho các tiêu đề (Display) */
+  --font-display: "Montserrat", sans-serif;
+  
+  /* Space Grotesk thường lỗi dấu, thay bằng Be Vietnam Pro bold cũng rất đẹp */
+  --font-brand: "Be Vietnam Pro", sans-serif;
+  
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
   --color-brand-primary: #FF4D00;
@@ -17,11 +25,15 @@
 
 @layer base {
   body {
+    /* Đảm bảo font-sans được áp dụng toàn cục */
     @apply bg-[#FDFDFD] text-[#111111] antialiased selection:bg-brand-primary/10 selection:text-brand-primary transition-colors duration-300 font-sans;
     background-image: 
       radial-gradient(at 0% 0%, rgba(255, 77, 0, 0.02) 0px, transparent 50%),
       radial-gradient(at 100% 0%, rgba(0, 0, 0, 0.02) 0px, transparent 50%);
     background-attachment: fixed;
+    
+    /* Thêm thuộc tính này để chữ Tiếng Việt hiển thị mượt hơn trên MacOS/iOS */
+    text-rendering: optimizeLegibility;
   }
 
   .dark body {
@@ -32,10 +44,12 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight;
+    /* Tiêu đề dùng Montserrat (font-display) cực kỳ sang */
+    @apply font-display font-bold tracking-tight;
   }
 }
 
+/* Các phần @layer components và Animations giữ nguyên như cũ */
 @layer components {
   .btn-brand {
     @apply relative overflow-hidden rounded-2xl bg-brand-primary px-6 py-3 text-sm font-bold text-white transition-all hover:bg-brand-secondary active:scale-95 shadow-lg shadow-brand-primary/20;
@@ -66,7 +80,7 @@
   }
 }
 
-/* Animations */
+/* Giữ nguyên Animation và Scrollbar */
 @keyframes float {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
@@ -77,7 +91,6 @@
   animation: float 6s ease-in-out infinite;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }

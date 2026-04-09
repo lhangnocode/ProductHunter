@@ -3,10 +3,14 @@ import { motion } from 'motion/react';
 import { Bird, ArrowRight, Bell, ShieldAlert, Play, TrendingDown, History, Star, ShoppingCart, Store, ShoppingBag, Package, Users, Heart } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { useLanguage } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext'; // 1. Import useUser
 
 export function LandingPage({ onStart }: { onStart: () => void }) {
   const [isAuthOpen, setIsAuthOpen] = React.useState(false);
   const { t } = useLanguage();
+  
+  // 2. Lấy state user từ Context
+  const { user } = useUser(); 
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] dark:bg-[#050505] text-slate-900 dark:text-slate-100 selection:bg-brand-primary selection:text-white overflow-x-hidden font-sans transition-colors duration-300 relative">
@@ -21,7 +25,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary text-white shadow-lg shadow-brand-primary/20">
               <Bird size={18} strokeWidth={2.5} />
             </div>
-            <span className="text-lg font-black tracking-tighter font-display uppercase">PriceHawk<span className="text-brand-primary">.</span></span>
+            <span className="text-lg font-black tracking-tighter font-display uppercase">ProductHunter<span className="text-brand-primary">.</span></span>
           </div>
           
           <div className="hidden md:flex items-center gap-8">
@@ -36,19 +40,41 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             ))}
           </div>
 
+          {/* 3. SỬA LẠI KHỐI NÀY: Kiểm tra user có tồn tại không */}
           <div className="flex items-center gap-3 sm:gap-4">
-            <button 
-              onClick={() => setIsAuthOpen(true)}
-              className="hidden sm:block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors font-display"
-            >
-              {t('login')}
-            </button>
-            <button 
-              onClick={onStart}
-              className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-primary dark:hover:bg-brand-primary dark:hover:text-white transition-all active:scale-95 shadow-xl shadow-black/10 dark:shadow-white/10 font-display"
-            >
-              {t('startNow')}
-            </button>
+            {user ? (
+              // HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP
+              <>
+                <div className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200 font-display">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary text-white shadow-md">
+                    {user.full_name?.[0] || 'U'}
+                  </div>
+                  <span>{user.full_name}</span>
+                </div>
+                <button 
+                  onClick={onStart}
+                  className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-secondary transition-all active:scale-95 shadow-xl shadow-brand-primary/20 font-display"
+                >
+                  Vào ứng dụng
+                </button>
+              </>
+            ) : (
+              // HIỂN THỊ KHI CHƯA ĐĂNG NHẬP
+              <>
+                <button 
+                  onClick={() => setIsAuthOpen(true)}
+                  className="hidden sm:block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors font-display"
+                >
+                  {t('login')}
+                </button>
+                <button 
+                  onClick={onStart}
+                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-primary dark:hover:bg-brand-primary dark:hover:text-white transition-all active:scale-95 shadow-xl shadow-black/10 dark:shadow-white/10 font-display"
+                >
+                  {t('startNow')}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -122,7 +148,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                 </div>
                 <div className="bg-white dark:bg-black/50 px-4 py-1 rounded-full border border-black/5 dark:border-white/5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-display flex items-center gap-2">
                   <Bird size={10} className="text-brand-primary" />
-                  pricehawk.com
+                  ProductHunter.com
                 </div>
                 <div className="w-10" />
               </div>
@@ -200,7 +226,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
               {t('features')}
             </h2>
             <p className="text-base md:text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium">
-              Discover how PriceHawk helps you save money and make smarter purchasing decisions with our advanced tracking tools.
+              Discover how ProductHunter helps you save money and make smarter purchasing decisions with our advanced tracking tools.
             </p>
           </div>
 
@@ -305,7 +331,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             {[
-              { name: 'Minh Tuấn', role: 'Smart Shopper', text: 'PriceHawk helped me save over 2M VND on my new laptop. The price drop alert was instant!', rating: 5 },
+              { name: 'Minh Tuấn', role: 'Smart Shopper', text: 'ProductHunter helped me save over 2M VND on my new laptop. The price drop alert was instant!', rating: 5 },
               { name: 'Hương Giang', role: 'Deal Hunter', text: 'I love the price history chart. It shows me exactly when a "sale" is actually just a fake discount.', rating: 5 },
               { name: 'Thành Nam', role: 'Tech Enthusiast', text: 'The best tool for tracking tech prices across Shopee and Tiki. Highly recommended!', rating: 5 },
             ].map((review, i) => (
@@ -371,7 +397,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary text-white">
               <Bird size={18} strokeWidth={2.5} />
             </div>
-            <span className="text-lg font-black tracking-tighter font-display uppercase text-slate-900 dark:text-white">PriceHawk<span className="text-brand-primary">.</span></span>
+            <span className="text-lg font-black tracking-tighter font-display uppercase text-slate-900 dark:text-white">ProductHunter<span className="text-brand-primary">.</span></span>
           </div>
           
           <div className="flex items-center gap-8">
@@ -380,7 +406,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             ))}
           </div>
 
-          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest font-display">© 2024 PriceHawk</p>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest font-display">© 2024 ProductHunter</p>
         </div>
       </footer>
 

@@ -1,5 +1,6 @@
 # Environment variables
 .env
+server/.env
 
 # Python cache
 __pycache__/
@@ -10,10 +11,12 @@ __pycache__/
 
 # Virtual Environments
 venv/
-.venv/
+*.venv/
 server/venv/
 services/lazada_crawler/venv/
 typesense-data/
 # Node / Frontend build
 node_modules/
 dist/
+
+*.csv

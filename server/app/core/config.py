@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[2] / ".env",
         case_sensitive=True,
+        extra="ignore"
     )
 
     PROJECT_NAME: str = "ProductHunter API"
@@ -28,6 +29,24 @@ class Settings(BaseSettings):
     TYPESENSE_HOST: str = "localhost"
     TYPESENSE_PORT: int = 8108
     TYPESENSE_API_KEY: str = ""
+
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    MAIL_USERNAME: str = "default@email.com"
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = "noreply@producthunt.com"
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
 
     @property
     def DATABASE_URL(self) -> str:

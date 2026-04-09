@@ -22,7 +22,7 @@ export interface Product {
   history: PriceHistoryPoint[];
   isTrending: boolean;
   fakeDiscountDetected: boolean;
-  stockStatus: 'in-stock' | 'out-of-stock';
+  stockStatus: "in-stock" | "out-of-stock" | "low-stock";
   rating: number;
   reviewsCount: number;
   seller: string;
@@ -157,5 +157,129 @@ export const MOCK_PRODUCTS: Product[] = [
     seller: 'Dyson Vietnam',
     lowestEverPrice: 18500000,
     lastPriceChange: 'down',
+  },
+  {
+    id: 'p17-pm',
+    name: 'Apple iPhone 17 Pro Max 256GB',
+    image: 'https://picsum.photos/seed/iphone17pm/400/400',
+    category: 'Electronics',
+    platforms: [
+      { name: 'Shopee', price: 36500000, originalPrice: 38990000, rating: 5.0, reviews: 10, shippingFee: 0, url: '#' },
+      { name: 'Lazada', price: 36900000, originalPrice: 38990000, rating: 4.9, reviews: 5, shippingFee: 0, url: '#' },
+    ],
+    history: [
+      { date: '2026-01', price: 38990000 },
+      { date: '2026-03', price: 36500000 },
+    ],
+    isTrending: true,
+    fakeDiscountDetected: false,
+    stockStatus: 'in-stock',
+    rating: 5.0,
+    reviewsCount: 15,
+    seller: 'Apple Store Official',
+    lowestEverPrice: 36500000,
+    lastPriceChange: 'down',
+  },
+  {
+    id: 'p17-base',
+    name: 'Apple iPhone 17 128GB',
+    image: 'https://picsum.photos/seed/iphone17/400/400',
+    category: 'Electronics',
+    platforms: [
+      { name: 'Tiki', price: 24900000, originalPrice: 24900000, rating: 4.8, reviews: 20, shippingFee: 0, url: '#' },
+    ],
+    history: [{ date: '2026-03', price: 24900000 }],
+    isTrending: true,
+    fakeDiscountDetected: false,
+    stockStatus: 'in-stock',
+    rating: 4.8,
+    reviewsCount: 20,
+    seller: 'Apple Flagship Store',
+    lowestEverPrice: 24900000,
+    lastPriceChange: 'stable',
+  },
+
+  // --- DÒNG IPHONE 15 (Dòng hiện tại bạn đang làm) ---
+  {
+    id: 'p15-pro',
+    name: 'Apple iPhone 15 Pro 128GB',
+    image: 'https://picsum.photos/seed/iphone15pro/400/400',
+    category: 'Electronics',
+    platforms: [
+      { name: 'Shopee', price: 24500000, originalPrice: 28990000, rating: 4.9, reviews: 2100, shippingFee: 15000, url: '#' },
+      { name: 'Tiki', price: 24200000, originalPrice: 28990000, rating: 4.7, reviews: 1200, shippingFee: 0, url: '#' },
+    ],
+    history: [
+      { date: '2023-10', price: 28990000 },
+      { date: '2024-01', price: 26000000 },
+      { date: '2024-03', price: 24500000 },
+    ],
+    isTrending: false,
+    fakeDiscountDetected: false,
+    stockStatus: 'in-stock',
+    rating: 4.8,
+    reviewsCount: 3300,
+    seller: 'Apple Flagship Store',
+    lowestEverPrice: 24200000,
+    lastPriceChange: 'down',
+  },
+  {
+    id: 'p15-base',
+    name: 'Apple iPhone 15 128GB',
+    image: 'https://picsum.photos/seed/iphone15base/400/400',
+    category: 'Electronics',
+    platforms: [
+      { name: 'Shopee', price: 19500000, originalPrice: 22990000, rating: 4.9, reviews: 5600, shippingFee: 12000, url: '#' },
+    ],
+    history: [{ date: '2023-09', price: 22990000 }, { date: '2024-03', price: 19500000 }],
+    isTrending: false,
+    fakeDiscountDetected: true, // TEST: Giá gốc bị đẩy lên cao trước khi giảm
+    stockStatus: 'in-stock',
+    rating: 4.9,
+    reviewsCount: 5600,
+    seller: 'ShopDunk Official',
+    lowestEverPrice: 18900000,
+    lastPriceChange: 'up',
+  },
+
+  // --- DÒNG IPHONE 14 (Dòng đời cũ) ---
+  {
+    id: 'p14-pm',
+    name: 'Apple iPhone 14 Pro Max 128GB (Likenew)',
+    image: 'https://picsum.photos/seed/iphone14pm/400/400',
+    category: 'Electronics',
+    platforms: [
+      { name: 'Shopee', price: 21000000, originalPrice: 27000000, rating: 4.5, reviews: 450, shippingFee: 35000, url: '#' },
+    ],
+    history: [
+      { date: '2023-01', price: 29000000 },
+      { date: '2024-03', price: 21000000 },
+    ],
+    isTrending: false,
+    fakeDiscountDetected: false,
+    stockStatus: 'low-stock',
+    rating: 4.5,
+    reviewsCount: 450,
+    seller: 'Hoàng Hà Mobile',
+    lowestEverPrice: 20500000,
+    lastPriceChange: 'down',
+  },
+  {
+    id: 'p13-mini', // iPhone mini chỉ có dòng 13 (Apple đã bỏ mini từ dòng 14)
+    name: 'Apple iPhone 13 mini 128GB',
+    image: 'https://picsum.photos/seed/iphone13mini/400/400',
+    category: 'Electronics',
+    platforms: [
+      { name: 'Lazada', price: 13500000, originalPrice: 18990000, rating: 4.7, reviews: 230, shippingFee: 0, url: '#' },
+    ],
+    history: [{ date: '2022-10', price: 18990000 }, { date: '2024-03', price: 13500000 }],
+    isTrending: false,
+    fakeDiscountDetected: false,
+    stockStatus: 'out-of-stock',
+    rating: 4.7,
+    reviewsCount: 230,
+    seller: 'Apple Store',
+    lowestEverPrice: 12900000,
+    lastPriceChange: 'stable',
   }
 ];

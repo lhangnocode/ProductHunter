@@ -1,0 +1,1 @@
+"""Lazada crawler implementation."""
