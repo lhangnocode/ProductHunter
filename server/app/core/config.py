@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
 
+    FRONTEND_URL: str = ""
+    BACKEND_URL: str = ""
+
     @property
     def DATABASE_URL(self) -> str:
         user = quote_plus(self.POSTGRES_USER)
