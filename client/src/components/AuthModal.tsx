@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { useLanguage } from '../context/LanguageContext';
 import { authService } from '../services/auth';
+import { CONFIG } from '../config'
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -169,9 +170,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              {/* NÚT GOOGLE */}
               <button
                 type="button"
-                onClick={() => window.location.href = 'https://nanopi-r5c.tail47f64f.ts.net/api/v1/auth/google/login'}
+                onClick={() => window.location.href = `${CONFIG.API_URL}/auth/google/login`}
                 className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 text-[10px] font-black text-slate-700 dark:text-slate-300 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 shadow-sm uppercase tracking-widest font-display"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -182,9 +184,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </svg>
                 Google
               </button>
+
+              {/* NÚT GITHUB */}
               <button
                 type="button"
-                onClick={() => window.location.href = 'https://nanopi-r5c.tail47f64f.ts.net/api/v1/auth/github/login'}
+                onClick={() => window.location.href = `${CONFIG.API_URL}/auth/github/login`}
                 className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 text-[10px] font-black text-slate-700 dark:text-slate-300 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 shadow-sm uppercase tracking-widest font-display"
               >
                 <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
@@ -193,6 +197,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 GitHub
               </button>
             </div>
+
 
             <div className="mt-8 text-center">
               <button
