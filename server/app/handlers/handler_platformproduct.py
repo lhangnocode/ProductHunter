@@ -5,9 +5,10 @@ from typing import Any, List, Optional, cast
 from uuid import UUID
 
 import typesense
-from sqlalchemy import case, or_, select
+from sqlalchemy import case, or_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.handlers.handler_product import (
@@ -17,6 +18,7 @@ from app.handlers.handler_product import (
 )
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
+from app.models.price_record import PriceRecord
 
 logger = logging.getLogger(__name__)
 
@@ -165,3 +167,61 @@ async def get_platform_products_by_product_id(
     platform_products: List[PlatformProduct] = list(result.scalars().unique().all())
     return platform_products
 
+
+async def get_trending_deals(db: AsyncSession, limit: int = 20):
+    # 1. Subquery lấy Giá thấp nhất lịch sử
+    subq_min = (
+        select(
+            PriceRecord.platform_product_id,
+            func.min(PriceRecord.price).label("min_price")
+        )
+        .group_by(PriceRecord.platform_product_id)
+        .subquery()
+    )
+
+    # 2. Subquery lấy Giá trung bình 30 ngày qua
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    subq_avg = (
+        select(
+            PriceRecord.platform_product_id,
+            func.avg(PriceRecord.price).label("avg_price")
+        )
+        .where(PriceRecord.recorded_at >= thirty_days_ago)
+        .group_by(PriceRecord.platform_product_id)
+        .subquery()
+    )
+
+    # 3. Tạo biểu thức tính độ ưu tiên (Priority)
+    # 1 = Extreme (Rẻ kỷ lục), 2 = Good (Giá tốt), 3 = Khác
+    priority_expr = case(
+        (PlatformProduct.current_price <= func.coalesce(subq_min.c.min_price, PlatformProduct.current_price), 1),
+        (PlatformProduct.current_price < func.coalesce(subq_avg.c.avg_price, PlatformProduct.current_price), 2),
+        else_=3
+    )
+
+    # 4. Truy vấn chính
+    stmt = (
+        select(PlatformProduct, priority_expr.label("deal_priority"))
+        .outerjoin(subq_min, PlatformProduct.id == subq_min.c.platform_product_id)
+        .outerjoin(subq_avg, PlatformProduct.id == subq_avg.c.platform_product_id)
+        # Nạp trước (Eager load) bảng platform và bảng product (chứa original_name/image)
+        .options(selectinload(PlatformProduct.platform))
+        # CHỈ LẤY Extreme (1) HOẶC Good (2)
+        .where(priority_expr <= 2)
+        # Sắp xếp ưu tiên: Extreme trước, rồi mới tới Good. Sau đó xếp theo thời gian crawl mới nhất
+        .order_by(priority_expr.asc(), PlatformProduct.last_crawled_at.desc())
+        .limit(limit)
+    )
+
+    result = await db.execute(stmt)
+    
+    # Do chúng ta select cả tuple (PlatformProduct, priority_expr), ta sẽ tách data ra
+    trending_items = []
+    for row in result.all():
+        platform_product = row[0]
+        # Nếu muốn, bạn có thể gán thêm cờ để trả về frontend báo hiệu đây là deal gì
+        deal_type = "extreme" if row[1] == 1 else "good"
+        setattr(platform_product, "deal_status", deal_type)
+        trending_items.append(platform_product)
+
+    return trending_items
