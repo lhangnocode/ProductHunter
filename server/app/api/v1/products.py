@@ -24,6 +24,7 @@ from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
+#! Khong lay bien tu env theo cach nay. Load tu config ra
 # current_file = Path(__file__).resolve()
 # server_dir = current_file.parents[3] 
 # MOCK_FILE_PATH = server_dir / "mock_data" / "mock_platform_data.json"

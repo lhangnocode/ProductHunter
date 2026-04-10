@@ -17,4 +17,4 @@ api_router.include_router(platform_products.router, prefix="/platform_products",
 api_router.include_router(price_record.router, prefix="/price_record", tags=["price_record"])
 api_router.include_router(price_alert.router, prefix="/price_alerts", tags=["price_alerts"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
-api_router.include_router(social_auth.router, prefix="/social_auth", tags=["social_auth"])
+api_router.include_router(social_auth.router, prefix="/auth", tags=["social_auth"])
