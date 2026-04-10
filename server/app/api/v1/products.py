@@ -107,10 +107,6 @@ async def get_all_products(skip: int = 0, limit: int = 100, db: AsyncSession = D
     
     return products
 
-
-
-    
-
 @router.get("/searchAll", response_model=SearchPaginatedResponse)
 async def search_products_list(
     q: str = Query(..., min_length=2, description="Keyword"),
@@ -118,31 +114,21 @@ async def search_products_list(
     limit: int = Query(20, ge=1, le=100, description="num of products per page"),
     db: AsyncSession = Depends(get_db),
 ):
-    count_stmt = select(func.count(Product.id)).where(Product.normalized_name.ilike(f"%{q}%"))
-    total_results = await db.scalar(count_stmt)
+    products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
+    
     total_pages = math.ceil(total_results / limit) if total_results > 0 else 0
-    offset = (page - 1) * limit
 
-    if total_results > 0:
-        stmt = (
-        select(PlatformProduct)
-        .join(Product, PlatformProduct.product_id == Product.id)
-        .options(selectinload(PlatformProduct.platform))
-        .where(Product.normalized_name.ilike(f"%{q}%"))
-        .offset(offset)
-        .limit(limit)
-    )
-        result = await db.execute(stmt)
-        products = result.scalars().all()
-    else:
-        products = [] 
+    platform_items = []
+    for p in products:
+        if p.platform_products:
+            platform_items.extend(p.platform_products)
 
     return {
         "keyword": q,
         "current_page": page,
         "total_pages": total_pages,
-        "total_results": total_results,
-        "data": products 
+        "total_results": total_results, 
+        "data": platform_items 
     }
 
 

@@ -13,6 +13,7 @@ from app.models.platform_product import PlatformProduct
 from app.handlers.handler_platformproduct import (
     get_platform_products_by_product_id,
     search_platform_products,
+    get_trending_deals
 )
 from app.handlers.handler_product import upsert_product
 
@@ -85,3 +86,23 @@ async def get_all_platform_products(
         )
 
 
+@router.get(
+    "/platform-products/trending",
+    response_model=List[PlatformProductIngestResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_trending_platform_products(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=20, ge=1, le=50)
+):
+    """
+    Lấy danh sách Trending Deals (Ưu tiên: Rẻ kỷ lục -> Giá tốt)
+    """
+    try:
+        trending_products = await get_trending_deals(db=db, limit=limit)
+        return trending_products
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lấy danh sách trending: {str(e)}"
+        )

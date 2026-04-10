@@ -5,6 +5,8 @@ import { ProductDetail } from './components/ProductDetail';
 import { LandingPage } from './components/LandingPage';
 import { AuthModal } from './components/AuthModal';
 import { ToastProvider, useToast } from './components/Toast';
+import { TrendingDeals } from './components/TrendingDeals';
+
 import { UserProvider, useUser } from './context/UserContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
@@ -496,46 +498,18 @@ function AppContent() {
             )}
           </div>
         );
+      
+      
       case 'trending':
         return (
-          <div className="space-y-10">
-            <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800 pb-8">
-              <motion.div
-                initial={{ rotate: -10, scale: 0.8 }}
-                animate={{ rotate: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 200 }}
-                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary ring-1 ring-inset ring-brand-primary/20 shadow-xl shadow-brand-primary/10 backdrop-blur-md"
-              >
-                <TrendingUp size={32} strokeWidth={2.5} />
-              </motion.div>
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary mb-1 block font-display">Market Trends</span>
-                <h2 className="text-3xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">{t('trendingDeals')}</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{t('trendingSubtitle')}</p>
-              </div>
-            </div>
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            >
-              {trendingProducts.map((product) => (
-                <motion.div key={product.id} variants={itemVariants}>
-                  <ProductCard
-                    product={product}
-                    onClick={handleProductClick}
-                    isWishlisted={wishlist.includes(product.id)}
-                    onToggleWishlist={(e) => {
-                      e.stopPropagation();
-                      handleAddWishlist(product);
-                    }}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
+          <TrendingDeals 
+            onProductClick={handleNavigateToDetail}
+            wishlist={wishlist}
+            onToggleWishlist={handleAddWishlist}
+          />
         );
+
+
       case 'wishlist':
         return (
           <div className="space-y-10">
