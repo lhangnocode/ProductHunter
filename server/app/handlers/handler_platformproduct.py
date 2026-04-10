@@ -5,7 +5,7 @@ from typing import Any, List, Optional, cast
 from uuid import UUID
 
 import typesense
-from sqlalchemy import case, or_, select, func
+from sqlalchemy import case, or_, select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta, timezone
@@ -169,7 +169,7 @@ async def get_platform_products_by_product_id(
 
 
 async def get_trending_deals(db: AsyncSession, limit: int = 20):
-    # 1. Subquery lấy Giá thấp nhất lịch sử
+    # 1. Subquery: Lấy Giá thấp nhất lịch sử
     subq_min = (
         select(
             PriceRecord.platform_product_id,
@@ -179,49 +179,68 @@ async def get_trending_deals(db: AsyncSession, limit: int = 20):
         .subquery()
     )
 
-    # 2. Subquery lấy Giá trung bình 30 ngày qua
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    # 2. Subquery: Lấy Giá trung bình 30 ngày qua (Dùng func.now() của DB để tránh lệch múi giờ)
+    thirty_days_interval = timedelta(days=30)
     subq_avg = (
         select(
             PriceRecord.platform_product_id,
             func.avg(PriceRecord.price).label("avg_price")
         )
-        .where(PriceRecord.recorded_at >= thirty_days_ago)
+        # Sửa lại cách lấy thời gian chuẩn xác trong SQL
+        .where(PriceRecord.recorded_at >= (func.now() - thirty_days_interval))
         .group_by(PriceRecord.platform_product_id)
         .subquery()
     )
 
-    # 3. Tạo biểu thức tính độ ưu tiên (Priority)
-    # 1 = Extreme (Rẻ kỷ lục), 2 = Good (Giá tốt), 3 = Khác
-    priority_expr = case(
-        (PlatformProduct.current_price <= func.coalesce(subq_min.c.min_price, PlatformProduct.current_price), 1),
-        (PlatformProduct.current_price < func.coalesce(subq_avg.c.avg_price, PlatformProduct.current_price), 2),
-        else_=3
-    )
-
-    # 4. Truy vấn chính
+    # 3. Tạo câu truy vấn chính
     stmt = (
-        select(PlatformProduct, priority_expr.label("deal_priority"))
+        select(PlatformProduct, subq_min.c.min_price, subq_avg.c.avg_price)
         .outerjoin(subq_min, PlatformProduct.id == subq_min.c.platform_product_id)
         .outerjoin(subq_avg, PlatformProduct.id == subq_avg.c.platform_product_id)
-        # Nạp trước (Eager load) bảng platform và bảng product (chứa original_name/image)
         .options(selectinload(PlatformProduct.platform))
-        # CHỈ LẤY Extreme (1) HOẶC Good (2)
-        .where(priority_expr <= 2)
-        # Sắp xếp ưu tiên: Extreme trước, rồi mới tới Good. Sau đó xếp theo thời gian crawl mới nhất
-        .order_by(priority_expr.asc(), PlatformProduct.last_crawled_at.desc())
-        .limit(limit)
     )
 
+    # 4. Điều kiện LỌC (Rõ ràng và không dùng case)
+    # Lấy sản phẩm nếu:
+    # (Có min_price VÀ current_price <= min_price) HOẶC 
+    # (Có avg_price VÀ current_price < avg_price)
+    stmt = stmt.where(
+        or_(
+            and_(
+                subq_min.c.min_price.is_not(None), 
+                PlatformProduct.current_price <= subq_min.c.min_price
+            ),
+            and_(
+                subq_avg.c.avg_price.is_not(None), 
+                PlatformProduct.current_price < subq_avg.c.avg_price
+            )
+        )
+    ).limit(limit)
+
+    # 5. Thực thi truy vấn
     result = await db.execute(stmt)
-    
-    # Do chúng ta select cả tuple (PlatformProduct, priority_expr), ta sẽ tách data ra
+    rows = result.all()
+
     trending_items = []
-    for row in result.all():
+    
+    # 6. Xử lý phân loại (Tagging) và Gói data trả về
+    for row in rows:
         platform_product = row[0]
-        # Nếu muốn, bạn có thể gán thêm cờ để trả về frontend báo hiệu đây là deal gì
-        deal_type = "extreme" if row[1] == 1 else "good"
-        setattr(platform_product, "deal_status", deal_type)
+        min_price = row[1]
+        
+        # Ép kiểu để so sánh an toàn
+        current_p = float(platform_product.current_price) if platform_product.current_price else 0
+        min_p = float(min_price) if min_price else current_p
+
+        # Nếu giá hiện tại <= giá thấp nhất -> Extreme. Ngược lại chắc chắn là Good (vì đã qua bộ lọc WHERE)
+        if current_p <= min_p:
+            setattr(platform_product, "deal_status", "extreme")
+        else:
+            setattr(platform_product, "deal_status", "good")
+
         trending_items.append(platform_product)
+
+    # 7. Sắp xếp: Ưu tiên đưa Extreme (Rẻ kỷ lục) lên đầu tiên, sau đó mới tới Good (Giá tốt)
+    trending_items.sort(key=lambda x: 0 if x.deal_status == "extreme" else 1)
 
     return trending_items

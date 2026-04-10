@@ -1,11 +1,11 @@
 import asyncio
 import logging
 import os
-from typing import Any, List, Optional, cast
+from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID
 
 import typesense
-from sqlalchemy import case, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -132,9 +132,9 @@ async def search_product(
     limit: int = 20,
     page: int = 1,
     typesense_client: Optional[typesense.Client] = None,
-) -> List[Product]:
+) -> Tuple[List[Product], int]:
     if not query or not query.strip():
-        return []
+        return [], 0
 
     query_value = query.strip()
     typesense_available = bool(typesense_client or settings.TYPESENSE_API_KEY or os.getenv("TYPESENSE_API_KEY"))
@@ -143,12 +143,7 @@ async def search_product(
         try:
             client = typesense_client or _build_typesense_client()
             await asyncio.to_thread(_ensure_typesense_collection, client)
-            logger.info(
-                "Product search using typesense; query=%s limit=%s page=%s",
-                query_value,
-                limit,
-                page,
-            )
+            
             search_params: dict[str, Any] = {
                 "q": query_value,
                 "query_by": "normalized_name,slug",
@@ -170,6 +165,8 @@ async def search_product(
                 search_params,
             )
             hits = search_result.get("hits", [])
+            
+            total_results = search_result.get("found", 0) 
 
             product_ids: List[UUID] = []
             for hit in hits:
@@ -183,7 +180,7 @@ async def search_product(
                     continue
 
             if not product_ids:
-                return []
+                return [], 0
 
             ordering = case(
                 {product_id: index for index, product_id in enumerate(product_ids)},
@@ -198,36 +195,33 @@ async def search_product(
             )
             result = await db.execute(stmt)
             products: List[Product] = list(result.scalars().unique().all())
-            return products
+            
+            return products, total_results 
+            
         except Exception:
-            logger.exception(
-                "Typesense search failed; falling back to postgres; query=%s limit=%s page=%s",
-                query_value,
-                limit,
-                page,
-            )
+            logger.exception("Typesense search failed; falling back to postgres...")
 
-    logger.info(
-        "Product search using postgres; query=%s limit=%s page=%s",
-        query_value,
-        limit,
-        page,
+    logger.info("Product search using postgres...")
+    
+    base_condition = or_(
+        Product.normalized_name.ilike(f"%{query_value}%"),
+        Product.slug.ilike(f"%{query_value}%"),
     )
+    
+    count_stmt = select(func.count(Product.id)).where(base_condition)
+    total_results = await db.scalar(count_stmt) or 0
+    
+    if total_results == 0:
+        return [], 0
+
     stmt = (
         select(Product)
         .options(selectinload(Product.platform_products).selectinload(PlatformProduct.platform))
-        .where(
-            or_(
-                Product.normalized_name.ilike(f"%{query_value}%"),
-                Product.slug.ilike(f"%{query_value}%"),
-            )
-        )
+        .where(base_condition)
         .offset((page - 1) * limit)
         .limit(limit)
     )
     result = await db.execute(stmt)
     products: List[Product] = list(result.scalars().unique().all())
 
-    return products
-
-
+    return products, total_results
