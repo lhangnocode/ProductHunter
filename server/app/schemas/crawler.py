@@ -57,3 +57,4 @@ class PlatformProductIngestResponse(BaseModel):
     reviews_count: int
     in_stock: bool
     last_crawled_at: Optional[datetime] = None
+    deal_status: Optional[str] = None

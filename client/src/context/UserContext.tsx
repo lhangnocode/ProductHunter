@@ -33,14 +33,30 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // Khôi phục Session khi ứng dụng khởi động
   useEffect(() => {
     const initAuth = async () => {
+      // 1. Kiểm tra xem trên thanh URL có token không (Do Social Login trả về)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlAccessToken = urlParams.get('access_token');
+      const urlRefreshToken = urlParams.get('refresh_token');
+
+      if (urlAccessToken && urlRefreshToken) {
+        // Lưu token vào localStorage
+        localStorage.setItem('access_token', urlAccessToken);
+        localStorage.setItem('refresh_token', urlRefreshToken);
+
+        // Xóa token trên thanh URL đi để bảo mật và UI đẹp
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // 2. Load User Profile như bình thường
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
+          // Hàm authService.getMe() bạn đã làm ở bài trước
           const userData = await authService.getMe(token);
           setUser(userData);
         } catch (error) {
           console.error("Session expired:", error);
-          logout(); // Xóa token nếu lỗi
+          logout();
         }
       }
       setIsLoadingUser(false);
@@ -77,9 +93,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleWishlist = (productId: string) => {
-    setWishlist(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId) 
+    setWishlist(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
   };
@@ -109,8 +125,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ 
-      user, isLoadingUser, setAuthData, logout, 
+    <UserContext.Provider value={{
+      user, isLoadingUser, setAuthData, logout,
       wishlist, toggleWishlist, clearWishlist,
       alerts, setAlert, removeAlert, clearAlerts
     }}>

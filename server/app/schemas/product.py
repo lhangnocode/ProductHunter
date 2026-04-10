@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+
+from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Any, Optional, List
 from datetime import datetime
 from uuid import UUID
 
@@ -23,8 +24,7 @@ class ProductPriceResponse(ProductPriceBase):
 
 class ProductBase(BaseModel):
     normalized_name: str
-    # Đã xóa dòng normalized_name bị trùng
-    
+   
     description: Optional[str] = None
     category: Optional[str] = None
     image_url: Optional[str] = None
@@ -32,14 +32,38 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     pass
 
-class ProductResponse(ProductBase):
-    id: UUID
-    # Đã xóa dòng id bị trùng
-    created_at: datetime
-    prices: List[ProductPriceResponse] = []
 
-    class Config:
-        from_attributes = True
+class ProductResponse(ProductBase): 
+    id: UUID
+    normalized_name: Optional[str] = None
+
+    created_at: datetime
+    prices: List[ProductPriceResponse] = [] 
+
+    model_config = ConfigDict(from_attributes=True)    
+
+class PlatformProductResponse(BaseModel):
+    id: UUID
+    product_id: UUID
+    raw_name: Optional[str] = None
+    platform: str
+    price: Optional[float] = None
+    url: Optional[str] = None
+
+    @field_validator("platform", mode="before")
+    @classmethod
+    def extract_platform_name(cls, v: Any) -> str:
+        if hasattr(v, "name"):
+            return v.name
+        return str(v)
+    model_config = ConfigDict(from_attributes=True)
+
+class SearchPaginatedResponse(BaseModel):
+    keyword: str
+    current_page: int
+    total_pages: int
+    total_results: int
+    data: List[PlatformProductResponse]
 
 class ProductSearchResponse(BaseModel):
     total: int
@@ -70,4 +94,5 @@ class ProductSearchItem(BaseModel):
     category: Optional[str] = None
     main_image_url: Optional[str] = None
     created_at: datetime
+
 

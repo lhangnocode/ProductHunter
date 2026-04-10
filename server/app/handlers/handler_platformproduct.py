@@ -5,9 +5,10 @@ from typing import Any, List, Optional, cast
 from uuid import UUID
 
 import typesense
-from sqlalchemy import case, or_, select
+from sqlalchemy import case, or_, select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.handlers.handler_product import (
@@ -17,6 +18,7 @@ from app.handlers.handler_product import (
 )
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
+from app.models.price_record import PriceRecord
 
 logger = logging.getLogger(__name__)
 
@@ -165,3 +167,80 @@ async def get_platform_products_by_product_id(
     platform_products: List[PlatformProduct] = list(result.scalars().unique().all())
     return platform_products
 
+
+async def get_trending_deals(db: AsyncSession, limit: int = 20):
+    # 1. Subquery: Lấy Giá thấp nhất lịch sử
+    subq_min = (
+        select(
+            PriceRecord.platform_product_id,
+            func.min(PriceRecord.price).label("min_price")
+        )
+        .group_by(PriceRecord.platform_product_id)
+        .subquery()
+    )
+
+    # 2. Subquery: Lấy Giá trung bình 30 ngày qua (Dùng func.now() của DB để tránh lệch múi giờ)
+    thirty_days_interval = timedelta(days=30)
+    subq_avg = (
+        select(
+            PriceRecord.platform_product_id,
+            func.avg(PriceRecord.price).label("avg_price")
+        )
+        # Sửa lại cách lấy thời gian chuẩn xác trong SQL
+        .where(PriceRecord.recorded_at >= (func.now() - thirty_days_interval))
+        .group_by(PriceRecord.platform_product_id)
+        .subquery()
+    )
+
+    # 3. Tạo câu truy vấn chính
+    stmt = (
+        select(PlatformProduct, subq_min.c.min_price, subq_avg.c.avg_price)
+        .outerjoin(subq_min, PlatformProduct.id == subq_min.c.platform_product_id)
+        .outerjoin(subq_avg, PlatformProduct.id == subq_avg.c.platform_product_id)
+        .options(selectinload(PlatformProduct.platform))
+    )
+
+    # 4. Điều kiện LỌC (Rõ ràng và không dùng case)
+    # Lấy sản phẩm nếu:
+    # (Có min_price VÀ current_price <= min_price) HOẶC 
+    # (Có avg_price VÀ current_price < avg_price)
+    stmt = stmt.where(
+        or_(
+            and_(
+                subq_min.c.min_price.is_not(None), 
+                PlatformProduct.current_price <= subq_min.c.min_price
+            ),
+            and_(
+                subq_avg.c.avg_price.is_not(None), 
+                PlatformProduct.current_price < subq_avg.c.avg_price
+            )
+        )
+    ).limit(limit)
+
+    # 5. Thực thi truy vấn
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    trending_items = []
+    
+    # 6. Xử lý phân loại (Tagging) và Gói data trả về
+    for row in rows:
+        platform_product = row[0]
+        min_price = row[1]
+        
+        # Ép kiểu để so sánh an toàn
+        current_p = float(platform_product.current_price) if platform_product.current_price else 0
+        min_p = float(min_price) if min_price else current_p
+
+        # Nếu giá hiện tại <= giá thấp nhất -> Extreme. Ngược lại chắc chắn là Good (vì đã qua bộ lọc WHERE)
+        if current_p <= min_p:
+            setattr(platform_product, "deal_status", "extreme")
+        else:
+            setattr(platform_product, "deal_status", "good")
+
+        trending_items.append(platform_product)
+
+    # 7. Sắp xếp: Ưu tiên đưa Extreme (Rẻ kỷ lục) lên đầu tiên, sau đó mới tới Good (Giá tốt)
+    trending_items.sort(key=lambda x: 0 if x.deal_status == "extreme" else 1)
+
+    return trending_items

@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+
 class PlatformCreateRequest(BaseModel):
     name: str = Field(..., example="Shopee")
     base_url: str
@@ -17,6 +18,7 @@ class PlatformResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class PlatformPriceItem(BaseModel):
     platform_id: int
     url: str
@@ -25,3 +27,4 @@ class PlatformPriceItem(BaseModel):
     original_price: Optional[float] = None
     in_stock: bool
     last_crawled_at: Optional[datetime] = None
+
