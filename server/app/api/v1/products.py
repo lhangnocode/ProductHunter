@@ -89,15 +89,25 @@ MOCK_PLATFORM_DATA = [
   }
 ]
 
-@router.get("/search", response_model=List[ProductSearchItem])
-async def search_products( 
-    name: str = Query(..., description="Name Product pro..."),
-    limit: int = Query(20, ge=1, le=100),
-    page: int = Query(1, ge=1),
+@router.get("/search", response_model=SearchPaginatedResponse)
+async def search_products_list(
+    q: str = Query(..., min_length=2, description="Keyword"),
+    page: int = Query(1, ge=1, description="current page"),
+    limit: int = Query(20, ge=1, le=100, description="num of products per page"),
     db: AsyncSession = Depends(get_db),
 ):
-    products = await search_product(name, db=db, limit=limit, page=page)
-    return products
+    products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
+    
+    total_pages = math.ceil(total_results / limit) if total_results > 0 else 0
+
+    return {
+        "keyword": q,
+        "current_page": page,
+        "total_pages": total_pages,
+        "total_results": total_results, 
+        "data": products 
+    }
+
 
 @router.get("/")
 async def get_all_products(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
