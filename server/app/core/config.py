@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     TYPESENSE_HOST: str = "localhost"
     TYPESENSE_PORT: int = 8108
     TYPESENSE_API_KEY: str = ""
-
+    TYPESENSE_PROTOCOL: str = "http"
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
