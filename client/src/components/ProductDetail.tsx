@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom'; // Thêm createPortal cho Modal
 import { PriceChart } from './PriceChart';
-import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2 } from 'lucide-react'; // Thêm X và Loader2
+import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2, ChevronDown } from 'lucide-react'; // Thêm X và Loader2
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext'; // Thêm useUser
 import { useToast } from './Toast'; // Thêm useToast
-import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis } from '../services/price_record_api';
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProductsByProductId, PlatformProduct } from '../services/price_record_api';
 import { priceAlertService } from '../services/priceAlert';
 
 interface ProductDetailProps {
@@ -24,6 +24,11 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   const { user } = useUser(); // Lấy thông tin user
   const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
 
+  // State quản lý các sàn
+  const [allPlatformProducts, setAllPlatformProducts] = useState<PlatformProduct[]>([]);
+  const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<PlatformProduct | null>(null);
+  const [platformsLoading, setPlatformsLoading] = useState(true);
+
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,10 +37,55 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [targetPriceInput, setTargetPriceInput] = useState('');
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
+  
+  // State để show/hide platform selector
+  const [showPlatformSelector, setShowPlatformSelector] = useState(false);
 
-  // 1. Ép kiểu dữ liệu từ DB (String -> Number)
-  const currentPrice = parseFloat(platformProduct.current_price) || 0;
-  const originalPrice = parseFloat(platformProduct.original_price) || 0;
+  // Current selected platform (use selectedPlatformProduct if available, otherwise use platformProduct)
+  const currentPlatformData = selectedPlatformProduct || platformProduct;
+  const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
+  const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
+  const currentPlatformId = selectedPlatformProduct?.id || initialPlatformId;
+  
+  // Check if we have valid price data (only PlatformProduct has current_price)
+  const hasPriceData = currentPlatformData?.current_price !== undefined && currentPlatformData?.current_price !== null;
+
+  // 1. Fetch all platform products for this product
+  // Note: platformProduct can be either a Product (from search) or PlatformProduct
+  // When it's a Product: platformProduct.id = product_id
+  // When it's a PlatformProduct: platformProduct.product_id = product_id
+  useEffect(() => {
+    async function loadPlatformProducts() {
+      setPlatformsLoading(true);
+      try {
+        // Get product_id from either platformProduct.product_id or platformProduct.id
+        let productId = platformProduct?.product_id || platformProduct?.id;
+        
+        if (!productId) {
+          console.warn("No product_id found in platformProduct", platformProduct);
+          return;
+        }
+
+        console.log("Fetching platforms for product_id:", productId);
+        const platforms = await fetchPlatformProductsByProductId(productId);
+        console.log("Fetched platforms:", platforms);
+        
+        setAllPlatformProducts(platforms);
+        
+        // Auto-select the first platform or the one matching initialPlatformId
+        if (platforms.length > 0) {
+          const matching = platforms.find(p => p.id === initialPlatformId);
+          setSelectedPlatformProduct(matching || platforms[0]);
+        }
+      } catch (err) {
+        console.error("Lỗi khi fetch platform products:", err);
+      } finally {
+        setPlatformsLoading(false);
+      }
+    }
+    
+    loadPlatformProducts();
+  }, [platformProduct?.product_id || platformProduct?.id, initialPlatformId]);
 
   // HÀM XỬ LÝ LƯU CẢNH BÁO GIÁ
   const handleSaveAlert = async () => {
@@ -55,7 +105,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error("Missing token");
 
-      await priceAlertService.setAlert(token, platformProduct.id, numericPrice);
+      await priceAlertService.setAlert(token, currentPlatformData.id, numericPrice);
 
       showToast('Đã đặt cảnh báo giá thành công!', 'success');
       setIsAlertModalOpen(false);
@@ -77,20 +127,14 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     }
   };
 
-  useEffect(() => {
-    if (platformProduct) {
-      console.log("Dữ liệu sản phẩm hiện tại:", platformProduct.raw_name);
-    }
-  }, [platformProduct?.id]);
-
   // 2. useEffect gọi API lấy lịch sử giá thật
   useEffect(() => {
     async function loadHistoryAndAnalysis() {
       setLoading(true);
       try {
         const [historyRes, analysisRes] = await Promise.all([
-          fetchPriceHistory(initialPlatformId),
-          fetchPriceAnalysis(initialPlatformId, currentPrice, originalPrice)
+          fetchPriceHistory(currentPlatformId),
+          fetchPriceAnalysis(currentPlatformId, currentPrice, originalPrice)
         ]);
 
         const formattedHistory = historyRes.map(record => ({
@@ -109,7 +153,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
       }
     }
     loadHistoryAndAnalysis();
-  }, [initialPlatformId, language, platformProduct.current_price, platformProduct.original_price]);
+  }, [currentPlatformId, language, currentPrice, originalPrice]);
 
   const getStatusStyles = (status: string) => {
     switch (status) {
@@ -133,13 +177,21 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
 
   const getPlatformName = (id: number) => {
     switch (id) {
+      case 1: return 'Shopee';
+      case 2: return 'Tiki';
+      case 5: return 'CellPhones';
       case 7: return 'FPT Shop';
       case 8: return 'Phong Vũ';
       default: return 'Sàn khác';
     }
   };
 
-  const platformName = getPlatformName(platformProduct.platform_id);
+  const platformName = getPlatformName(currentPlatformData.platform_id);
+
+  const handleSelectPlatform = (platform: PlatformProduct) => {
+    setSelectedPlatformProduct(platform);
+    setShowPlatformSelector(false);
+  };
 
   return (
     <>
@@ -167,7 +219,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
               <Bell size={16} />
             </button>
 
-            <button onClick={() => onAddWishlist(platformProduct)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}>
+            <button onClick={() => onAddWishlist(currentPlatformData)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}>
               <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
             </button>
           </div>
@@ -175,12 +227,22 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
 
         <div className="grid grid-cols-1 lg:grid-cols-12">
 
+          {/* Loading Banner - khi chưa fetch đủ platforms */}
+          {platformsLoading && (
+            <div className="col-span-full p-4 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900/50">
+              <div className="flex items-center gap-3 text-blue-800 dark:text-blue-200">
+                <Loader2 size={18} className="animate-spin" />
+                <span className="text-sm font-bold">Đang tải dữ liệu từ các sàn...</span>
+              </div>
+            </div>
+          )}
+
           {/* 2. Cột trái: Ảnh & Thông tin cơ bản */}
           <div className="p-8 md:p-12 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800">
             <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8 border border-slate-100 dark:border-slate-700">
               <img
-                src={platformProduct.main_image_url || "https://picsum.photos/seed/product/400/400"}
-                alt={platformProduct.raw_name}
+                src={currentPlatformData.main_image_url || "https://picsum.photos/seed/product/400/400"}
+                alt={currentPlatformData.raw_name}
                 className="h-full w-full object-contain"
               />
             </div>
@@ -193,18 +255,18 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
             )}
 
             <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display leading-tight">
-              {platformProduct.raw_name}
+              {currentPlatformData.raw_name}
             </h1>
 
             <div className="mb-8 flex flex-wrap gap-4">
               <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20">
                 <Star size={16} className="fill-amber-400 text-amber-400" />
-                <span className="text-sm font-black text-amber-700 dark:text-amber-400">{platformProduct.rating || '0.0'}</span>
+                <span className="text-sm font-black text-amber-700 dark:text-amber-400">{currentPlatformData.rating || '0.0'}</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40">
                 <Package size={16} className="text-slate-500" />
-                <span className={`text-sm font-black ${platformProduct.in_stock ? 'text-brand-success' : 'text-rose-500'}`}>
-                  {platformProduct.in_stock ? t('inStock') : t('outOfStock')}
+                <span className={`text-sm font-black ${currentPlatformData.in_stock ? 'text-brand-success' : 'text-rose-500'}`}>
+                  {currentPlatformData.in_stock ? t('inStock') : t('outOfStock')}
                 </span>
               </div>
             </div>
@@ -265,20 +327,85 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
                 <ShoppingCart size={24} className="text-brand-primary" />
                 {t('comparePlatforms')}
               </h2>
-              <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-5">
-                  <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl ${platformProduct.platform_id === 7 ? 'bg-[#ee4d2d]' : 'bg-[#003da5]'}`}>
-                    {platformName[0]}
+              
+              {/* Loading State */}
+              {platformsLoading && (
+                <div className="p-6 rounded-3xl bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                  <Loader2 size={20} className="animate-spin text-brand-primary" />
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Đang tải dữ liệu giá từ các sàn...</span>
+                </div>
+              )}
+              
+              {/* Platform Selector - chỉ show khi đã load xong */}
+              {!platformsLoading && allPlatformProducts.length > 0 && (
+              <div className="relative mb-6">
+                <button
+                  onClick={() => setShowPlatformSelector(!showPlatformSelector)}
+                  className="w-full p-6 rounded-3xl bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between hover:border-brand-primary/40 transition-colors"
+                >
+                  <div className="flex items-center gap-5">
+                    <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl bg-gradient-to-br ${currentPlatformData.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : currentPlatformData.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                      {platformName.charAt(0)}
+                    </div>
+                    <div className="text-left">
+                      <span className="text-lg font-black text-slate-950 dark:text-white font-display block">{platformName}</span>
+                      <p className="text-[11px] font-bold text-slate-400">Giá: {formatPrice(currentPrice)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platformName}</span>
-                    <p className="text-[11px] font-bold text-slate-400">Đang xem dữ liệu từ sàn này</p>
+                  <ChevronDown size={20} className={`text-slate-500 transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Platform Options Dropdown */}
+                {showPlatformSelector && allPlatformProducts.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-xl z-50 overflow-hidden"
+                  >
+                    {allPlatformProducts.map((platform) => (
+                      <button
+                        key={platform.id}
+                        onClick={() => handleSelectPlatform(platform)}
+                        className={`w-full px-6 py-4 text-left border-b border-slate-100 dark:border-slate-800 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${selectedPlatformProduct?.id === platform.id ? 'bg-brand-primary/10' : ''}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`h-10 w-10 flex items-center justify-center rounded-lg text-white font-bold text-sm bg-gradient-to-br ${platform.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : platform.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                            {getPlatformName(platform.platform_id).charAt(0)}
+                          </div>
+                          <div>
+                            <span className="block font-bold text-slate-950 dark:text-white">{getPlatformName(platform.platform_id)}</span>
+                            <span className="block text-[11px] text-slate-500 dark:text-slate-400">{formatPrice(Number(platform.current_price) || 0)}</span>
+                          </div>
+                        </div>
+                        {selectedPlatformProduct?.id === platform.id && (
+                          <CheckCircle2 size={20} className="text-brand-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+              )}
+
+              {/* Current Platform Info */}
+              {!platformsLoading && allPlatformProducts.length > 0 && (
+              <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="text-sm">
+                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Các sàn khác có bán:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allPlatformProducts.map((platform) => (
+                      <div key={platform.id} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                        {getPlatformName(platform.platform_id)}
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <a href={platformProduct.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90">
+                <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
                   {t('goToSeller')}
                 </a>
               </div>
+              )}
             </section>
 
             <section>
@@ -331,7 +458,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
             </div>
 
             <p className="mb-4 text-sm font-medium text-slate-500 dark:text-slate-400">
-              Theo dõi <strong>{platformProduct.raw_name}</strong>. Chúng tôi sẽ gửi email ngay khi giá giảm xuống mức này.
+              Theo dõi <strong>{currentPlatformData.raw_name}</strong>. Chúng tôi sẽ gửi email ngay khi giá giảm xuống mức này.
             </p>
 
             <div className="relative mb-8 group">

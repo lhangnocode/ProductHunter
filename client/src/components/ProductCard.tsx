@@ -100,6 +100,15 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
       setTargetPriceInput('');
     }
   };
+  // Hàm làm đẹp tên sản phẩm
+  const formatDisplayName = (name: string) => {
+    if (!name) return '';
+    // Bước 1: Thay thế dấu gạch ngang (-) hoặc gạch dưới (_) bằng khoảng trắng
+    let cleanName = name.replace(/[-_]/g, ' ');
+    
+    // Bước 2: Viết hoa chữ cái đầu tiên của mỗi từ
+    return cleanName.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   return (
     <>
@@ -184,42 +193,15 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
         </div>
         
         {/* Content Section */}
-        <div className="flex flex-grow flex-col p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">Category</span>
-            <div className="flex items-center gap-0.5 text-amber-500">
-              <Star size={9} className="fill-current" />
-              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{product.rating || '0.0'}</span>
-            </div>
-          </div>
-
-          <h3 className="mb-4 line-clamp-2 text-[14px] font-bold leading-[1.3] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
-            {product.raw_name}
+        {/* Content Section */}
+        <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
+            {/* Gọi hàm để format lại tên trước khi hiển thị */}
+            {formatDisplayName(product.slug || '')}
           </h3>
-          
-          <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50">
-            <div className="flex items-end justify-between">
-              <div className="flex flex-col gap-1">
-                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 font-display">Giá tại</span>
-                <span className={`w-fit rounded-sm px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${getPlatformColor(platformName)}`}>
-                  {platformName}
-                </span>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-lg font-black tracking-tighter text-brand-primary leading-none">
-                  {formatPrice(currentPrice)}
-                </div>
-                {originalPrice > currentPrice && (
-                  <div className="mt-1 font-mono text-[10px] font-medium text-slate-400 line-through leading-none">
-                    {formatPrice(originalPrice)}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
       </motion.div>
-
+    
       {/* PORTAL: MODAL CẢNH BÁO GIÁ (Hiển thị đè lên trên tất cả) */}
       {isAlertModalOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
