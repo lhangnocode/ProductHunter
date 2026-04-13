@@ -9,7 +9,6 @@ class WishListCreate(BaseModel):
 class WishListItem(BaseModel):
     product_id: UUID
     added_at: datetime
-    # Thông tin bổ sung từ bảng Product để Frontend hiển thị luôn
     product_name: Optional[str] = None
     main_image_url: Optional[str] = None
 
