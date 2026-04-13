@@ -41,7 +41,10 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   // State để show/hide platform selector
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
 
-  // Current selected platform (use selectedPlatformProduct if available, otherwise use platformProduct)
+  // Guard: chỉ gọi API khi ID là UUID hợp lệ (tránh crash với ID mock như p1, p2)
+  const isValidUUID = (id: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   const currentPlatformData = selectedPlatformProduct || platformProduct;
   const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
   const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
@@ -58,32 +61,23 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     async function loadPlatformProducts() {
       setPlatformsLoading(true);
       try {
-        // Get product_id from either platformProduct.product_id or platformProduct.id
-        let productId = platformProduct?.product_id || platformProduct?.id;
-        
-        if (!productId) {
-          console.warn("No product_id found in platformProduct", platformProduct);
+        const productId = platformProduct?.product_id || platformProduct?.id;
+        if (!productId || !isValidUUID(String(productId))) {
+          console.warn('ID không hợp lệ, bỏ qua API:', productId);
           return;
         }
-
-        console.log("Fetching platforms for product_id:", productId);
         const platforms = await fetchPlatformProductsByProductId(productId);
-        console.log("Fetched platforms:", platforms);
-        
         setAllPlatformProducts(platforms);
-        
-        // Auto-select the first platform or the one matching initialPlatformId
         if (platforms.length > 0) {
           const matching = platforms.find(p => p.id === initialPlatformId);
           setSelectedPlatformProduct(matching || platforms[0]);
         }
       } catch (err) {
-        console.error("Lỗi khi fetch platform products:", err);
+        console.error('Lỗi khi fetch platform products:', err);
       } finally {
         setPlatformsLoading(false);
       }
     }
-    
     loadPlatformProducts();
   }, [platformProduct?.product_id || platformProduct?.id, initialPlatformId]);
 
@@ -127,16 +121,15 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     }
   };
 
-  // 2. useEffect gọi API lấy lịch sử giá thật
   useEffect(() => {
     async function loadHistoryAndAnalysis() {
+      if (!currentPlatformId || !isValidUUID(String(currentPlatformId))) return;
       setLoading(true);
       try {
         const [historyRes, analysisRes] = await Promise.all([
           fetchPriceHistory(currentPlatformId),
           fetchPriceAnalysis(currentPlatformId, currentPrice, originalPrice)
         ]);
-
         const formattedHistory = historyRes.map(record => ({
           date: new Date(record.recorded_at).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
             month: 'short',
@@ -145,9 +138,9 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
           price: Number(record.price)
         }));
         setHistoryData(formattedHistory);
-        setAnalysis(analysisRes)
+        setAnalysis(analysisRes);
       } catch (err) {
-        console.error("Lỗi lấy lịch sử giá:", err);
+        console.error('Lỗi lấy lịch sử giá:', err);
       } finally {
         setLoading(false);
       }

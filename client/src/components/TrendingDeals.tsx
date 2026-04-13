@@ -7,11 +7,11 @@ import { fetchTrendingDeals } from '../services/price_record_api';
 
 interface TrendingDealsProps {
   onProductClick: (product: any, id: string) => void;
-  wishlist: string[];
+  wishlistIds: Set<string>;
   onToggleWishlist: (product: any) => void;
 }
 
-export function TrendingDeals({ onProductClick, wishlist, onToggleWishlist }: TrendingDealsProps) {
+export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }: TrendingDealsProps) {
   const { t } = useLanguage();
   
   // Quản lý state data và loading ngay trong component này
@@ -96,7 +96,7 @@ export function TrendingDeals({ onProductClick, wishlist, onToggleWishlist }: Tr
               <ProductCard
                 product={product}
                 onClick={onProductClick}
-                isWishlisted={wishlist.includes(product.id)}
+                isWishlisted={wishlistIds.has(product.product_id ?? product.id)}
                 onToggleWishlist={(e) => {
                   e.stopPropagation();
                   onToggleWishlist(product);
