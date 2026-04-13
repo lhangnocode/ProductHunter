@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Search, TrendingUp, Heart, Bell, Menu, X, Command, Bird, Zap, User, ChevronRight, LogOut, LogIn, Sun, Moon, Languages, ChevronDown, Trash2, ExternalLink, CheckCircle2, Clock, ArrowRight, Smartphone, Home, Headphones, Watch } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { searchPlatformProducts,searchProducts } from './services/price_record_api';
+import { searchPlatformProducts, searchProducts, fetchCompareGroups } from './services/price_record_api';
 
 type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';
@@ -65,8 +65,27 @@ function AppContent() {
       }
       try {
         setIsLoading(true);
-        const data = await searchProducts(searchQuery);
-        setPlatformProducts(data); // Lưu vào platformProducts
+        // Use compare API which returns product groups with platforms
+        const groups = await fetchCompareGroups(searchQuery);
+
+        // Flatten to items suitable for ProductCard: pick representative fields
+        const items: any[] = [];
+        groups.forEach((g: any) => {
+          // Choose a representative price (lowest_price) and image
+          items.push({
+            id: g.id, // product id (group)
+            normalized_name: g.normalized_name || g.slug,
+            slug: g.normalized_name || g.slug || '',
+            raw_name: g.normalized_name || g.slug || '',
+            main_image_url: g.main_image_url || undefined,
+            lowest_price: g.lowest_price ?? null,
+            platforms: Array.isArray(g.platforms) ? g.platforms : [],
+            // For compatibility, set current_price to lowest_price so cards show a price
+            current_price: g.lowest_price ?? null,
+          });
+        });
+
+        setPlatformProducts(items); // Lưu vào platformProducts
       } catch (error) {
         console.error("Lỗi truy vấn DB:", error);
       } finally {
