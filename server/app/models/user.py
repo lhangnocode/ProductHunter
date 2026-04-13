@@ -20,3 +20,4 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     price_alerts = relationship("PriceAlert", back_populates="user", cascade="all, delete-orphan")
+    wish_lists = relationship("WishList", back_populates="user", cascade="all, delete-orphan")
