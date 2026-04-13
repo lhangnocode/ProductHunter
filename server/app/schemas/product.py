@@ -33,15 +33,6 @@ class ProductCreate(ProductBase):
     pass
 
 
-class ProductResponse(ProductBase): 
-    id: UUID
-    normalized_name: Optional[str] = None
-
-    created_at: datetime
-    prices: List[ProductPriceResponse] = [] 
-
-    model_config = ConfigDict(from_attributes=True)    
-
 class PlatformProductResponse(BaseModel):
     id: UUID
     product_id: UUID
@@ -58,12 +49,21 @@ class PlatformProductResponse(BaseModel):
         return str(v)
     model_config = ConfigDict(from_attributes=True)
 
+class ProductResponse(BaseModel):
+    id: UUID
+    normalized_name: str
+    slug: str
+    main_image_url: Optional[str] = None
+    
+
+    model_config = ConfigDict(from_attributes=True)
+
 class SearchPaginatedResponse(BaseModel):
     keyword: str
     current_page: int
     total_pages: int
     total_results: int
-    data: List[PlatformProductResponse]
+    data: List[ProductResponse]
 
 class ProductSearchResponse(BaseModel):
     total: int

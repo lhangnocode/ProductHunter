@@ -1,434 +1,131 @@
-// import React, { useEffect, useState, useMemo } from 'react';
-// import { Product } from '../data/mockData';
-// import { PriceChart } from './PriceChart';
-// import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck } from 'lucide-react';
-// import { motion } from 'motion/react';
-// import { useLanguage } from '../context/LanguageContext';
-// import { useTheme } from '../context/ThemeContext';
-// import { PriceRecord } from '../services/api';
-
-// interface ProductDetailProps {
-//   product: Product;
-//   onBack: () => void;
-//   onAddWishlist: (product: Product) => void;
-//   onSetAlert: (product: Product, threshold: number) => void;
-//   isWishlisted: boolean;
-// }
-
-// export function ProductDetail({ product, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
-//   const { t, language } = useLanguage();
-//   const { theme } = useTheme();
-//   const [alertThreshold, setAlertThreshold] = useState<string>('');
-//   const [alertSet, setAlertSet] = useState(false);
-//   const [copied, setCopied] = useState(false);
-
-//   const formatPrice = (value: number) => {
-//     const locale = language === 'vi' ? 'vi-VN' : 'en-US';
-//     const currency = language === 'vi' ? 'VND' : 'USD';
-//     const convertedValue = language === 'en' ? value / 25000 : value;
-//     return new Intl.NumberFormat(locale, { 
-//       style: 'currency', 
-//       currency: currency,
-//       maximumFractionDigits: language === 'en' ? 2 : 0
-//     }).format(convertedValue);
-//   };
-
-//   const handleSetAlert = () => {
-//     const threshold = parseInt(alertThreshold.replace(/[^0-9]/g, ''), 10);
-//     if (!isNaN(threshold) && threshold > 0) {
-//       onSetAlert(product, threshold);
-//       setAlertSet(true);
-//       setTimeout(() => setAlertSet(false), 3000);
-//     }
-//   };
-
-//   const sortedPlatforms = [...product.platforms].sort((a, b) => a.price - b.price);
-//   const bestPlatform = sortedPlatforms[0];
-
-//   const getPlatformStyle = (name: string) => {
-//     switch(name.toLowerCase()) {
-//       case 'shopee': return 'bg-[#ee4d2d] text-white';
-//       case 'lazada': return 'bg-[#0f136d] text-white';
-//       case 'tiki': return 'bg-[#1a94ff] text-white';
-//       default: return 'bg-zinc-800 text-white';
-//     }
-//   };
-
-//   const getRecommendation = () => {
-//     if (product.fakeDiscountDetected) {
-//       return {
-//         type: 'warning',
-//         title: t('cautionBuy'),
-//         desc: t('cautionBuyDesc'),
-//         icon: AlertTriangle,
-//         color: 'text-rose-600',
-//         bg: 'bg-rose-50 dark:bg-rose-900/10',
-//         ring: 'ring-rose-600/10 dark:ring-rose-500/20'
-//       };
-//     }
-//     if (product.isTrending) {
-//       return {
-//         type: 'good',
-//         title: t('goldenTimeBuy'),
-//         desc: t('goldenTimeBuyDesc'),
-//         icon: CheckCircle2,
-//         color: 'text-brand-success',
-//         bg: 'bg-brand-success/5 dark:bg-brand-success/10',
-//         ring: 'ring-brand-success/20 dark:ring-brand-success/30'
-//       };
-//     }
-//     return {
-//       type: 'neutral',
-//       title: t('stablePrice'),
-//       desc: t('stablePriceDesc'),
-//       icon: Info,
-//       color: 'text-brand-accent',
-//       bg: 'bg-brand-accent/5 dark:bg-brand-accent/10',
-//       ring: 'ring-brand-accent/20 dark:ring-brand-accent/30'
-//     };
-//   };
-
-//   const rec = getRecommendation();
-
-//   const isLowestEver = product.platforms.some(p => p.price <= product.lowestEverPrice);
-//   const isDropping = product.lastPriceChange === 'down';
-
-//   return (
-//     <motion.div 
-//       initial={{ opacity: 0, y: 20, scale: 0.99 }}
-//       animate={{ opacity: 1, y: 0, scale: 1 }}
-//       exit={{ opacity: 0, y: -20, scale: 0.99 }}
-//       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-//       className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_30px_60px_rgba(0,0,0,0.4)] border border-slate-200/60 dark:border-slate-800/60"
-//     >
-//       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 p-4 backdrop-blur-xl">
-//         <motion.button 
-//           whileHover={{ x: -2 }}
-//           whileTap={{ scale: 0.95 }}
-//           onClick={onBack}
-//           className="group flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-black text-slate-500 transition-all hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-slate-100 border border-slate-200/50 dark:border-slate-700/50 font-display uppercase tracking-[0.2em]"
-//         >
-//           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
-//           {t('back')}
-//         </motion.button>
-//         <div className="flex gap-2">
-//           <motion.button 
-//             whileHover={{ scale: 1.05 }}
-//             whileTap={{ scale: 0.9 }}
-//             onClick={() => {
-//               navigator.clipboard.writeText(window.location.href);
-//               setCopied(true);
-//               setTimeout(() => setCopied(false), 2000);
-//             }}
-//             className="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-950 dark:hover:text-slate-300 shadow-sm border border-slate-200/50 dark:border-slate-700/50"
-//           >
-//             <Share2 size={16} />
-//             {copied && (
-//               <motion.div 
-//                 initial={{ opacity: 0, y: 8 }}
-//                 animate={{ opacity: 1, y: 0 }}
-//                 exit={{ opacity: 0 }}
-//                 className="absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950 px-2.5 py-1 text-[9px] font-black text-white shadow-lg"
-//               >
-//                 Copied!
-//               </motion.div>
-//             )}
-//           </motion.button>
-//           <motion.button 
-//             whileHover={{ scale: 1.05 }}
-//             whileTap={{ scale: 0.9 }}
-//             onClick={() => onAddWishlist(product)}
-//             className={`flex h-9 w-9 items-center justify-center rounded-full transition-all shadow-sm border ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary/50' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-950 dark:hover:text-slate-300 border-slate-200/50 dark:border-slate-700/50'}`}
-//           >
-//             <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
-//           </motion.button>
-//         </div>
-//       </div>
-
-//       <div className="grid grid-cols-1 gap-0 lg:grid-cols-12">
-//         {/* Left Column: Image & Basic Info */}
-//         <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/20 p-8 md:p-12 lg:col-span-5 lg:border-b-0 lg:border-r lg:border-slate-100 dark:lg:border-slate-800">
-//           <motion.div 
-//             initial={{ scale: 0.95, opacity: 0 }}
-//             animate={{ scale: 1, opacity: 1 }}
-//             transition={{ delay: 0.1 }}
-//             className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center p-8"
-//           >
-//             <motion.img 
-//               src={product.image} 
-//               alt={product.name} 
-//               whileHover={{ scale: 1.05 }}
-//               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-//               className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
-//               referrerPolicy="no-referrer"
-//             />
-//           </motion.div>
-          
-//           <motion.div
-//             initial={{ y: 15, opacity: 0 }}
-//             animate={{ y: 0, opacity: 1 }}
-//             transition={{ delay: 0.2 }}
-//           >
-//             <div className="mb-4 inline-flex items-center rounded-sm bg-brand-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-[0.25em] text-brand-primary border border-brand-primary/20 font-display">
-//               {product.category}
-//             </div>
-//             <h1 className="mb-6 text-4xl font-black leading-[1.05] tracking-tighter text-slate-950 dark:text-white font-display uppercase">{product.name}</h1>
-            
-//             <div className="mb-8 flex flex-wrap gap-4">
-//               <div className="flex items-center gap-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20 dark:border-amber-500/10 backdrop-blur-sm">
-//                 <Star size={16} className="fill-amber-400 text-amber-400" />
-//                 <span className="text-sm font-black text-amber-700 dark:text-amber-400">{product.rating}</span>
-//                 <span className="text-[10px] font-bold text-amber-600/50 dark:text-amber-400/50">({product.reviewsCount})</span>
-//               </div>
-//               <div className="flex items-center gap-2 rounded-xl bg-slate-100/60 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
-//                 <Package size={16} className="text-slate-500" />
-//                 <span className={`text-sm font-black ${product.stockStatus === 'in-stock' ? 'text-brand-success' : 'text-rose-500'}`}>
-//                   {product.stockStatus === 'in-stock' ? t('inStock') : t('outOfStock')}
-//                 </span>
-//               </div>
-//             </div>
-
-//             {/* Recommendation Badge */}
-//             <motion.div 
-//               initial={{ x: -15, opacity: 0 }}
-//               animate={{ x: 0, opacity: 1 }}
-//               transition={{ delay: 0.3 }}
-//               className={`mb-8 flex items-start gap-4 rounded-[1.5rem] p-5 shadow-xl border ${rec.bg} ${rec.ring.replace('ring-', 'border-')}`}
-//             >
-//               <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/90 dark:bg-slate-900/90 shadow-md border border-white/20 dark:border-slate-800/50 ${rec.color}`}>
-//                 <rec.icon size={24} className={rec.type === 'warning' ? 'animate-pulse' : ''} />
-//               </div>
-//               <div>
-//                 <h4 className={`text-base font-black font-display uppercase tracking-tight ${rec.color.replace('text-', 'text-').replace('600', '950')}`}>{rec.title}</h4>
-//                 <p className={`mt-1 text-[11px] font-bold leading-relaxed opacity-80 ${rec.color.replace('text-', 'text-').replace('600', '700')}`}>{rec.desc}</p>
-//               </div>
-//             </motion.div>
-
-//             {/* Deal Analysis Box */}
-//             <motion.div
-//               initial={{ y: 15, opacity: 0 }}
-//               animate={{ y: 0, opacity: 1 }}
-//               transition={{ delay: 0.35 }}
-//               className="mb-8 overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-slate-900 via-brand-dark to-slate-900 p-[1px] text-white shadow-2xl shadow-brand-primary/10"
-//             >
-//               <div className="rounded-[1.45rem] bg-slate-900/80 p-7 backdrop-blur-2xl">
-//                 <div className="mb-6 flex items-center justify-between">
-//                   <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary font-display">
-//                     <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
-//                   </h3>
-//                   {isLowestEver && (
-//                     <span className="animate-bounce rounded-full bg-brand-success px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-brand-success/30">
-//                       {t('lowestEver')}
-//                     </span>
-//                   )}
-//                 </div>
-                
-//                 <div className="space-y-5">
-//                   <div className="flex items-center justify-between border-b border-white/10 pb-5">
-//                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('lowestEver')}</span>
-//                     <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(product.lowestEverPrice)}</span>
-//                   </div>
-                  
-//                   <div className="flex items-center gap-4">
-//                     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${isDropping ? 'bg-brand-success/20 text-brand-success border-brand-success/30 shadow-lg shadow-brand-success/5' : 'bg-slate-800/50 text-slate-400 border-slate-700/50'}`}>
-//                       <TrendingDown size={24} />
-//                     </div>
-//                     <p className="text-[11px] font-bold leading-relaxed text-slate-300">
-//                       {isDropping ? t('buyNowStimulus') : t('waitStimulus')}
-//                     </p>
-//                   </div>
-//                 </div>
-//               </div>
-//             </motion.div>
-
-//             <div className="rounded-[1.5rem] bg-white dark:bg-slate-800 p-6 shadow-2xl shadow-slate-200/10 dark:shadow-black/10 border border-slate-200/60 dark:border-slate-700/60">
-//               <h3 className="mb-5 flex items-center gap-2 text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest font-display">
-//                 <Bell size={16} className="text-brand-primary" /> {t('notifyPriceDrop')}
-//               </h3>
-//               <div className="flex flex-col gap-3">
-//                 <div className="relative group">
-//                   <span className="absolute inset-y-0 left-5 flex items-center font-mono text-sm font-black text-slate-400 group-focus-within:text-brand-primary transition-colors">₫</span>
-//                   <input 
-//                     type="text" 
-//                     placeholder={t('enterPrice')}
-//                     value={alertThreshold}
-//                     onChange={(e) => setAlertThreshold(e.target.value)}
-//                     className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-900 py-4 pl-10 pr-5 text-sm font-black text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 transition-all placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-inset focus:ring-brand-primary outline-none shadow-inner"
-//                   />
-//                 </div>
-//                 <motion.button 
-//                   whileHover={{ scale: 1.01 }}
-//                   whileTap={{ scale: 0.99 }}
-//                   onClick={handleSetAlert}
-//                   className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-brand-primary px-6 py-4 text-[11px] font-black text-white shadow-xl transition-all hover:bg-slate-800 dark:hover:bg-brand-primary/90 uppercase tracking-widest"
-//                 >
-//                   {alertSet ? <><CheckCircle2 size={18} className="text-brand-success" /> {t('priceAlertSet')}</> : t('setPriceAlert')}
-//                 </motion.button>
-//               </div>
-//             </div>
-
-//             <div className="mt-8 grid grid-cols-2 gap-4">
-//               <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 p-4 border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
-//                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-//                   <ShieldCheck size={20} />
-//                 </div>
-//                 <div>
-//                   <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Verified</p>
-//                   <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Data Source</p>
-//                 </div>
-//               </div>
-//               <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 p-4 border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
-//                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-success/10 text-brand-success border border-brand-success/20">
-//                   <Zap size={20} />
-//                 </div>
-//                 <div>
-//                   <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Real-time</p>
-//                   <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Price Updates</p>
-//                 </div>
-//               </div>
-//             </div>
-//           </motion.div>
-//         </div>
-
-//         {/* Right Column: Comparison & History */}
-//         <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
-          
-//           {/* Price Comparison List */}
-//           <section className="mb-12">
-//             <h2 className="mb-8 flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white font-display uppercase">
-//               <ShoppingCart size={24} className="text-brand-primary" />
-//               {t('comparePlatforms')}
-//             </h2>
-//             <div className="flex flex-col gap-4">
-//               {sortedPlatforms.map((platform, idx) => {
-//                 const isBest = idx === 0;
-//                 return (
-//                   <motion.div 
-//                     key={platform.name} 
-//                     initial={{ x: 15, opacity: 0 }}
-//                     animate={{ opacity: 1, x: 0 }}
-//                     transition={{ delay: 0.4 + idx * 0.05 }}
-//                     whileHover={{ x: 4 }}
-//                     className={`group flex flex-col justify-between gap-5 rounded-[1.5rem] p-6 transition-all sm:flex-row sm:items-center border ${
-//                       isBest 
-//                         ? 'bg-brand-primary/5 dark:bg-brand-primary/10 border-brand-primary/20 shadow-sm' 
-//                         : 'bg-slate-50/40 dark:bg-slate-900/40 border-slate-200/50 dark:border-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl'
-//                     }`}
-//                   >
-//                     <div className="flex items-center gap-5">
-//                       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-black text-white shadow-lg border border-white/10 ${getPlatformStyle(platform.name)}`}>
-//                         {platform.name === 'Shopee' ? <ShoppingBag size={20} /> : <span className="text-xl">{platform.name[0]}</span>}
-//                       </div>
-//                       <div>
-//                         <div className="flex items-center gap-2">
-//                           <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platform.name}</span>
-//                           {isBest && <span className="rounded-full bg-brand-success px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-white">{t('cheapest')}</span>}
-//                         </div>
-//                         <div className="mt-1 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-//                           <div className="flex items-center gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/10 px-2 py-0.5">
-//                             <Star size={12} className="fill-amber-400 text-amber-400" />
-//                             <span className="text-slate-700 dark:text-amber-400">{platform.rating}</span>
-//                           </div>
-//                           <span className="h-3 w-px bg-slate-200 dark:bg-slate-800"></span>
-//                           <span className="flex items-center gap-1.5">
-//                             {platform.shippingFee === 0 ? <span className="text-brand-success font-black">{t('freeShipping')}</span> : `${t('shipping')}: ${formatPrice(platform.shippingFee)}`}
-//                           </span>
-//                         </div>
-//                       </div>
-//                     </div>
-                    
-//                     <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 sm:border-0 sm:pt-0 sm:justify-end sm:gap-8">
-//                       <div className="flex flex-col text-left sm:text-right">
-//                         <span className={`font-mono text-2xl font-black tracking-tighter ${isBest ? 'text-brand-primary' : 'text-slate-950 dark:text-white'}`}>
-//                           {formatPrice(platform.price)}
-//                         </span>
-//                         {platform.originalPrice > platform.price && (
-//                           <span className="mt-1 font-mono text-[11px] font-bold text-slate-400 dark:text-slate-500 line-through opacity-50">
-//                             {formatPrice(platform.originalPrice)}
-//                           </span>
-//                         )}
-//                       </div>
-//                       <motion.a 
-//                         href={platform.url} 
-//                         target="_blank" 
-//                         rel="noopener noreferrer"
-//                         whileHover={{ scale: 1.02 }}
-//                         whileTap={{ scale: 0.98 }}
-//                         className={`flex items-center justify-center rounded-xl px-5 py-3 text-[10px] font-black transition-all border uppercase tracking-widest ${
-//                           isBest 
-//                             ? 'bg-brand-primary text-white border-brand-primary/40 hover:bg-brand-primary/90 shadow-2xl shadow-brand-primary/20' 
-//                             : 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-//                         }`}
-//                       >
-//                         {t('goToSeller')}
-//                         <ExternalLink size={14} className="ml-2 opacity-50" />
-//                       </motion.a>
-//                     </div>
-//                   </motion.div>
-//                 );
-//               })}
-//             </div>
-//           </section>
-
-//           {/* Price History Chart */}
-//           <motion.section
-//             initial={{ y: 20, opacity: 0 }}
-//             animate={{ y: 0, opacity: 1 }}
-//             transition={{ delay: 0.6 }}
-//           >
-//             <div className="mb-8 flex items-center justify-between">
-//               <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white font-display uppercase tracking-tight">{t('priceHistory6Months')}</h2>
-//               <div className="flex items-center gap-2 rounded-full bg-brand-success/10 px-4 py-2 text-[10px] font-black text-brand-success border border-brand-success/20 backdrop-blur-sm uppercase tracking-widest">
-//                 <TrendingDown size={16} />
-//                 {t('trendingDown')}
-//               </div>
-//             </div>
-//             <div className="rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 p-8 shadow-sm border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-xl">
-//               <PriceChart data={product.history} />
-//             </div>
-//           </motion.section>
-
-//         </div>
-//       </div>
-//     </motion.div>
-//   );
-// }
-
-// F:\dai_hoc\2526_Ki_2\CDCNNB\ProductHunter\client\src\components\ProductDetail.tsx
-
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom'; // Thêm createPortal cho Modal
 import { PriceChart } from './PriceChart';
-import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2, ChevronDown } from 'lucide-react'; // Thêm X và Loader2
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis } from '../services/price_record_api'; // Đảm bảo đã import hàm này
+import { useUser } from '../context/UserContext'; // Thêm useUser
+import { useToast } from './Toast'; // Thêm useToast
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProductsByProductId, PlatformProduct } from '../services/price_record_api';
+import { priceAlertService } from '../services/priceAlert';
 
 interface ProductDetailProps {
-  platformProduct: any; // Nhận dữ liệu phẳng từ DB
-  initialPlatformId: string; // ID dùng để truy vấn price_records
+  platformProduct: any;
+  initialPlatformId: string;
   onBack: () => void;
   onAddWishlist: (p: any) => void;
-  onSetAlert: (product: any, threshold: number) => void; 
+  onSetAlert: (product: any, threshold: number) => void;
   isWishlisted: boolean;
 }
 
 export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
   const { t, language } = useLanguage();
+  const { user } = useUser(); // Lấy thông tin user
+  const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
+
+  // State quản lý các sàn
+  const [allPlatformProducts, setAllPlatformProducts] = useState<PlatformProduct[]>([]);
+  const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<PlatformProduct | null>(null);
+  const [platformsLoading, setPlatformsLoading] = useState(true);
+
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // State cho Modal Cảnh báo giá
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [targetPriceInput, setTargetPriceInput] = useState('');
+  const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
+  
+  // State để show/hide platform selector
+  const [showPlatformSelector, setShowPlatformSelector] = useState(false);
 
-  // 1. Ép kiểu dữ liệu từ DB (String -> Number)
-  const currentPrice = parseFloat(platformProduct.current_price) || 0;
-  const originalPrice = parseFloat(platformProduct.original_price) || 0;
+  // Current selected platform (use selectedPlatformProduct if available, otherwise use platformProduct)
+  const currentPlatformData = selectedPlatformProduct || platformProduct;
+  const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
+  const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
+  const currentPlatformId = selectedPlatformProduct?.id || initialPlatformId;
+  
+  // Check if we have valid price data (only PlatformProduct has current_price)
+  const hasPriceData = currentPlatformData?.current_price !== undefined && currentPlatformData?.current_price !== null;
 
+  // 1. Fetch all platform products for this product
+  // Note: platformProduct can be either a Product (from search) or PlatformProduct
+  // When it's a Product: platformProduct.id = product_id
+  // When it's a PlatformProduct: platformProduct.product_id = product_id
   useEffect(() => {
-    if (platformProduct) {
-      console.log("Dữ liệu sản phẩm hiện tại:", platformProduct.raw_name);
+    async function loadPlatformProducts() {
+      setPlatformsLoading(true);
+      try {
+        // Get product_id from either platformProduct.product_id or platformProduct.id
+        let productId = platformProduct?.product_id || platformProduct?.id;
+        
+        if (!productId) {
+          console.warn("No product_id found in platformProduct", platformProduct);
+          return;
+        }
+
+        console.log("Fetching platforms for product_id:", productId);
+        const platforms = await fetchPlatformProductsByProductId(productId);
+        console.log("Fetched platforms:", platforms);
+        
+        setAllPlatformProducts(platforms);
+        
+        // Auto-select the first platform or the one matching initialPlatformId
+        if (platforms.length > 0) {
+          const matching = platforms.find(p => p.id === initialPlatformId);
+          setSelectedPlatformProduct(matching || platforms[0]);
+        }
+      } catch (err) {
+        console.error("Lỗi khi fetch platform products:", err);
+      } finally {
+        setPlatformsLoading(false);
+      }
     }
-  }, [platformProduct?.id]); 
+    
+    loadPlatformProducts();
+  }, [platformProduct?.product_id || platformProduct?.id, initialPlatformId]);
+
+  // HÀM XỬ LÝ LƯU CẢNH BÁO GIÁ
+  const handleSaveAlert = async () => {
+    if (!user) {
+      showToast('Vui lòng đăng nhập để sử dụng tính năng này!', 'error');
+      return;
+    }
+
+    const numericPrice = parseFloat(targetPriceInput.replace(/\D/g, ''));
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      showToast('Vui lòng nhập mức giá hợp lệ!', 'error');
+      return;
+    }
+
+    setIsSubmittingAlert(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error("Missing token");
+
+      await priceAlertService.setAlert(token, currentPlatformData.id, numericPrice);
+
+      showToast('Đã đặt cảnh báo giá thành công!', 'success');
+      setIsAlertModalOpen(false);
+      setTargetPriceInput('');
+    } catch (error: any) {
+      showToast(error.message || 'Lỗi khi đặt cảnh báo giá', 'error');
+    } finally {
+      setIsSubmittingAlert(false);
+    }
+  };
+
+  // Hàm format tiền tệ khi user đang gõ
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); 
+    if (value) {
+      setTargetPriceInput(new Intl.NumberFormat('vi-VN').format(Number(value)));
+    } else {
+      setTargetPriceInput('');
+    }
+  };
 
   // 2. useEffect gọi API lấy lịch sử giá thật
   useEffect(() => {
@@ -436,11 +133,10 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
       setLoading(true);
       try {
         const [historyRes, analysisRes] = await Promise.all([
-          fetchPriceHistory(initialPlatformId),
-          fetchPriceAnalysis(initialPlatformId, currentPrice, originalPrice)
+          fetchPriceHistory(currentPlatformId),
+          fetchPriceAnalysis(currentPlatformId, currentPrice, originalPrice)
         ]);
 
-        // Xử lý dữ liệu Lịch sử (để vẽ biểu đồ)
         const formattedHistory = historyRes.map(record => ({
           date: new Date(record.recorded_at).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
             month: 'short',
@@ -457,10 +153,10 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
       }
     }
     loadHistoryAndAnalysis();
-  }, [initialPlatformId, language, platformProduct.current_price, platformProduct.original_price]);
+  }, [currentPlatformId, language, currentPrice, originalPrice]);
 
   const getStatusStyles = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'extreme': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-950/30 dark:text-rose-400';
       case 'fake': return 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:text-amber-400';
       case 'good': return 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400';
@@ -472,287 +168,327 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     const locale = language === 'vi' ? 'vi-VN' : 'en-US';
     const currency = language === 'vi' ? 'VND' : 'USD';
     const convertedValue = language === 'en' ? value / 25000 : value;
-    return new Intl.NumberFormat(locale, { 
-      style: 'currency', 
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
       currency: currency,
       maximumFractionDigits: language === 'en' ? 2 : 0
     }).format(convertedValue);
   };
 
   const getPlatformName = (id: number) => {
-    switch(id) {
+    switch (id) {
+      case 1: return 'Shopee';
+      case 2: return 'Tiki';
+      case 5: return 'CellPhones';
       case 7: return 'FPT Shop';
       case 8: return 'Phong Vũ';
       default: return 'Sàn khác';
     }
   };
 
-  const platformName = getPlatformName(platformProduct.platform_id);
+  const platformName = getPlatformName(currentPlatformData.platform_id);
 
-//   return (
-//     <div 
-//       initial={{ opacity: 0, y: 20 }}
-//       animate={{ opacity: 1, y: 0 }}
-//       className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60"
-//     >
-//       {/* Header Buttons */}
-//       <div className="sticky top-0 z-30 flex items-center justify-between border-b p-4 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
-//         <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase border rounded-full">
-//           <ArrowLeft size={14} /> {t('back')}
-//         </button>
-//         <div className="flex gap-2">
-//            <button onClick={() => onAddWishlist(platformProduct)} className={`h-9 w-9 flex items-center justify-center rounded-full border ${isWishlisted ? 'bg-brand-primary text-white' : ''}`}>
-//               <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
-//            </button>
-//         </div>
-//       </div>
+  const handleSelectPlatform = (platform: PlatformProduct) => {
+    setSelectedPlatformProduct(platform);
+    setShowPlatformSelector(false);
+  };
 
-//       <div className="grid grid-cols-1 lg:grid-cols-12">
-//         {/* Cột trái: Ảnh & Thông tin cơ bản */}
-//         <div className="p-8 md:p-12 lg:col-span-5 border-r dark:border-slate-800">
-//           <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8">
-//             <img 
-//               src={platformProduct.main_image_url || "https://picsum.photos/seed/product/400/400"} 
-//               alt={platformProduct.raw_name} 
-//               className="h-full w-full object-contain"
-//             />
-//           </div>
+  return (
+    <>
+      <div className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60">
+
+        {/* 1. Header Buttons */}
+        <div className="sticky top-0 z-30 flex items-center justify-between border-b p-4 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
+          <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase border rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+            <ArrowLeft size={14} /> {t('back')}
+          </button>
           
-//           <div className="mb-4 inline-flex items-center rounded-sm bg-brand-primary/10 px-2 py-1 text-[9px] font-black uppercase text-brand-primary">
-//             {platformProduct.category || "Electronics"}
-//           </div>
-//           <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display">
-//             {platformProduct.raw_name}
-//           </h1>
-          
-//           <div className="mb-8 flex flex-wrap gap-4">
-//             <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20">
-//               <Star size={16} className="fill-amber-400 text-amber-400" />
-//               <span className="text-sm font-black text-amber-700 dark:text-amber-400">{platformProduct.rating || '0.0'}</span>
-//             </div>
-//             <div className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40">
-//               <Package size={16} className="text-slate-500" />
-//               <span className={`text-sm font-black ${platformProduct.in_stock ? 'text-brand-success' : 'text-rose-500'}`}>
-//                 {platformProduct.in_stock ? t('inStock') : t('outOfStock')}
-//               </span>
-//             </div>
-//           </div>
+          {/* THÊM NÚT ALERT CHUÔNG VÀO ĐÂY */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                if (!user) {
+                  showToast('Vui lòng đăng nhập để đặt cảnh báo giá!', 'info');
+                  return;
+                }
+                setIsAlertModalOpen(true);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full border transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-brand-accent hover:border-brand-accent/30"
+              title="Nhận thông báo khi giảm giá"
+            >
+              <Bell size={16} />
+            </button>
 
-//           {/* Deal Analysis Box */}
-//           <div className="mb-8 rounded-[1.5rem] bg-slate-900 p-7 text-white shadow-2xl">
-//               <div className="mb-6 flex items-center justify-between">
-//                 <h3 className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-primary font-display">
-//                   <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
-//                 </h3>
-//               </div>
-//               <div className="flex items-center justify-between border-b border-white/10 pb-5">
-//                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Giá hiện tại</span>
-//                   <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(currentPrice)}</span>
-//               </div>
-//           </div>
-//         </div>
-
-//         {/* Cột phải: Lịch sử và Thông tin sàn */}
-//         <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
-//           <section className="mb-12">
-//             <h2 className="mb-8 flex items-center gap-3 text-2xl font-black uppercase text-slate-950 dark:text-white font-display">
-//               <ShoppingCart size={24} className="text-brand-primary" />
-//               {t('comparePlatforms')}
-//             </h2>
-            
-//             {/* Vì dữ liệu phẳng, ta chỉ hiển thị 1 sàn duy nhất đã chọn */}
-//             <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between">
-//               <div className="flex items-center gap-5">
-//                 <div className="h-12 w-12 flex items-center justify-center bg-orange-500 rounded-xl text-white font-bold text-xl">
-//                   {platformName[0]}
-//                 </div>
-//                 <div>
-//                   <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platformName}</span>
-//                   <p className="text-[11px] font-bold text-slate-400">Đang xem lịch sử giá tại sàn này</p>
-//                 </div>
-//               </div>
-//               <a href={platformProduct.url} target="_blank" className="bg-brand-primary text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase">
-//                 {t('goToSeller')}
-//               </a>
-//             </div>
-//           </section>
-
-//           {/* Biểu đồ lịch sử giá thật - Sửa Layout ở đây */}
-//           <section>
-//             <div className="mb-8 flex items-center justify-between">
-//               <h2 className="text-2xl font-black uppercase text-slate-950 dark:text-white font-display">{t('priceHistory6Months')}</h2>
-//             </div>
-            
-//             {/* Div cha cố định h-[400px], không dùng items-center nếu có biểu đồ bên trong */}
-//             <div className="relative rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 h-[400px] w-full overflow-hidden">
-//               {loading ? (
-//                 <div className="absolute inset-0 flex items-center justify-center">
-//                   <p className="italic text-slate-400 animate-pulse text-sm">Đang truy vấn lịch sử giá từ DB...</p>
-//                 </div>
-//               ) : historyData.length > 0 ? (
-//                 <div className="h-full w-full p-6">
-//                   <PriceChart data={historyData} />
-//                 </div>
-//               ) : (
-//                 <div className="absolute inset-0 flex items-center justify-center">
-//                   <p className="text-slate-400 text-sm">Chưa có dữ liệu lịch sử giá cho sản phẩm này.</p>
-//                 </div>
-//               )}
-//             </div>
-//           </section>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-return (
-    <div className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60">
-      
-      {/* 1. Header Buttons */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b p-4 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
-        <button onClick={onBack} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase border rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
-          <ArrowLeft size={14} /> {t('back')}
-        </button>
-        <div className="flex gap-2">
-           <button onClick={() => onAddWishlist(platformProduct)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+            <button onClick={() => onAddWishlist(currentPlatformData)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}>
               <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
-           </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12">
-        
-        {/* 2. Cột trái: Ảnh & Thông tin cơ bản */}
-        <div className="p-8 md:p-12 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800">
-          <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8 border border-slate-100 dark:border-slate-700">
-            <img 
-              src={platformProduct.main_image_url || "https://picsum.photos/seed/product/400/400"} 
-              alt={platformProduct.raw_name} 
-              className="h-full w-full object-contain"
-            />
+            </button>
           </div>
+        </div>
 
-          {/* Badge trạng thái từ hàm getStatusStyles của bạn */}
-          {analysis && (
-            <div className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] border shadow-sm ${getStatusStyles(analysis.deal_status)}`}>
-              <Zap size={12} className="fill-current" />
-              {analysis.deal_label}
+        <div className="grid grid-cols-1 lg:grid-cols-12">
+
+          {/* Loading Banner - khi chưa fetch đủ platforms */}
+          {platformsLoading && (
+            <div className="col-span-full p-4 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900/50">
+              <div className="flex items-center gap-3 text-blue-800 dark:text-blue-200">
+                <Loader2 size={18} className="animate-spin" />
+                <span className="text-sm font-bold">Đang tải dữ liệu từ các sàn...</span>
+              </div>
             </div>
           )}
-          
-          <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display leading-tight">
-            {platformProduct.raw_name}
-          </h1>
-          
-          <div className="mb-8 flex flex-wrap gap-4">
-            <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20">
-              <Star size={16} className="fill-amber-400 text-amber-400" />
-              <span className="text-sm font-black text-amber-700 dark:text-amber-400">{platformProduct.rating || '0.0'}</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40">
-              <Package size={16} className="text-slate-500" />
-              <span className={`text-sm font-black ${platformProduct.in_stock ? 'text-brand-success' : 'text-rose-500'}`}>
-                {platformProduct.in_stock ? t('inStock') : t('outOfStock')}
-              </span>
-            </div>
-          </div>
 
-          {/* Deal Analysis Box (Đoạn bạn vừa thêm) */}
-          <div className={`mb-8 rounded-[2rem] p-7 text-white shadow-2xl relative overflow-hidden transition-all duration-500 ${
-            analysis?.deal_status === 'fake' 
-              ? 'bg-amber-950/40 border border-amber-500/30' 
-              : 'bg-slate-900 border border-white/5'
-          }`}>
-            <div className="relative z-10">
-              <div className="mb-6 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-primary font-display tracking-widest">
-                  <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
-                </h3>
-                {analysis && (
-                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${getStatusStyles(analysis.deal_status)}`}>
-                    {analysis.deal_label}
-                  </span>
-                )}
+          {/* 2. Cột trái: Ảnh & Thông tin cơ bản */}
+          <div className="p-8 md:p-12 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800">
+            <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8 border border-slate-100 dark:border-slate-700">
+              <img
+                src={currentPlatformData.main_image_url || "https://picsum.photos/seed/product/400/400"}
+                alt={currentPlatformData.raw_name}
+                className="h-full w-full object-contain"
+              />
+            </div>
+
+            {analysis && (
+              <div className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] border shadow-sm ${getStatusStyles(analysis.deal_status)}`}>
+                <Zap size={12} className="fill-current" />
+                {analysis.deal_label}
               </div>
+            )}
 
-              <div className="space-y-5">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display leading-tight">
+              {currentPlatformData.raw_name}
+            </h1>
+
+            <div className="mb-8 flex flex-wrap gap-4">
+              <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 border border-amber-200/20">
+                <Star size={16} className="fill-amber-400 text-amber-400" />
+                <span className="text-sm font-black text-amber-700 dark:text-amber-400">{currentPlatformData.rating || '0.0'}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 border border-slate-200/40">
+                <Package size={16} className="text-slate-500" />
+                <span className={`text-sm font-black ${currentPlatformData.in_stock ? 'text-brand-success' : 'text-rose-500'}`}>
+                  {currentPlatformData.in_stock ? t('inStock') : t('outOfStock')}
+                </span>
+              </div>
+            </div>
+
+            {/* Deal Analysis Box */}
+            <div className={`mb-8 rounded-[2rem] p-7 text-white shadow-2xl relative overflow-hidden transition-all duration-500 ${analysis?.deal_status === 'fake'
+                ? 'bg-amber-950/40 border border-amber-500/30'
+                : 'bg-slate-900 border border-white/5'
+              }`}>
+              <div className="relative z-10">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-primary font-display tracking-widest">
+                    <Zap size={16} className="fill-brand-primary" /> {t('dealAnalysis')}
+                  </h3>
+                  {analysis && (
+                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${getStatusStyles(analysis.deal_status)}`}>
+                      {analysis.deal_label}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Giá hiện tại</span>
                     <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(currentPrice)}</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  </div>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Thấp nhất lịch sử</span>
                     <span className="font-mono text-xl font-black text-white/90">
                       {analysis ? formatPrice(analysis.lowest_ever_price) : formatPrice(currentPrice)}
                     </span>
-                </div>
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  </div>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Trung bình 30 ngày</span>
                     <span className="font-mono text-xl font-black text-white/90">
                       {analysis ? formatPrice(analysis.avg_price_30d) : formatPrice(currentPrice)}
                     </span>
-                </div>
-                <div className="pt-2">
-                  <p className="text-[11px] font-bold text-slate-300 leading-relaxed italic">
-                    {analysis?.deal_status === 'fake' 
-                      ? "⚠️ Sản phẩm có dấu hiệu nâng giá ảo. Hãy kiểm tra biểu đồ bên dưới."
-                      : analysis?.deal_status === 'extreme'
-                      ? "🚀 Rẻ vô đối! Đây là mức giá thấp nhất từng ghi nhận được."
-                      : "ℹ️ Giá cả đang ở mức ổn định so với lịch sử niêm yết."}
-                  </p>
+                  </div>
+                  <div className="pt-2">
+                    <p className="text-[11px] font-bold text-slate-300 leading-relaxed italic">
+                      {analysis?.deal_status === 'fake'
+                        ? "⚠️ Sản phẩm có dấu hiệu nâng giá ảo. Hãy kiểm tra biểu đồ bên dưới."
+                        : analysis?.deal_status === 'extreme'
+                          ? "🚀 Rẻ vô đối! Đây là mức giá thấp nhất từng ghi nhận được."
+                          : "ℹ️ Giá cả đang ở mức ổn định so với lịch sử niêm yết."}
+                    </p>
+                  </div>
                 </div>
               </div>
+              <Zap size={140} className="absolute -bottom-10 -right-10 text-white/5 rotate-12 pointer-events-none" />
             </div>
-            <Zap size={140} className="absolute -bottom-10 -right-10 text-white/5 rotate-12 pointer-events-none" />
           </div>
-        </div> {/* Đóng cột trái */}
 
-        {/* 3. Cột phải: So sánh & Lịch sử */}
-        <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
-          <section className="mb-12">
-            <h2 className="mb-8 flex items-center gap-3 text-2xl font-black uppercase text-slate-950 dark:text-white font-display">
-              <ShoppingCart size={24} className="text-brand-primary" />
-              {t('comparePlatforms')}
-            </h2>
-            <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-5">
-                <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl ${platformProduct.platform_id === 7 ? 'bg-[#ee4d2d]' : 'bg-[#003da5]'}`}>
-                  {platformName[0]}
-                </div>
-                <div>
-                  <span className="text-lg font-black text-slate-950 dark:text-white font-display">{platformName}</span>
-                  <p className="text-[11px] font-bold text-slate-400">Đang xem dữ liệu từ sàn này</p>
-                </div>
-              </div>
-              <a href={platformProduct.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90">
-                {t('goToSeller')}
-              </a>
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-2xl font-black uppercase text-slate-950 dark:text-white font-display">{t('priceHistory6Months')}</h2>
-            </div>
-            <div className="relative rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 h-[400px] w-full overflow-hidden">
-              {loading ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="italic text-slate-400 animate-pulse text-sm">Đang tải...</p>
-                </div>
-              ) : historyData.length > 0 ? (
-                <div className="h-full w-full p-6">
-                   <PriceChart data={historyData} />
-                </div>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="text-slate-400 text-sm">Chưa có dữ liệu lịch sử giá.</p>
+          {/* 3. Cột phải: So sánh & Lịch sử */}
+          <div className="p-8 md:p-12 lg:col-span-7 bg-white dark:bg-slate-950">
+            <section className="mb-12">
+              <h2 className="mb-8 flex items-center gap-3 text-2xl font-black uppercase text-slate-950 dark:text-white font-display">
+                <ShoppingCart size={24} className="text-brand-primary" />
+                {t('comparePlatforms')}
+              </h2>
+              
+              {/* Loading State */}
+              {platformsLoading && (
+                <div className="p-6 rounded-3xl bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                  <Loader2 size={20} className="animate-spin text-brand-primary" />
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Đang tải dữ liệu giá từ các sàn...</span>
                 </div>
               )}
+              
+              {/* Platform Selector - chỉ show khi đã load xong */}
+              {!platformsLoading && allPlatformProducts.length > 0 && (
+              <div className="relative mb-6">
+                <button
+                  onClick={() => setShowPlatformSelector(!showPlatformSelector)}
+                  className="w-full p-6 rounded-3xl bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between hover:border-brand-primary/40 transition-colors"
+                >
+                  <div className="flex items-center gap-5">
+                    <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl bg-gradient-to-br ${currentPlatformData.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : currentPlatformData.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                      {platformName.charAt(0)}
+                    </div>
+                    <div className="text-left">
+                      <span className="text-lg font-black text-slate-950 dark:text-white font-display block">{platformName}</span>
+                      <p className="text-[11px] font-bold text-slate-400">Giá: {formatPrice(currentPrice)}</p>
+                    </div>
+                  </div>
+                  <ChevronDown size={20} className={`text-slate-500 transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Platform Options Dropdown */}
+                {showPlatformSelector && allPlatformProducts.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-xl z-50 overflow-hidden"
+                  >
+                    {allPlatformProducts.map((platform) => (
+                      <button
+                        key={platform.id}
+                        onClick={() => handleSelectPlatform(platform)}
+                        className={`w-full px-6 py-4 text-left border-b border-slate-100 dark:border-slate-800 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${selectedPlatformProduct?.id === platform.id ? 'bg-brand-primary/10' : ''}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`h-10 w-10 flex items-center justify-center rounded-lg text-white font-bold text-sm bg-gradient-to-br ${platform.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : platform.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                            {getPlatformName(platform.platform_id).charAt(0)}
+                          </div>
+                          <div>
+                            <span className="block font-bold text-slate-950 dark:text-white">{getPlatformName(platform.platform_id)}</span>
+                            <span className="block text-[11px] text-slate-500 dark:text-slate-400">{formatPrice(Number(platform.current_price) || 0)}</span>
+                          </div>
+                        </div>
+                        {selectedPlatformProduct?.id === platform.id && (
+                          <CheckCircle2 size={20} className="text-brand-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+              )}
+
+              {/* Current Platform Info */}
+              {!platformsLoading && allPlatformProducts.length > 0 && (
+              <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="text-sm">
+                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Các sàn khác có bán:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allPlatformProducts.map((platform) => (
+                      <div key={platform.id} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                        {getPlatformName(platform.platform_id)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
+                  {t('goToSeller')}
+                </a>
+              </div>
+              )}
+            </section>
+
+            <section>
+              <div className="mb-8 flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase text-slate-950 dark:text-white font-display">{t('priceHistory6Months')}</h2>
+              </div>
+              <div className="relative rounded-[2rem] bg-slate-50/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 h-[400px] w-full overflow-hidden">
+                {loading ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <p className="italic text-slate-400 animate-pulse text-sm">Đang tải...</p>
+                  </div>
+                ) : historyData.length > 0 ? (
+                  <div className="h-full w-full p-6">
+                    <PriceChart data={historyData} />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <p className="text-slate-400 text-sm">Chưa có dữ liệu lịch sử giá.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div> 
+        </div> 
+      </div>
+
+      {/* PORTAL: MODAL CẢNH BÁO GIÁ */}
+      {isAlertModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+            onClick={() => setIsAlertModalOpen(false)}
+          />
+          
+          <div className="relative w-full max-w-sm rounded-[2rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200/50 dark:border-slate-800/50 animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsAlertModalOpen(false)}
+              className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <X size={18} />
+            </button>
+            
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-accent/10 text-brand-accent">
+                <Bell size={20} />
+              </div>
+              <h3 className="text-xl font-black font-display uppercase tracking-tight text-slate-900 dark:text-white">
+                Cảnh báo giá
+              </h3>
             </div>
-          </section>
-        </div> {/* Đóng cột phải */}
-      </div> {/* Đóng Grid */}
-    </div> 
+
+            <p className="mb-4 text-sm font-medium text-slate-500 dark:text-slate-400">
+              Theo dõi <strong>{currentPlatformData.raw_name}</strong>. Chúng tôi sẽ gửi email ngay khi giá giảm xuống mức này.
+            </p>
+
+            <div className="relative mb-8 group">
+              <input
+                type="text"
+                value={targetPriceInput}
+                onChange={handlePriceChange}
+                placeholder={`VD: ${formatPrice(currentPrice - 500000).replace(/\D/g, '')}`}
+                className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-5 pr-12 text-lg font-black text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white focus:ring-2 focus:ring-brand-accent outline-none font-mono"
+              />
+              <span className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                ₫
+              </span>
+            </div>
+
+            <button
+              onClick={handleSaveAlert}
+              disabled={isSubmittingAlert || !targetPriceInput}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-accent py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-brand-accent/20 transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:pointer-events-none font-display"
+            >
+              {isSubmittingAlert ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                "Xác nhận đặt thông báo"
+              )}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }

@@ -58,7 +58,7 @@ export function PriceChart({ data }: PriceChartProps) {
             fontWeight={700}
           />
           <Tooltip 
-            formatter={(value: number) => [formatPrice(value), language === 'vi' ? 'Giá' : 'Price']}
+            formatter={(value) => value !== undefined && value !== null ? [formatPrice(value as number), language === 'vi' ? 'Giá' : 'Price'] : ['-', language === 'vi' ? 'Giá' : 'Price']}
             labelStyle={{ color: isDark ? '#94a3b8' : '#475569', fontWeight: 900, marginBottom: '4px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em' }}
             contentStyle={{ 
               borderRadius: '16px', 
