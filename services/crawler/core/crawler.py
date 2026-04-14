@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from services.crawler.core.storage.storage_manager import StorageManager
-
 
 class Crawler(ABC):
     """Base abstract class for all crawlers."""
@@ -13,7 +11,6 @@ class Crawler(ABC):
         self.name = name
         self.output_dir = output_dir
         self.base_url = base_url
-        self.storage = StorageManager()
 
     @abstractmethod
     def crawl(self) -> None:

@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Search, TrendingUp, Heart, Bell, Menu, X, Command, Bird, Zap, User, ChevronRight, LogOut, LogIn, Sun, Moon, Languages, ChevronDown, Trash2, ExternalLink, CheckCircle2, Clock, ArrowRight, Smartphone, Home, Headphones, Watch } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { searchPlatformProducts,searchProducts } from './services/price_record_api';
+import { searchPlatformProducts, searchProducts, fetchCompareGroups } from './services/price_record_api';
 
 type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';
@@ -445,8 +445,8 @@ function AppContent() {
                   className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                 >
                   {searchResults.map((product, index) => (
-                    <motion.div 
-                      key={product.id} 
+                    <motion.div
+                      key={product.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(index, 10) }}
@@ -483,11 +483,11 @@ function AppContent() {
             )}
           </div>
         );
-      
-      
+
+
       case 'trending':
         return (
-          <TrendingDeals 
+          <TrendingDeals
             onProductClick={handleNavigateToDetail}
             wishlistIds={wishlistIds}
             onToggleWishlist={handleAddWishlist}
@@ -557,8 +557,8 @@ function AppContent() {
                     platform_id: null,
                   };
                   return (
-                    <motion.div 
-                      key={item.product_id || Math.random().toString()} 
+                    <motion.div
+                      key={item.product_id || Math.random().toString()}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(wishlist.indexOf(item), 10) }}
@@ -647,7 +647,7 @@ function AppContent() {
                   const isReached = currentMinPrice <= alert.threshold;
 
                   return (
-                    <motion.div 
+                    <motion.div
                       key={alert.productId}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}

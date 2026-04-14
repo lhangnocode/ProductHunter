@@ -397,8 +397,11 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
                           <div className={`h-10 w-10 flex items-center justify-center rounded-lg text-white font-bold text-sm bg-gradient-to-br ${platform.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : platform.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
                             {getPlatformName(platform.platform_id).charAt(0)}
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <span className="block font-bold text-slate-950 dark:text-white">{getPlatformName(platform.platform_id)}</span>
+                            {platform.raw_name && (
+                              <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[420px]">{platform.raw_name}</span>
+                            )}
                             <span className="block text-[11px] text-slate-500 dark:text-slate-400">{formatPrice(Number(platform.current_price) || 0)}</span>
                           </div>
                         </div>
@@ -419,8 +422,13 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
                   <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Các sàn khác có bán:</p>
                   <div className="flex flex-wrap gap-2">
                     {allPlatformProducts.map((platform) => (
-                      <div key={platform.id} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                        {getPlatformName(platform.platform_id)}
+                      <div key={platform.id} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 max-w-[220px]">
+                        <div className="whitespace-nowrap overflow-hidden text-ellipsis">
+                          {getPlatformName(platform.platform_id)}
+                        </div>
+                        {platform.raw_name && (
+                          <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{platform.raw_name}</div>
+                        )}
                       </div>
                     ))}
                   </div>

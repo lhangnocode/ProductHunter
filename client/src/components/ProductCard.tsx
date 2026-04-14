@@ -45,6 +45,11 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
   const currentPrice = parseFloat(product.current_price) || 0;
   const originalPrice = parseFloat(product.original_price) || 0;
 
+  // Support compare-group shape: if product has `platforms`, use lowest_price as current
+  const isGroup = Array.isArray(product.platforms);
+  const displayPrice = isGroup ? (product.lowest_price ?? product.current_price ?? 0) : currentPrice;
+  const displayOriginal = isGroup ? (product.original_price ?? product.lowest_price ?? 0) : originalPrice;
+
   const formatPrice = (value: number) => {
     const locale = language === 'vi' ? 'vi-VN' : 'en-US';
     const currency = language === 'vi' ? 'VND' : 'USD';
@@ -115,11 +120,23 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
   // Hàm làm đẹp tên sản phẩm
   const formatDisplayName = (name: string) => {
     if (!name) return '';
-    // Bước 1: Thay thế dấu gạch ngang (-) hoặc gạch dưới (_) bằng khoảng trắng
-    let cleanName = name.replace(/[-_]/g, ' ');
-    
-    // Bước 2: Viết hoa chữ cái đầu tiên của mỗi từ
-    return cleanName.replace(/\b\w/g, (char) => char.toUpperCase());
+
+    // Try to decode any HTML entities if present (safe in browser)
+    let decoded = name;
+    try {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = name;
+      decoded = txt.value;
+    } catch (e) {
+      decoded = name;
+    }
+
+    // Replace common separators (dash, underscore, dot, slash, backslash) with spaces
+    let cleanName = decoded.replace(/[-_./\\]+/g, ' ');
+    // Collapse multiple spaces and trim
+    cleanName = cleanName.replace(/\s+/g, ' ').trim();
+    // Lowercase then capitalize each word for consistent display
+    return cleanName.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
   return (
@@ -210,9 +227,9 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
             )}
           </div>
 
-          {originalPrice > currentPrice && (
+          {displayOriginal > displayPrice && displayPrice > 0 && (
             <div className="absolute left-3 bottom-3 rounded-sm bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black text-white backdrop-blur-md font-mono z-10">
-              -{Math.round((1 - currentPrice / originalPrice) * 100)}%
+              -{Math.round((1 - displayPrice / displayOriginal) * 100)}%
             </div>
           )}
         </div>
@@ -221,8 +238,7 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
         {/* Content Section */}
         <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
           <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
-            {/* Gọi hàm để format lại tên trước khi hiển thị */}
-            {formatDisplayName(product.slug || '')}
+            {formatDisplayName(product.slug || product.normalized_name || product.raw_name || '')}
           </h3>
         </div>
       </motion.div>

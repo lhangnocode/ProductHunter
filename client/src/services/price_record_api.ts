@@ -45,13 +45,17 @@ export async function searchPlatformProducts(productId: string): Promise<any[]> 
 
 export async function searchProducts(name: string): Promise<any[]> {
   try {
-    const response = await fetch(`${CONFIG.API_URL}/products/search?q=${encodeURIComponent(name)}`);
+    const url = `${CONFIG.API_URL}/products/search?q=${encodeURIComponent(name)}`;
+    console.debug('[searchProducts] requesting', url);
+    const response = await fetch(url);
+    console.debug('[searchProducts] status', response.status);
     if (!response.ok) {
       console.error(`Search API failed with status: ${response.status}`);
       return []; 
     }
 
     const result = await response.json();
+    console.debug('[searchProducts] response body', result);
 
     if (Array.isArray(result)) {
       return result;
@@ -96,6 +100,8 @@ export async function fetchPlatformProductsByProductId(productId: string): Promi
     return [];
   }
 }
+
+
 
 export async function fetchPriceHistory(platformProductId: string): Promise<PriceRecord[]> {
   const response = await fetch(`${CONFIG.API_URL}/price_record/price-records/${platformProductId}`);
@@ -147,4 +153,22 @@ export async function fetchTrendingDeals(): Promise<any[]> {
   const response = await fetch(`${CONFIG.API_URL}/platform_products/platform-products/trending?limit=20`);
   if (!response.ok) throw new Error('Không thể tải Trending Deals');
   return response.json();
+}
+
+export async function fetchCompareGroups(q: string): Promise<any[]> {
+  try {
+    const response = await fetch(`${CONFIG.API_URL}/products/compare?q=${encodeURIComponent(q)}`);
+    if (!response.ok) {
+      console.error(`Compare API failed with status: ${response.status}`);
+      return [];
+    }
+
+    const result = await response.json();
+    // Expecting { data: [ { id, normalized_name, main_image_url, lowest_price, platforms: [...] } ] }
+    const groups = result && Array.isArray(result.data) ? result.data : (Array.isArray(result) ? result : []);
+    return groups;
+  } catch (error) {
+    console.error('Lỗi khi gọi compare API:', error);
+    return [];
+  }
 }
