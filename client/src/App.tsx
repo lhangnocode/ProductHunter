@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Search, TrendingUp, Heart, Bell, Menu, X, Command, Bird, Zap, User, ChevronRight, LogOut, LogIn, Sun, Moon, Languages, ChevronDown, Trash2, ExternalLink, CheckCircle2, Clock, ArrowRight, Smartphone, Home, Headphones, Watch } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { searchPlatformProducts } from './services/price_record_api';
+import { searchPlatformProducts, searchProducts, fetchCompareGroups } from './services/price_record_api';
 
 type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';
@@ -26,14 +26,12 @@ function AppContent() {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('trending');
-  const [recentlyViewed, setRecentlyViewed] = useState<string[]>(() => {
-    const saved = localStorage.getItem('recentlyViewed');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Xóa recentlyViewed cũ (chứa ID mock như p1, p2) tránh crash API
+  useEffect(() => { localStorage.removeItem('recentlyViewed'); }, []);
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  const { user, logout, wishlist, toggleWishlist, clearWishlist, alerts, removeAlert, setAlert, clearAlerts } = useUser();
+  const { user, logout, wishlist, wishlistIds, toggleWishlist, clearWishlist, alerts, removeAlert, setAlert, clearAlerts } = useUser();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
@@ -48,20 +46,9 @@ function AppContent() {
   const handleProductClick = (product: any) => {
     setSelectedPlatformProduct(product);
     setCurrentPlatformId(product.id);
-
-    setRecentlyViewed(prev => {
-      const filtered = prev.filter(id => id !== product.id);
-      const next = [product.id, ...filtered].slice(0, 4);
-      localStorage.setItem('recentlyViewed', JSON.stringify(next));
-      return next;
-    });
   };
 
-  const recentlyViewedProducts = useMemo(() =>
-    MOCK_PRODUCTS.filter(p => recentlyViewed.includes(p.id))
-      .sort((a, b) => recentlyViewed.indexOf(a.id) - recentlyViewed.indexOf(b.id)),
-    [recentlyViewed]
-  );
+
 
   const categories = ['All', 'Electronics', 'Audio', 'Accessories', 'Home Appliances'];
 
@@ -78,8 +65,27 @@ function AppContent() {
       }
       try {
         setIsLoading(true);
-        const data = await searchPlatformProducts(searchQuery);
-        setPlatformProducts(data); // Lưu vào platformProducts
+        // Use compare API which returns product groups with platforms
+        const groups = await fetchCompareGroups(searchQuery);
+
+        // Flatten to items suitable for ProductCard: pick representative fields
+        const items: any[] = [];
+        groups.forEach((g: any) => {
+          // Choose a representative price (lowest_price) and image
+          items.push({
+            id: g.id, // product id (group)
+            normalized_name: g.normalized_name || g.slug,
+            slug: g.normalized_name || g.slug || '',
+            raw_name: g.normalized_name || g.slug || '',
+            main_image_url: g.main_image_url || undefined,
+            lowest_price: g.lowest_price ?? null,
+            platforms: Array.isArray(g.platforms) ? g.platforms : [],
+            // For compatibility, set current_price to lowest_price so cards show a price
+            current_price: g.lowest_price ?? null,
+          });
+        });
+
+        setPlatformProducts(items); // Lưu vào platformProducts
       } catch (error) {
         console.error("Lỗi truy vấn DB:", error);
       } finally {
@@ -155,17 +161,26 @@ function AppContent() {
   // }, [searchQuery, activeFilter, sortBy]);
 
   const trendingProducts = useMemo(() => MOCK_PRODUCTS.filter(p => p.isTrending), []);
-  const wishlistedProducts = useMemo(() => MOCK_PRODUCTS.filter(p => wishlist.includes(p.id)), [wishlist]);
 
-  const handleAddWishlist = (product: Product) => {
+  // Helper: lấy đúng product_id dù product đến từ search (id=product_id)
+  // hay từ trending (id=platform_product_id, product_id=product_id)
+  const getProductId = (product: any): string =>
+    product.product_id ?? product.id;
+
+  const handleAddWishlist = async (product: any) => {
     if (!user) {
       setIsAuthModalOpen(true);
       showToast(t('loginToSave'), 'info');
       return;
     }
-    toggleWishlist(product.id);
-    const isAdding = !wishlist.includes(product.id);
-    showToast(isAdding ? t('addedToWishlist') : t('removedFromWishlist'));
+    const pid = getProductId(product);
+    const isAdding = !wishlistIds.has(pid);
+    try {
+      await toggleWishlist(pid);
+      showToast(isAdding ? t('addedToWishlist') : t('removedFromWishlist'));
+    } catch {
+      showToast('Có lỗi xảy ra, vui lòng thử lại', 'error');
+    }
   };
 
   const handleSetAlert = (product: Product, threshold: number) => {
@@ -230,11 +245,11 @@ function AppContent() {
           initialPlatformId={currentPlatformId}
 
           onBack={() => setSelectedPlatformProduct(null)}
-          onAddWishlist={() => showToast(t('addedToWishlist'), 'success')}
+          onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
           onSetAlert={() => showToast(t('priceAlertSet'), 'success')}
 
           // 4. Kiểm tra wishlist dựa trên ID của platformProduct
-          isWishlisted={wishlist.includes(selectedPlatformProduct.id)}
+          isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))}
         />
       );
     }
@@ -377,48 +392,7 @@ function AppContent() {
                   </div>
                 </div>
 
-                {/* Recently Viewed Section - Editorial Style */}
-                {recentlyViewedProducts.length > 0 && (
-                  <motion.div
-                    variants={itemVariants}
-                    className="pt-12 border-t border-slate-200 dark:border-slate-800"
-                  >
-                    <div className="mb-6 flex items-end justify-between">
-                      <div>
-                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary mb-1 block font-display">{t('yourHistory')}</span>
-                        <h3 className="text-2xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">
-                          {t('recentlyViewed')}
-                        </h3>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <div className="h-1 w-6 rounded-full bg-brand-primary" />
-                        <div className="h-1 w-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
-                        <div className="h-1 w-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                      {recentlyViewedProducts.map((product, idx) => (
-                        <motion.div
-                          key={product.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                        >
-                          <ProductCard
-                            product={product}
-                            onClick={handleProductClick}
-                            isWishlisted={wishlist.includes(product.id)}
-                            onToggleWishlist={(e) => {
-                              e.stopPropagation();
-                              handleAddWishlist(product);
-                            }}
-                          />
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
               </motion.div>
             )}
 
@@ -468,8 +442,8 @@ function AppContent() {
                     <motion.div key={product.id} variants={itemVariants}>
                       <ProductCard
                         product={product}
-                        onClick={handleProductClick}
-                        isWishlisted={wishlist.includes(product.id)}
+                        onClick={handleNavigateToDetail}
+                        isWishlisted={wishlistIds.has(getProductId(product))}
                         onToggleWishlist={(e) => {
                           e.stopPropagation();
                           handleAddWishlist(product);
@@ -504,7 +478,7 @@ function AppContent() {
         return (
           <TrendingDeals 
             onProductClick={handleNavigateToDetail}
-            wishlist={wishlist}
+            wishlistIds={wishlistIds}
             onToggleWishlist={handleAddWishlist}
           />
         );
@@ -530,11 +504,11 @@ function AppContent() {
                 </div>
               </div>
 
-              {wishlistedProducts.length > 0 && (
+              {wishlist.length > 0 && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (window.confirm(t('confirmClearWishlist'))) {
-                      clearWishlist();
+                      await clearWishlist();
                       showToast(t('removedFromWishlist'));
                     }
                   }}
@@ -546,22 +520,35 @@ function AppContent() {
               )}
             </div>
 
-            {wishlistedProducts.length > 0 ? (
+            {wishlist.length > 0 ? (
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
                 className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               >
-                {wishlistedProducts.map((product) => (
-                  <motion.div key={product.id} variants={itemVariants}>
-                    <ProductCard
-                      product={product}
-                      onClick={handleProductClick}
-                      onRemove={() => handleAddWishlist(product)}
-                    />
-                  </motion.div>
-                ))}
+                {wishlist.map((item) => {
+                  // Build a minimal product shape for ProductCard
+                  const product = {
+                    id: item.product_id,
+                    slug: item.product_name ?? '',
+                    raw_name: item.product_name ?? '',
+                    main_image_url: item.main_image_url ?? undefined,
+                    current_price: null,
+                    original_price: null,
+                    in_stock: null,
+                    platform_id: null,
+                  };
+                  return (
+                    <motion.div key={item.product_id} variants={itemVariants}>
+                      <ProductCard
+                        product={product}
+                        onClick={handleNavigateToDetail}
+                        onRemove={(e) => { e.stopPropagation(); handleAddWishlist(product); }}
+                      />
+                    </motion.div>
+                  );
+                })}
               </motion.div>
             ) : (
               <motion.div
@@ -749,9 +736,9 @@ function AppContent() {
       <Icon size={14} className="relative z-10" strokeWidth={activeTab === tab && !selectedProduct ? 3 : 2} />
       <span className="relative z-10">{label}</span>
 
-      {tab === 'wishlist' && wishlist.length > 0 && (
+      {tab === 'wishlist' && wishlistIds.size > 0 && (
         <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedProduct ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-          {wishlist.length}
+          {wishlistIds.size}
         </span>
       )}
       {tab === 'alerts' && alerts.length > 0 && (
@@ -849,9 +836,9 @@ function AppContent() {
                 className={`relative rounded-md p-1.5 transition-all ${activeTab === 'wishlist' ? 'bg-white dark:bg-slate-700 text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 <Heart size={16} />
-                {wishlist.length > 0 && (
+                {wishlistIds.size > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-primary text-[8px] font-black text-white ring-2 ring-white dark:ring-slate-950 font-display">
-                    {wishlist.length}
+                    {wishlistIds.size}
                   </span>
                 )}
               </motion.button>

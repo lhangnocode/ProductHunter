@@ -1,9 +1,12 @@
-import React from 'react';
-import { Product } from '../data/mockData';
-import { TrendingUp, AlertTriangle, CheckCircle2, Star, X, Heart } from 'lucide-react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom'; // Bắt buộc dùng để popup hiển thị đè lên toàn trang
+import { Star, CheckCircle2, X, Heart, Bell, Loader2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { motion, AnimatePresence } from 'motion/react';
+import { useUser } from '../context/UserContext';
+import { useToast } from './Toast';
+import { priceAlertService } from '../services/priceAlert';
 
 interface ProductCardProps {
   product: any;
@@ -17,9 +20,23 @@ interface ProductCardProps {
 export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWishlisted }: ProductCardProps) {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
+  
+  // Lấy User và Toast để xử lý cảnh báo giá
+  const { user } = useUser();
+  const { showToast } = useToast();
+
+  // State quản lý Modal Cảnh báo giá
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [targetPriceInput, setTargetPriceInput] = useState('');
+  const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
 
   const currentPrice = parseFloat(product.current_price) || 0;
   const originalPrice = parseFloat(product.original_price) || 0;
+
+  // Support compare-group shape: if product has `platforms`, use lowest_price as current
+  const isGroup = Array.isArray(product.platforms);
+  const displayPrice = isGroup ? (product.lowest_price ?? product.current_price ?? 0) : currentPrice;
+  const displayOriginal = isGroup ? (product.original_price ?? product.lowest_price ?? 0) : originalPrice;
 
   const formatPrice = (value: number) => {
     const locale = language === 'vi' ? 'vi-VN' : 'en-US';
@@ -32,12 +49,9 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
     }).format(convertedValue);
   };
 
-  // const lowestPricePlatform = product.platforms.reduce((prev, curr) => 
-  //   prev.price < curr.price ? prev : curr
-  // );
   const getPlatformName = (id: number) => {
     switch(id) {
-      case 7: return 'FPT Shop'; // Ví dụ ID 7 trong ảnh của bạn là Shopee
+      case 7: return 'FPT Shop'; 
       case 8: return 'Phong Vũ';
       default: return 'Sàn khác';
     }
@@ -46,8 +60,8 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
   const getPlatformColor = (name: string) => {
     switch(name.toLowerCase()) {
       case 'shopee': return 'bg-[#ee4d2d] text-white';
-      case 'FPT Shop': return 'bg-[#ee4d2d] text-white';
-      case 'Phong Vũ': return 'bg-[#0f136d] text-white';
+      case 'fpt shop': return 'bg-[#ee4d2d] text-white';
+      case 'phong vũ': return 'bg-[#0f136d] text-white';
       case 'lazada': return 'bg-[#0f136d] text-white';
       case 'tiki': return 'bg-[#1a94ff] text-white';
       default: return 'bg-slate-800 text-white';
@@ -56,209 +70,202 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
 
   const platformName = getPlatformName(product.platform_id);
 
-//   return (
-//     <motion.div 
-//       layout
-//       initial={{ opacity: 0, y: 10 }}
-//       animate={{ opacity: 1, y: 0 }}
-//       whileHover={{ y: -6, transition: { duration: 0.3, ease: "easeOut" } }}
-//       onClick={() => onClick(product)}
-//       className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 transition-all duration-300 hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
-//     >
-//       {/* Action Buttons */}
-//       <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-//         {onRemove && (
-//           <motion.button
-//             whileHover={{ scale: 1.05 }}
-//             whileTap={{ scale: 0.95 }}
-//             onClick={(e) => {
-//               e.stopPropagation();
-//               onRemove(e, product);
-//             }}
-//             className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 dark:bg-slate-800/95 text-slate-400 shadow-sm backdrop-blur-md hover:text-rose-500 transition-colors border border-slate-100 dark:border-slate-700"
-//           >
-//             <X size={14} />
-//           </motion.button>
-//         )}
-//         {!onRemove && onToggleWishlist && (
-//           <motion.button
-//             whileHover={{ scale: 1.05 }}
-//             whileTap={{ scale: 0.95 }}
-//             onClick={(e) => {
-//               e.stopPropagation();
-//               onToggleWishlist(e, product);
-//             }}
-//             className={`flex h-8 w-8 items-center justify-center rounded-full shadow-sm backdrop-blur-md transition-all border ${
-//               isWishlisted 
-//                 ? 'bg-brand-primary text-white border-brand-primary' 
-//                 : 'bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-primary border-slate-100 dark:border-slate-700'
-//             }`}
-//           >
-//             <Heart size={14} fill={isWishlisted ? "currentColor" : "none"} />
-//           </motion.button>
-//         )}
-//       </div>
+  // Hàm xử lý lưu cảnh báo giá
+  const handleSaveAlert = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn click lan ra thẻ card
+    const numericPrice = parseFloat(targetPriceInput.replace(/\D/g, ''));
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      showToast('Vui lòng nhập mức giá hợp lệ!', 'error');
+      return;
+    }
 
-//       {/* Image Section */}
-//       <div className="relative aspect-[4/3] w-full overflow-hidden bg-white dark:bg-slate-800/50 flex items-center justify-center p-6 border-b border-slate-100 dark:border-slate-800/50">
-//         <motion.img 
-//           src={product.image} 
-//           alt={product.name} 
-//           whileHover={{ scale: 1.05 }}
-//           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-//           className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
-//           referrerPolicy="no-referrer"
-//         />
-        
-//         {/* Badges */}
-//         <div className="absolute left-3 top-3 flex flex-col gap-1 z-10">
-//           {product.isTrending && (
-//             <div className="flex w-fit items-center gap-1 rounded-sm bg-brand-primary px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-white shadow-lg shadow-brand-primary/20 font-display">
-//               <TrendingUp size={9} strokeWidth={3} /> {t('trending')}
-//             </div>
-//           )}
-//           {!product.fakeDiscountDetected && product.isTrending && (
-//             <div className="flex w-fit items-center gap-1 rounded-sm bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-white shadow-lg shadow-emerald-500/20 font-display">
-//               <CheckCircle2 size={9} strokeWidth={3} /> {t('shouldBuy')}
-//             </div>
-//           )}
-//         </div>
+    setIsSubmittingAlert(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error("Missing token");
 
-//         {lowestPricePlatform.originalPrice > lowestPricePlatform.price && (
-//           <div className="absolute left-3 bottom-3 rounded-sm bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black text-white backdrop-blur-md font-mono tracking-tighter z-10">
-//             -{Math.round((1 - lowestPricePlatform.price / lowestPricePlatform.originalPrice) * 100)}%
-//           </div>
-//         )}
-//       </div>
+      await priceAlertService.setAlert(token, product.id, numericPrice);
       
-//       {/* Content Section */}
-//       <div className="flex flex-grow flex-col p-4">
-//         <div className="mb-2 flex items-center justify-between">
-//           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">{product.category}</span>
-//           <div className="flex items-center gap-0.5 text-amber-500">
-//             <Star size={9} className="fill-current" />
-//             <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{product.rating}</span>
-//           </div>
-//         </div>
+      showToast('Đã đặt cảnh báo giá thành công!', 'success');
+      setIsAlertModalOpen(false);
+      setTargetPriceInput('');
+    } catch (error: any) {
+      showToast(error.message || 'Lỗi khi đặt cảnh báo giá', 'error');
+    } finally {
+      setIsSubmittingAlert(false);
+    }
+  };
 
-//         <h3 className="mb-4 line-clamp-2 text-[14px] font-bold leading-[1.3] text-slate-950 dark:text-white group-hover:text-brand-primary transition-colors font-display tracking-tight">
-//           {product.name}
-//         </h3>
-        
-//         <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50">
-//           <div className="flex items-end justify-between">
-//             <div className="flex flex-col gap-1">
-//               <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 font-display">{t('bestPriceAt')}</span>
-//               <span className={`w-fit rounded-sm px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${getPlatformColor(lowestPricePlatform.name)}`}>
-//                 {lowestPricePlatform.name}
-//               </span>
-//             </div>
-//             <div className="text-right">
-//               <div className="font-mono text-lg font-black tracking-tighter text-brand-primary leading-none">
-//                 {formatPrice(lowestPricePlatform.price)}
-//               </div>
-//               {lowestPricePlatform.originalPrice > lowestPricePlatform.price && (
-//                 <div className="mt-1 font-mono text-[10px] font-medium text-slate-400 line-through leading-none">
-//                   {formatPrice(lowestPricePlatform.originalPrice)}
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-          
-//           {product.fakeDiscountDetected && (
-//             <div className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 px-2.5 py-2 text-[9px] font-bold text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30">
-//               <AlertTriangle size={11} className="shrink-0" />
-//               <span className="leading-tight">{t('fakeDiscountWarning')}</span>
-//             </div>
-//           )}
-//         </div>
-//       </div>
-//     </motion.div>
-//   );
-// }
+  // Hàm format tiền tệ khi user đang gõ
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); 
+    if (value) {
+      setTargetPriceInput(new Intl.NumberFormat('vi-VN').format(Number(value)));
+    } else {
+      setTargetPriceInput('');
+    }
+  };
+  // Hàm làm đẹp tên sản phẩm
+  const formatDisplayName = (name: string) => {
+    if (!name) return '';
+    // Bước 1: Thay thế dấu gạch ngang (-) hoặc gạch dưới (_) bằng khoảng trắng
+    let cleanName = name.replace(/[-_]/g, ' ');
+    
+    // Bước 2: Viết hoa chữ cái đầu tiên của mỗi từ
+    return cleanName.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   return (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -6 }}
-      onClick={() => onClick(product, product.id)}
-      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 transition-all duration-300 hover:shadow-xl"
-    >
-      {/* Action Buttons */}
-      <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
-        {onRemove && (
-          <button onClick={(e) => { e.stopPropagation(); onRemove(e, product); }} className="p-2 bg-white rounded-full text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100">
-            <X size={14} />
-          </button>
-        )}
-      </div>
+    <>
+      <motion.div 
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -6 }}
+        onClick={() => onClick(product, product.id)}
+        className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 transition-all duration-300 hover:shadow-xl"
+      >
+        {/* THÊM LẠI ACTION BUTTONS (Wishlist & Alert) */}
+        <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+          {onRemove && (
+            <button onClick={(e) => { e.stopPropagation(); onRemove(e, product); }} className="p-2 bg-white dark:bg-slate-800 rounded-full text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100 dark:border-slate-700">
+              <X size={14} />
+            </button>
+          )}
 
-      {/* Image Section */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-white dark:bg-slate-800/50 flex items-center justify-center p-6 border-b border-slate-100 dark:border-slate-800/50">
-        <motion.img 
-          // Dùng ảnh từ DB, nếu không có dùng ảnh tạm
-          src={product.main_image_url || `https://picsum.photos/seed/${product.id}/400/400`} 
-          alt={product.raw_name} 
-          whileHover={{ scale: 1.05 }}
-          className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
-          referrerPolicy="no-referrer"
-        />
-        
-        {/* Badges */}
-        <div className="absolute left-3 top-3 flex flex-col gap-1 z-10">
-          {product.in_stock && (
-            <div className="flex w-fit items-center gap-1 rounded-sm bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black uppercase text-white font-display">
-              <CheckCircle2 size={9} strokeWidth={3} /> {t('inStock')}
-            </div>
+          {!onRemove && (
+            <>
+              {/* Nút Chuông (Alert) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!user) {
+                    showToast('Vui lòng đăng nhập để đặt cảnh báo giá!', 'info');
+                    return;
+                  }
+                  setIsAlertModalOpen(true);
+                }}
+                className="p-2 bg-white/95 dark:bg-slate-800/95 rounded-full text-slate-400 hover:text-brand-accent shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+                title="Nhận thông báo khi giảm giá"
+              >
+                <Bell size={14} />
+              </button>
+
+              {/* Nút Tim (Wishlist) */}
+              {onToggleWishlist && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWishlist(e, product);
+                  }}
+                  className={`p-2 rounded-full shadow-sm border transition-colors ${
+                    isWishlisted 
+                      ? 'bg-brand-primary text-white border-brand-primary' 
+                      : 'bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-primary border-slate-100 dark:border-slate-700'
+                  }`}
+                  title="Thêm vào Wishlist"
+                >
+                  <Heart size={14} fill={isWishlisted ? "currentColor" : "none"} />
+                </button>
+              )}
+            </>
           )}
         </div>
 
-        {/* Tính % giảm giá dựa trên current_price và original_price */}
-        {originalPrice > currentPrice && (
-          <div className="absolute left-3 bottom-3 rounded-sm bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black text-white backdrop-blur-md font-mono z-10">
-            -{Math.round((1 - currentPrice / originalPrice) * 100)}%
+        {/* Image Section */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-white dark:bg-slate-800/50 flex items-center justify-center p-6 border-b border-slate-100 dark:border-slate-800/50">
+          <motion.img 
+            src={product.main_image_url || `https://picsum.photos/seed/${product.id}/400/400`} 
+            alt={product.raw_name} 
+            whileHover={{ scale: 1.05 }}
+            className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
+            referrerPolicy="no-referrer"
+          />
+          
+          <div className="absolute left-3 top-3 flex flex-col gap-1 z-10">
+            {product.in_stock && (
+              <div className="flex w-fit items-center gap-1 rounded-sm bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black uppercase text-white font-display">
+                <CheckCircle2 size={9} strokeWidth={3} /> {t('inStock')}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      
-      {/* Content Section */}
-      <div className="flex flex-grow flex-col p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">Category</span>
-          <div className="flex items-center gap-0.5 text-amber-500">
-            <Star size={9} className="fill-current" />
-            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{product.rating || '0.0'}</span>
-          </div>
-        </div>
 
-        {/* Tên sản phẩm dùng raw_name */}
-        <h3 className="mb-4 line-clamp-2 text-[14px] font-bold leading-[1.3] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
-          {product.raw_name}
-        </h3>
+          {displayOriginal > displayPrice && displayPrice > 0 && (
+            <div className="absolute left-3 bottom-3 rounded-sm bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black text-white backdrop-blur-md font-mono z-10">
+              -{Math.round((1 - displayPrice / displayOriginal) * 100)}%
+            </div>
+          )}
+        </div>
         
-        <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50">
-          <div className="flex items-end justify-between">
-            <div className="flex flex-col gap-1">
-              <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 font-display">Giá tại</span>
-              <span className={`w-fit rounded-sm px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${getPlatformColor(platformName)}`}>
-                {platformName}
+        {/* Content Section */}
+        {/* Content Section */}
+        <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
+            {formatDisplayName(product.slug || product.normalized_name || product.raw_name || '')}
+          </h3>
+        </div>
+      </motion.div>
+    
+      {/* PORTAL: MODAL CẢNH BÁO GIÁ (Hiển thị đè lên trên tất cả) */}
+      {isAlertModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+            onClick={(e) => { e.stopPropagation(); setIsAlertModalOpen(false); }}
+          />
+          
+          <div 
+            className="relative w-full max-w-sm rounded-[2rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200/50 dark:border-slate-800/50"
+            onClick={(e) => e.stopPropagation()} // Chặn click xuyên qua nền
+          >
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsAlertModalOpen(false); }}
+              className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <X size={18} />
+            </button>
+            
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-accent/10 text-brand-accent">
+                <Bell size={20} />
+              </div>
+              <h3 className="text-xl font-black font-display uppercase tracking-tight text-slate-900 dark:text-white">
+                Cảnh báo giá
+              </h3>
+            </div>
+
+            <p className="mb-4 text-sm font-medium text-slate-500 dark:text-slate-400">
+              Theo dõi <strong>{product.raw_name}</strong>. Chúng tôi sẽ gửi email ngay khi giá giảm xuống mức này.
+            </p>
+
+            <div className="relative mb-8 group">
+              <input
+                type="text"
+                value={targetPriceInput}
+                onChange={handlePriceChange}
+                placeholder={`VD: ${formatPrice(currentPrice - 500000).replace(/\D/g, '')}`}
+                className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-4 pl-5 pr-12 text-lg font-black text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all focus:bg-white focus:ring-2 focus:ring-brand-accent outline-none font-mono"
+              />
+              <span className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                ₫
               </span>
             </div>
-            <div className="text-right">
-              <div className="font-mono text-lg font-black tracking-tighter text-brand-primary leading-none">
-                {formatPrice(currentPrice)}
-              </div>
-              {originalPrice > currentPrice && (
-                <div className="mt-1 font-mono text-[10px] font-medium text-slate-400 line-through leading-none">
-                  {formatPrice(originalPrice)}
-                </div>
+
+            <button
+              onClick={handleSaveAlert}
+              disabled={isSubmittingAlert || !targetPriceInput}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-accent py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-brand-accent/20 transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:pointer-events-none font-display"
+            >
+              {isSubmittingAlert ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                "Xác nhận đặt thông báo"
               )}
-            </div>
+            </button>
           </div>
-        </div>
-      </div>
-    </motion.div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
