@@ -1,17 +1,19 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
-from typing import Optional
-class PriceAlertCreate(BaseModel):
-    product_id: UUID
-    target_price: float
+from typing import List, Optional
 
-class PriceAlertResponse(BaseModel):
+class WishListCreate(BaseModel):
     product_id: UUID
-    target_price: float
-    status: int
+
+class WishListItem(BaseModel):
+    product_id: UUID
+    added_at: datetime
     product_name: Optional[str] = None
     main_image_url: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class WishListResponse(BaseModel):
+    items: List[WishListItem]

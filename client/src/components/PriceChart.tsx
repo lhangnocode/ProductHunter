@@ -26,7 +26,7 @@ export function PriceChart({ data }: PriceChartProps) {
 
   return (
     <div className="h-[300px] w-full mt-6">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={data} margin={{ top: 10, right: 0, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
@@ -58,7 +58,7 @@ export function PriceChart({ data }: PriceChartProps) {
             fontWeight={700}
           />
           <Tooltip 
-            formatter={(value: number) => [formatPrice(value), language === 'vi' ? 'Giá' : 'Price']}
+            formatter={(value) => value !== undefined && value !== null ? [formatPrice(value as number), language === 'vi' ? 'Giá' : 'Price'] : ['-', language === 'vi' ? 'Giá' : 'Price']}
             labelStyle={{ color: isDark ? '#94a3b8' : '#475569', fontWeight: 900, marginBottom: '4px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em' }}
             contentStyle={{ 
               borderRadius: '16px', 

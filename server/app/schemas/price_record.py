@@ -14,3 +14,16 @@ class PriceRecordResponse(BaseModel):
 
     class Config:
         from_attributes = True # Cho phép Pydantic đọc dữ liệu từ SQLAlchemy Model
+
+class PriceRecordCreateRequest(BaseModel):
+    platform_product_id: UUID
+    price: Decimal
+    original_price: Optional[Decimal] = None
+    is_flash_sale: Optional[bool] = False
+    recorded_at: Optional[datetime] = None
+
+
+
+
+
+     

@@ -89,15 +89,25 @@ MOCK_PLATFORM_DATA = [
   }
 ]
 
-@router.get("/search", response_model=List[ProductSearchItem])
-async def search_products( 
-    name: str = Query(..., description="Name Product pro..."),
-    limit: int = Query(20, ge=1, le=100),
-    page: int = Query(1, ge=1),
+@router.get("/search", response_model=SearchPaginatedResponse)
+async def search_products_list(
+    q: str = Query(..., min_length=2, description="Keyword"),
+    page: int = Query(1, ge=1, description="current page"),
+    limit: int = Query(20, ge=1, le=100, description="num of products per page"),
     db: AsyncSession = Depends(get_db),
 ):
-    products = await search_product(name, db=db, limit=limit, page=page)
-    return products
+    products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
+    
+    total_pages = math.ceil(total_results / limit) if total_results > 0 else 0
+
+    return {
+        "keyword": q,
+        "current_page": page,
+        "total_pages": total_pages,
+        "total_results": total_results, 
+        "data": products 
+    }
+
 
 @router.get("/")
 async def get_all_products(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -133,45 +143,41 @@ async def search_products_list(
 
 
 
-@router.get("/compare",
-             response_model=SearchCompareResponse,
-)
+from fastapi import Query, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+# Import các schema và dependency cần thiết của bạn ở đây...
+
+@router.get("/compare", response_model=SearchCompareResponse)
 async def search_and_compare_products(
-    q: str = Query(..., min_length=2, description="Từ khóa tìm kiếm"),
+    q: str = Query(..., min_length=2, description="Keyword"),
     db: AsyncSession = Depends(get_db),
 ):
-
-    stmt = (
-        select(Product)
-        .options(selectinload(Product.platform_products)) 
-        .where(Product.normalized_name.ilike(f"%{q}%"))
-        .order_by(Product.created_at.desc())
-    )
-    
-    result = await db.execute(stmt)
-    products = result.scalars().all()
+    products, total_results = await search_product(query=q, db=db, limit=50, page=1)
 
     response_list = []
     
     for product in products:
         platforms_data = []
         valid_prices = []
-        for pp in product.platform_products:
-            platforms_data.append(
-                PlatformPriceItem(
-                    platform_id=pp.platform_id,
-                    url=pp.url,
-                    affiliate_url=pp.affiliate_url,
-                    current_price=pp.current_price,
-                    original_price=pp.original_price,
-                    in_stock=pp.in_stock,
-                    last_crawled_at=pp.last_crawled_at
+        
+        if getattr(product, "platform_products", None):
+            for pp in product.platform_products:
+                platforms_data.append(
+                    PlatformPriceItem(
+                        platform_id=pp.platform_id,
+                        url=pp.url,
+                        affiliate_url=pp.affiliate_url,
+                        current_price=pp.current_price,
+                        original_price=pp.original_price,
+                        in_stock=pp.in_stock,
+                        last_crawled_at=pp.last_crawled_at
+                    )
                 )
-            )
-            if pp.in_stock and pp.current_price is not None:
-                valid_prices.append(pp.current_price)
+                if pp.in_stock and pp.current_price is not None:
+                    valid_prices.append(pp.current_price)
 
         lowest_price = min(valid_prices) if valid_prices else None
+        
         response_list.append(
             ProductCompareGroup(
                 id=product.id,
@@ -183,15 +189,13 @@ async def search_and_compare_products(
             )
         )
 
-
     response_list.sort(key=lambda x: x.lowest_price if x.lowest_price is not None else float('inf'))
 
     return SearchCompareResponse(
         keyword=q,
-        total_results=len(response_list),
+        total_results=total_results,
         data=response_list
     )
-
 
 @router.get("/compare2", response_model=SearchCompareResponse)
 async def search_and_compare_mock(

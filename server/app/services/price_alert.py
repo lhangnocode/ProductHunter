@@ -1,11 +1,9 @@
-# app/services/price_alert.py
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from uuid import UUID
-from fastapi import BackgroundTasks
-
+from fastapi import BackgroundTasks, HTTPException, status
+from sqlalchemy.orm import selectinload
 from app.models.price_alert import PriceAlert
 from app.models.product import Product
 from app.models.user import User
@@ -47,6 +45,32 @@ async def set_price_alert(
     )
 
     return result.scalar_one()
+
+async def get_user_alerts(db: AsyncSession, user_id: UUID):
+    stmt = (
+        select(PriceAlert)
+        .options(selectinload(PriceAlert.product)) # Tự động JOIN lấy data product
+        .where(PriceAlert.user_id == user_id)
+        # Bỏ comment dòng order_by dưới đây nếu model của bạn có trường created_at
+        .order_by(PriceAlert.created_at.desc()) 
+    )
+    
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+
+    # 2. Map dữ liệu để trả về theo đúng định dạng của PriceAlertResponse
+    alerts = []
+    for row in rows:
+        alerts.append({
+            "product_id": row.product_id,
+            "target_price": row.target_price,
+            "status": row.status,
+            # Lấy thông tin từ bảng product (nếu product tồn tại)
+            "product_name": row.product.normalized_name if row.product else "Sản phẩm không xác định",
+            "main_image_url": row.product.main_image_url if row.product else None,
+        })
+        
+    return alerts
 
 # ==========================================
 #! 2. HÀM DÀNH CHO HỆ THỐNG (Crawler gọi để check)
@@ -97,3 +121,21 @@ async def check_and_trigger_alerts(
     
     # 5. Commit lưu thay đổi status
     await db.commit()
+
+async def remove_price_alert(db: AsyncSession, user_id: UUID, product_id: UUID) -> None:
+    """
+    Xóa cảnh báo giá của một sản phẩm do người dùng đặt.
+    """
+    stmt = delete(PriceAlert).where(
+        PriceAlert.user_id == user_id,
+        PriceAlert.product_id == product_id,
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    # Nếu rowcount == 0 nghĩa là không tìm thấy cảnh báo nào để xóa
+    if result.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy cảnh báo giá cho sản phẩm này.",
+        )

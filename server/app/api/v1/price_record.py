@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -9,6 +9,8 @@ from app.models.price_record import PriceRecord
 from app.schemas.price_record import PriceRecordResponse
 from app.models.platform_product import PlatformProduct
 from app.handlers.handler_price_record import analyze_price_status
+from app.schemas.price_record import PriceRecordCreateRequest, PriceRecordResponse
+from app.models.price_record import PriceRecord
 
 router = APIRouter()
 
@@ -75,6 +77,77 @@ async def create_price_record(
     )
     db.add(price_record)
     return price_record
+
+
+@router.post(
+    "/price-records",
+    response_model=PriceRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def push_price_record(
+    payload: PriceRecordCreateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(PlatformProduct).where(PlatformProduct.id == payload.platform_product_id)
+    result = await db.execute(stmt)
+    platform_product = result.scalar_one_or_none()
+    if platform_product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PlatformProduct not found")
+
+    pr = PriceRecord(
+        platform_product_id=payload.platform_product_id,
+        price=payload.price,
+        original_price=payload.original_price,
+        is_flash_sale=payload.is_flash_sale,
+    )
+    if payload.recorded_at is not None:
+        pr.recorded_at = payload.recorded_at
+
+    db.add(pr)
+    await db.commit()
+    await db.refresh(pr)
+
+    return pr
+
+
+@router.post(
+    "/price-records/batch",
+    response_model=List[PriceRecordResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def push_price_records_batch(
+    payload: List[PriceRecordCreateRequest],
+    db: AsyncSession = Depends(get_db),
+):
+    created: List[PriceRecord] = []
+
+    for item in payload:
+        stmt = select(PlatformProduct).where(PlatformProduct.id == item.platform_product_id)
+        result = await db.execute(stmt)
+        platform_product = result.scalar_one_or_none()
+        if platform_product is None:
+            continue
+
+        pr = PriceRecord(
+            platform_product_id=item.platform_product_id,
+            price=item.price,
+            original_price=item.original_price,
+            is_flash_sale=bool(item.is_flash_sale),
+        )
+        if item.recorded_at is not None:
+            pr.recorded_at = item.recorded_at
+
+        db.add(pr)
+        created.append(pr)
+
+    if not created:
+        return []
+    await db.commit()
+    
+    for pr in created:
+        await db.refresh(pr)
+
+    return created
 
 
 @router.get("/price-analysis/{platform_product_id}")

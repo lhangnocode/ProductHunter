@@ -145,6 +145,7 @@ async def search_product(
         try:
             client = typesense_client or _build_typesense_client()
             await asyncio.to_thread(_ensure_typesense_collection, client)
+            logger.debug("Typesense is available, performing typesense search. query=%s, page=%s, limit=%s", query_value, page, limit)
             
             search_params: dict[str, Any] = {
                 "q": query_value,
@@ -167,8 +168,8 @@ async def search_product(
                 search_params,
             )
             hits = search_result.get("hits", [])
-            
-            total_results = search_result.get("found", 0) 
+            total_results = search_result.get("found", 0)
+            logger.debug("Typesense search completed. found=%s, hits_count=%s", total_results, len(hits))
 
             product_ids: List[UUID] = []
             for hit in hits:
@@ -200,8 +201,8 @@ async def search_product(
             
             return products, total_results 
             
-        except Exception:
-            logger.exception("Typesense search failed; falling back to postgres...")
+        except Exception as exc:
+            logger.exception("Typesense search failed; falling back to postgres... Exception: %s", exc)
 
     logger.info("Product search using postgres...")
     
