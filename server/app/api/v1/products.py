@@ -182,6 +182,7 @@ async def search_and_compare_products(
             ProductCompareGroup(
                 id=product.id,
                 normalized_name=product.normalized_name,
+                product_name=getattr(product, "product_name", None),
                 slug=product.slug,
                 main_image_url=product.main_image_url,
                 lowest_price=lowest_price,
@@ -240,6 +241,7 @@ async def search_and_compare_mock(
         group = ProductCompareGroup(
             id=product.id,
             normalized_name=product.normalized_name,
+            product_name=getattr(product, "product_name", None),
             slug=product.slug if hasattr(product, 'slug') else "slug-tam",
             main_image_url=product.image_url if hasattr(product, 'image_url') else None,
             lowest_price=lowest_price,

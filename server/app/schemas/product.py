@@ -24,6 +24,7 @@ class ProductPriceResponse(ProductPriceBase):
 
 class ProductBase(BaseModel):
     normalized_name: str
+    product_name: Optional[str] = None
    
     description: Optional[str] = None
     category: Optional[str] = None
@@ -52,6 +53,7 @@ class PlatformProductResponse(BaseModel):
 class ProductResponse(BaseModel):
     id: UUID
     normalized_name: str
+    product_name: Optional[str] = None
     slug: str
     main_image_url: Optional[str] = None
     
@@ -73,6 +75,7 @@ class ProductSearchResponse(BaseModel):
 class ProductCompareGroup(BaseModel):
     id: UUID
     normalized_name: str
+    product_name: Optional[str] = None
     slug: str
     main_image_url: Optional[str] = None
     lowest_price: Optional[float] = None 
@@ -89,6 +92,7 @@ class ProductSearchItem(BaseModel):
 
     id: UUID
     normalized_name: str
+    product_name: Optional[str] = None
     slug: str
     brand: Optional[str] = None
     category: Optional[str] = None

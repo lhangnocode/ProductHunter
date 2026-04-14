@@ -183,10 +183,11 @@ function AppContent() {
 
   // 4. Cập nhật hàm điều hướng
   const handleNavigateToDetail = (platformProduct: any, platformId: string) => {
-    // Ensure ProductDetail receives a `product` object containing `normalized_name`.
-    // platformProduct may include a nested `product` object or `normalized_name`/`raw_name` fields.
+    // Ensure ProductDetail receives a `product` object containing `product_name`.
+    // platformProduct may include a nested `product` object or `product_name`/`normalized_name`/`raw_name` fields.
     const derivedProduct = {
       id: platformProduct.product_id || platformProduct.id || platformId,
+      product_name: platformProduct.product?.product_name || platformProduct.product_name || platformProduct.normalized_name || platformProduct.raw_name || platformProduct.slug || '',
       normalized_name: platformProduct.product?.normalized_name || platformProduct.normalized_name || platformProduct.raw_name || platformProduct.slug || '',
       main_image_url: platformProduct.product?.main_image_url || platformProduct.main_image_url || null,
     };
