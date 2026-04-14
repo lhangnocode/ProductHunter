@@ -88,6 +88,11 @@ def ensure_server_schema(conn) -> None:
 
     ALTER TABLE products
     ALTER COLUMN slug DROP NOT NULL;
+
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS product_name TEXT;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_products_product_name ON products (product_name);
     """
     with conn.cursor() as cur:
         cur.execute(ddl)
