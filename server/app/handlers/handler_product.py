@@ -22,10 +22,11 @@ TYPESENSE_COLLECTION_SCHEMA: dict[str, Any] = {
     "fields": [
         {"name": "id", "type": "string"},
         {"name": "normalized_name", "type": "string", "infix": True},
+        {"name": "product_name", "type": "string", "infix": True},
         {"name": "slug", "type": "string", "infix": True},
     ],
 }
-TYPESENSE_INFIX_FIELDS = ("normalized_name", "slug")
+TYPESENSE_INFIX_FIELDS = ("normalized_name", "product_name", "slug")
 
 
 def _typesense_search(client: typesense.Client, params: Any) -> Any:
@@ -117,6 +118,7 @@ async def upsert_product(
     document = {
         "id": str(product.id),
         "normalized_name": product.normalized_name,
+        "product_name": product.product_name,
         "slug": product.slug,
     }
     await asyncio.to_thread(
@@ -147,8 +149,8 @@ async def search_product(
             
             search_params: dict[str, Any] = {
                 "q": query_value,
-                "query_by": "normalized_name,slug",
-                "query_by_weights": "8,2",
+                "query_by": "normalized_name,product_name",
+                "query_by_weights": "4,8",
                 "num_typos": 2,
                 "min_len_1typo": 4,
                 "min_len_2typo": 7,
