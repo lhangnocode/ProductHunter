@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 class ProductIngestRequest(BaseModel):
     normalized_name: str
+    product_name: Optional[str] = None
     slug: str
     brand: Optional[str] = None
     category: Optional[str] = None
@@ -19,6 +20,7 @@ class ProductIngestResponse(BaseModel):
 
     id: UUID
     normalized_name: str
+    product_name: Optional[str] = None
     slug: str
     brand: Optional[str] = None
     category: Optional[str] = None
