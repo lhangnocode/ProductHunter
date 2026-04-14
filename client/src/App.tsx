@@ -1,54 +1,101 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { MOCK_PRODUCTS, Product } from './data/mockData';
-import { ProductCard } from './components/ProductCard';
-import { ProductDetail } from './components/ProductDetail';
-import { LandingPage } from './components/LandingPage';
-import { AuthModal } from './components/AuthModal';
-import { ToastProvider, useToast } from './components/Toast';
-import { TrendingDeals } from './components/TrendingDeals';
+import React, { useState, useMemo, useEffect } from "react";
+import { MOCK_PRODUCTS, Product } from "./data/mockData";
+import { ProductCard } from "./components/ProductCard";
+import { ProductDetail } from "./components/ProductDetail";
+import { LandingPage } from "./components/LandingPage";
+import { AuthModal } from "./components/AuthModal";
+import { ToastProvider, useToast } from "./components/Toast";
+import { TrendingDeals } from "./components/TrendingDeals";
 
-import { UserProvider, useUser } from './context/UserContext';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { LanguageProvider, useLanguage } from './context/LanguageContext';
-import { Search, TrendingUp, Heart, Bell, Menu, X, Command, Bird, Zap, User, ChevronRight, LogOut, LogIn, Sun, Moon, Languages, ChevronDown, Trash2, ExternalLink, CheckCircle2, Clock, ArrowRight, Smartphone, Home, Headphones, Watch } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { searchPlatformProducts, searchProducts, fetchCompareGroups } from './services/price_record_api';
+import { UserProvider, useUser } from "./context/UserContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { LanguageProvider, useLanguage } from "./context/LanguageContext";
+import {
+  Search,
+  TrendingUp,
+  Heart,
+  Bell,
+  Menu,
+  X,
+  Command,
+  Bird,
+  Zap,
+  User,
+  ChevronRight,
+  LogOut,
+  LogIn,
+  Sun,
+  Moon,
+  Languages,
+  ChevronDown,
+  Trash2,
+  ExternalLink,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  Smartphone,
+  Home,
+  Headphones,
+  Watch,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  searchPlatformProducts,
+  searchProducts,
+  fetchCompareGroups,
+} from "./services/price_record_api";
 
-type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
-type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';
+type Tab = "search" | "trending" | "wishlist" | "alerts";
+type SortOption = "trending" | "price-asc" | "price-desc" | "rating";
 
 function AppContent() {
   // Restore isAppStarted & activeTab from localStorage khi F5
   const [isAppStarted, setIsAppStarted] = useState<boolean>(() => {
-    return localStorage.getItem('app_started') === 'true';
+    return localStorage.getItem("app_started") === "true";
   });
   const [activeTab, setActiveTab] = useState<Tab>(() => {
-    const saved = localStorage.getItem('active_tab') as Tab | null;
-    return (saved && ['search', 'trending', 'wishlist', 'alerts'].includes(saved)) ? saved : 'search';
+    const saved = localStorage.getItem("active_tab") as Tab | null;
+    return saved && ["search", "trending", "wishlist", "alerts"].includes(saved)
+      ? saved
+      : "search";
   });
 
   // Sync activeTab → localStorage
   useEffect(() => {
-    localStorage.setItem('active_tab', activeTab);
+    localStorage.setItem("active_tab", activeTab);
   }, [activeTab]);
 
   // Sync isAppStarted → localStorage
   useEffect(() => {
-    localStorage.setItem('app_started', String(isAppStarted));
+    localStorage.setItem("app_started", String(isAppStarted));
   }, [isAppStarted]);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [activeFilter, setActiveFilter] = useState<string>("All");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('trending');
+  const [sortBy, setSortBy] = useState<SortOption>("trending");
   // Xóa recentlyViewed cũ (chứa ID mock như p1, p2) tránh crash API
-  useEffect(() => { localStorage.removeItem('recentlyViewed'); }, []);
+  useEffect(() => {
+    localStorage.removeItem("recentlyViewed");
+  }, []);
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  const { user, logout, wishlist, wishlistIds, isWishlistLoading, toggleWishlist, clearWishlist, alerts, removeAlert, setAlert, clearAlerts } = useUser();
+  const {
+    user,
+    logout,
+    wishlist,
+    wishlistIds,
+    isWishlistLoading,
+    toggleWishlist,
+    clearWishlist,
+    alerts,
+    removeAlert,
+    setAlert,
+    clearAlerts,
+  } = useUser();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
@@ -65,14 +112,20 @@ function AppContent() {
     setCurrentPlatformId(product.id);
   };
 
-
-
-  const categories = ['All', 'Electronics', 'Audio', 'Accessories', 'Home Appliances'];
+  const categories = [
+    "All",
+    "Electronics",
+    "Audio",
+    "Accessories",
+    "Home Appliances",
+  ];
 
   const [platformProducts, setPlatformProducts] = useState<any[]>([]);
-  const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<any | null>(null);
+  const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<
+    any | null
+  >(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPlatformId, setCurrentPlatformId] = useState<string>('');
+  const [currentPlatformId, setCurrentPlatformId] = useState<string>("");
 
   useEffect(() => {
     let ignore = false;
@@ -105,8 +158,8 @@ function AppContent() {
   const searchResults = useMemo(() => {
     let results = [...platformProducts];
     // Lọc theo Category tại Frontend (nếu Backend chưa lọc)
-    if (activeFilter !== 'All') {
-      results = results.filter(p => p.category === activeFilter);
+    if (activeFilter !== "All") {
+      results = results.filter((p) => p.category === activeFilter);
     }
 
     // Sắp xếp (Sorting) dựa trên trường current_price của DB
@@ -115,10 +168,14 @@ function AppContent() {
       const bPrice = parseFloat(b.current_price) || 0;
 
       switch (sortBy) {
-        case 'price-asc': return aPrice - bPrice;
-        case 'price-desc': return bPrice - aPrice;
-        case 'rating': return (b.rating || 0) - (a.rating || 0);
-        default: return 0; // Trending logic có thể thêm sau nếu DB có trường này
+        case "price-asc":
+          return aPrice - bPrice;
+        case "price-desc":
+          return bPrice - aPrice;
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0);
+        default:
+          return 0; // Trending logic có thể thêm sau nếu DB có trường này
       }
     });
     return results;
@@ -130,7 +187,6 @@ function AppContent() {
     setCurrentPlatformId(platformId);
   };
 
-
   // const searchResults = useMemo(() => {
   //   let results = [...MOCK_PRODUCTS];
   //   if (activeFilter !== 'All') {
@@ -138,8 +194,8 @@ function AppContent() {
   //   }
   //   if (searchQuery.trim()) {
   //     const query = searchQuery.toLowerCase();
-  //     results = results.filter(p => 
-  //       p.name.toLowerCase().includes(query) || 
+  //     results = results.filter(p =>
+  //       p.name.toLowerCase().includes(query) ||
   //       p.category.toLowerCase().includes(query)
   //     );
   //   }
@@ -165,7 +221,10 @@ function AppContent() {
   //   return results;
   // }, [searchQuery, activeFilter, sortBy]);
 
-  const trendingProducts = useMemo(() => MOCK_PRODUCTS.filter(p => p.isTrending), []);
+  const trendingProducts = useMemo(
+    () => MOCK_PRODUCTS.filter((p) => p.isTrending),
+    [],
+  );
 
   // Helper: lấy đúng product_id dù product đến từ search (id=product_id)
   // hay từ trending (id=platform_product_id, product_id=product_id)
@@ -175,27 +234,27 @@ function AppContent() {
   const handleAddWishlist = async (product: any) => {
     if (!user) {
       setIsAuthModalOpen(true);
-      showToast(t('loginToSave'), 'info');
+      showToast(t("loginToSave"), "info");
       return;
     }
     const pid = getProductId(product);
     const isAdding = !wishlistIds.has(pid);
     try {
       await toggleWishlist(pid);
-      showToast(isAdding ? t('addedToWishlist') : t('removedFromWishlist'));
+      showToast(isAdding ? t("addedToWishlist") : t("removedFromWishlist"));
     } catch {
-      showToast('Có lỗi xảy ra, vui lòng thử lại', 'error');
+      showToast("Có lỗi xảy ra, vui lòng thử lại", "error");
     }
   };
 
   const handleSetAlert = (product: Product, threshold: number) => {
     if (!user) {
       setIsAuthModalOpen(true);
-      showToast(t('loginToSetAlert'), 'info');
+      showToast(t("loginToSetAlert"), "info");
       return;
     }
     setAlert(product.id, threshold);
-    showToast(t('alertSetSuccess'));
+    showToast(t("alertSetSuccess"));
   };
 
   if (!isAppStarted) {
@@ -207,9 +266,9 @@ function AppContent() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.05
-      }
-    }
+        staggerChildren: 0.05,
+      },
+    },
   };
 
   const itemVariants = {
@@ -220,16 +279,16 @@ function AppContent() {
       transition: {
         type: "spring" as const,
         stiffness: 260,
-        damping: 20
-      }
-    }
+        damping: 20,
+      },
+    },
   };
 
   // const renderContent = () => {
   //   if (selectedProduct) {
   //     return (
-  //       <ProductDetail 
-  //         product={selectedProduct} 
+  //       <ProductDetail
+  //         product={selectedProduct}
   //         onBack={() => setSelectedProduct(null)}
   //         onAddWishlist={handleAddWishlist}
   //         onSetAlert={handleSetAlert}
@@ -245,14 +304,11 @@ function AppContent() {
         <ProductDetail
           // 2. Truyền prop đúng tên: platformProduct
           platformProduct={selectedPlatformProduct}
-
           // 3. QUAN TRỌNG: Phải truyền thêm ID để lấy lịch sử giá
           initialPlatformId={currentPlatformId}
-
           onBack={() => setSelectedPlatformProduct(null)}
           onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
-          onSetAlert={() => showToast(t('priceAlertSet'), 'success')}
-
+          onSetAlert={() => showToast(t("priceAlertSet"), "success")}
           // 4. Kiểm tra wishlist dựa trên ID của platformProduct
           isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))}
         />
@@ -260,7 +316,7 @@ function AppContent() {
     }
 
     switch (activeTab) {
-      case 'search':
+      case "search":
         return (
           <div className="space-y-8">
             <div className="mx-auto max-w-2xl text-center">
@@ -270,15 +326,18 @@ function AppContent() {
                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
                 className="mb-6 inline-flex items-center gap-2 rounded-full bg-brand-primary/10 px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-brand-primary ring-1 ring-inset ring-brand-primary/30 backdrop-blur-md"
               >
-                <Zap size={12} className="animate-pulse" /> {t('realTimeComparison')}
+                <Zap size={12} className="animate-pulse" />{" "}
+                {t("realTimeComparison")}
               </motion.div>
               <h1 className="text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-6xl mb-6 leading-normal md:leading-[1.3] font-display uppercase">
-                {t('findDealsInAFlash').split('.')[0]}
+                {t("findDealsInAFlash").split(".")[0]}
                 <br />
-                <span className="text-brand-primary">{t('findDealsInAFlash').split('.')[1] || ''}</span>
+                <span className="text-brand-primary">
+                  {t("findDealsInAFlash").split(".")[1] || ""}
+                </span>
               </h1>
               <p className="text-slate-500 dark:text-slate-400 text-base font-medium max-w-lg mx-auto leading-relaxed">
-                {t('searchInstruction')}
+                {t("searchInstruction")}
               </p>
             </div>
 
@@ -289,7 +348,7 @@ function AppContent() {
               <input
                 type="text"
                 className="block w-full rounded-xl border-0 bg-white dark:bg-slate-900 py-5 pl-14 pr-16 text-lg font-bold text-slate-950 dark:text-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-none ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-primary hover:shadow-brand-primary/5 dark:hover:ring-brand-primary/50 outline-none font-sans"
-                placeholder={t('searchPlaceholder')}
+                placeholder={t("searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -308,9 +367,17 @@ function AppContent() {
                 className="mx-auto max-w-2xl space-y-10"
               >
                 <div>
-                  <h3 className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center font-display">{t('popularSearches')}</h3>
+                  <h3 className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center font-display">
+                    {t("popularSearches")}
+                  </h3>
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    {['iPhone 15', 'Sony WH-1000XM5', 'MacBook Air M2', 'AirPods Pro', 'Samsung S24 Ultra'].map(tag => (
+                    {[
+                      "iPhone 15",
+                      "Sony WH-1000XM5",
+                      "MacBook Air M2",
+                      "AirPods Pro",
+                      "Samsung S24 Ultra",
+                    ].map((tag) => (
                       <motion.button
                         key={tag}
                         variants={itemVariants}
@@ -326,79 +393,134 @@ function AppContent() {
                 </div>
 
                 <div className="pt-6">
-                  <h3 className="mb-6 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 text-center font-display">{t('featuredCategories')}</h3>
+                  <h3 className="mb-6 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 text-center font-display">
+                    {t("featuredCategories")}
+                  </h3>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     <motion.button
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveFilter('Electronics')}
+                      onClick={() => setActiveFilter("Electronics")}
                       className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:shadow-lg hover:ring-brand-primary/30 text-left"
                     >
                       <div className="relative z-10">
-                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">{t('hotNow')}</span>
-                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">{t('techDeals')}</h3>
-                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">{MOCK_PRODUCTS.filter(p => p.category === 'Electronics').length} {t('products')}</p>
+                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">
+                          {t("hotNow")}
+                        </span>
+                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">
+                          {t("techDeals")}
+                        </h3>
+                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">
+                          {
+                            MOCK_PRODUCTS.filter(
+                              (p) => p.category === "Electronics",
+                            ).length
+                          }{" "}
+                          {t("products")}
+                        </p>
                       </div>
                       <div className="mt-3 flex items-center gap-1 text-[9px] font-black text-brand-primary uppercase tracking-wider">
-                        {t('exploreNow')} <ArrowRight size={10} />
+                        {t("exploreNow")} <ArrowRight size={10} />
                       </div>
-                      <Smartphone size={60} className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10" />
+                      <Smartphone
+                        size={60}
+                        className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10"
+                      />
                     </motion.button>
 
                     <motion.button
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveFilter('Audio')}
+                      onClick={() => setActiveFilter("Audio")}
                       className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:shadow-lg hover:ring-brand-primary/30 text-left"
                     >
                       <div className="relative z-10">
-                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">{t('trending')}</span>
-                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">{t('audioDeals')}</h3>
-                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">{MOCK_PRODUCTS.filter(p => p.category === 'Audio').length} {t('products')}</p>
+                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">
+                          {t("trending")}
+                        </span>
+                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">
+                          {t("audioDeals")}
+                        </h3>
+                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">
+                          {
+                            MOCK_PRODUCTS.filter((p) => p.category === "Audio")
+                              .length
+                          }{" "}
+                          {t("products")}
+                        </p>
                       </div>
                       <div className="mt-3 flex items-center gap-1 text-[9px] font-black text-brand-primary uppercase tracking-wider">
-                        {t('exploreNow')} <ArrowRight size={10} />
+                        {t("exploreNow")} <ArrowRight size={10} />
                       </div>
-                      <Headphones size={60} className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10" />
+                      <Headphones
+                        size={60}
+                        className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10"
+                      />
                     </motion.button>
 
                     <motion.button
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveFilter('Accessories')}
+                      onClick={() => setActiveFilter("Accessories")}
                       className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:shadow-lg hover:ring-brand-primary/30 text-left"
                     >
                       <div className="relative z-10">
-                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">Essential</span>
-                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">{t('essentialAccessories')}</h3>
-                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">{MOCK_PRODUCTS.filter(p => p.category === 'Accessories').length} {t('products')}</p>
+                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">
+                          Essential
+                        </span>
+                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">
+                          {t("essentialAccessories")}
+                        </h3>
+                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">
+                          {
+                            MOCK_PRODUCTS.filter(
+                              (p) => p.category === "Accessories",
+                            ).length
+                          }{" "}
+                          {t("products")}
+                        </p>
                       </div>
                       <div className="mt-3 flex items-center gap-1 text-[9px] font-black text-brand-primary uppercase tracking-wider">
-                        {t('exploreNow')} <ArrowRight size={10} />
+                        {t("exploreNow")} <ArrowRight size={10} />
                       </div>
-                      <Watch size={60} className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10" />
+                      <Watch
+                        size={60}
+                        className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10"
+                      />
                     </motion.button>
 
                     <motion.button
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveFilter('Home Appliances')}
+                      onClick={() => setActiveFilter("Home Appliances")}
                       className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:shadow-lg hover:ring-brand-primary/30 text-left"
                     >
                       <div className="relative z-10">
-                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">Home</span>
-                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">{t('homeDeals')}</h3>
-                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">{MOCK_PRODUCTS.filter(p => p.category === 'Home Appliances').length} {t('products')}</p>
+                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-brand-primary font-display">
+                          Home
+                        </span>
+                        <h3 className="mt-1 text-sm font-black tracking-tight text-slate-900 dark:text-white font-display uppercase">
+                          {t("homeDeals")}
+                        </h3>
+                        <p className="mt-0.5 text-[9px] font-bold text-slate-400">
+                          {
+                            MOCK_PRODUCTS.filter(
+                              (p) => p.category === "Home Appliances",
+                            ).length
+                          }{" "}
+                          {t("products")}
+                        </p>
                       </div>
                       <div className="mt-3 flex items-center gap-1 text-[9px] font-black text-brand-primary uppercase tracking-wider">
-                        {t('exploreNow')} <ArrowRight size={10} />
+                        {t("exploreNow")} <ArrowRight size={10} />
                       </div>
-                      <Home size={60} className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10" />
+                      <Home
+                        size={60}
+                        className="absolute -bottom-3 -right-3 rotate-12 opacity-[0.03] dark:opacity-[0.05] transition-transform group-hover:scale-110 group-hover:opacity-10"
+                      />
                     </motion.button>
                   </div>
                 </div>
-
-
               </motion.div>
             )}
 
@@ -406,32 +528,43 @@ function AppContent() {
               <div className="space-y-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-6">
                   <div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary mb-1 block font-display">{t('explore')}</span>
+                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary mb-1 block font-display">
+                      {t("explore")}
+                    </span>
                     <h2 className="text-2xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">
-                      {t('resultsFor')} <span className="text-brand-primary">"{searchQuery}"</span>
+                      {t("resultsFor")}{" "}
+                      <span className="text-brand-primary">
+                        "{searchQuery}"
+                      </span>
                     </h2>
-                    <p className="mt-0.5 text-[11px] font-bold text-slate-400">{searchResults.length} {t('products')} {t('found')}</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-slate-400">
+                      {searchResults.length} {t("products")} {t("found")}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="relative group">
                       <select
                         value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                        onChange={(e) =>
+                          setSortBy(e.target.value as SortOption)
+                        }
                         className="appearance-none rounded-xl bg-white dark:bg-slate-900 px-5 py-2.5 pr-10 text-[11px] font-black text-slate-700 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary shadow-sm uppercase tracking-wider"
                       >
-                        <option value="trending">{t('trending')}</option>
-                        <option value="price-asc">{t('priceLowToHigh')}</option>
-                        <option value="price-desc">{t('priceHighToLow')}</option>
-                        <option value="rating">{t('rating')}</option>
+                        <option value="trending">{t("trending")}</option>
+                        <option value="price-asc">{t("priceLowToHigh")}</option>
+                        <option value="price-desc">
+                          {t("priceHighToLow")}
+                        </option>
+                        <option value="rating">{t("rating")}</option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 group-hover:text-brand-primary transition-colors" />
                     </div>
 
                     <button
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => setSearchQuery("")}
                       className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 transition-all border border-transparent hover:border-rose-200"
-                      title={t('clearSearch')}
+                      title={t("clearSearch")}
                     >
                       <X size={16} />
                     </button>
@@ -449,7 +582,12 @@ function AppContent() {
                       key={product.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(index, 10) }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 20,
+                        delay: 0.05 * Math.min(index, 10),
+                      }}
                     >
                       <ProductCard
                         product={product}
@@ -473,9 +611,11 @@ function AppContent() {
                     <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800 text-slate-400 shadow-xl">
                       <Search size={40} />
                     </div>
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">{t('noResults')}</h3>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">
+                      {t("noResults")}
+                    </h3>
                     <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 font-medium max-w-xs">
-                      {t('noResultsSubtitle')}
+                      {t("noResultsSubtitle")}
                     </p>
                   </motion.div>
                 )}
@@ -484,8 +624,7 @@ function AppContent() {
           </div>
         );
 
-
-      case 'trending':
+      case "trending":
         return (
           <TrendingDeals
             onProductClick={handleNavigateToDetail}
@@ -494,8 +633,7 @@ function AppContent() {
           />
         );
 
-
-      case 'wishlist':
+      case "wishlist":
         return (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-8">
@@ -509,24 +647,30 @@ function AppContent() {
                   <Heart size={32} className="fill-rose-500" />
                 </motion.div>
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.3em] text-rose-500 mb-1 block font-display">Saved Items</span>
-                  <h2 className="text-3xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">{t('wishlist')}</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{t('wishlistSubtitle')}</p>
+                  <span className="text-[9px] font-black uppercase tracking-[0.3em] text-rose-500 mb-1 block font-display">
+                    Saved Items
+                  </span>
+                  <h2 className="text-3xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">
+                    {t("wishlist")}
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {t("wishlistSubtitle")}
+                  </p>
                 </div>
               </div>
 
               {wishlist.length > 0 && (
                 <button
                   onClick={async () => {
-                    if (window.confirm(t('confirmClearWishlist'))) {
+                    if (window.confirm(t("confirmClearWishlist"))) {
                       await clearWishlist();
-                      showToast(t('removedFromWishlist'));
+                      showToast(t("removedFromWishlist"));
                     }
                   }}
                   className="flex items-center gap-2.5 rounded-xl bg-white dark:bg-slate-900 px-6 py-3 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:ring-rose-200 dark:hover:ring-rose-800 shadow-sm uppercase tracking-wider"
                 >
                   <Trash2 size={16} />
-                  {t('clearAll')}
+                  {t("clearAll")}
                 </button>
               )}
             </div>
@@ -534,7 +678,9 @@ function AppContent() {
             {isWishlistLoading ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
                 <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-100 dark:border-rose-900/30 border-t-rose-500" />
-                <p className="text-sm font-bold text-slate-400 animate-pulse">Đang tải danh sách yêu thích...</p>
+                <p className="text-sm font-bold text-slate-400 animate-pulse">
+                  Đang tải danh sách yêu thích...
+                </p>
               </div>
             ) : wishlist.length > 0 ? (
               <motion.div
@@ -548,8 +694,8 @@ function AppContent() {
                   const product = {
                     id: item.product_id,
                     product_id: item.product_id,
-                    slug: item.product_name ?? '',
-                    raw_name: item.product_name ?? '',
+                    slug: item.product_name ?? "",
+                    raw_name: item.product_name ?? "",
                     main_image_url: item.main_image_url ?? undefined,
                     current_price: null,
                     original_price: null,
@@ -561,19 +707,25 @@ function AppContent() {
                       key={item.product_id || Math.random().toString()}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(wishlist.indexOf(item), 10) }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 20,
+                        delay: 0.05 * Math.min(wishlist.indexOf(item), 10),
+                      }}
                     >
                       <ProductCard
                         product={product}
                         onClick={(p) => handleNavigateToDetail(p, p.product_id)}
-                        onRemove={(e) => { e.stopPropagation(); handleAddWishlist(product); }}
+                        onRemove={(e) => {
+                          e.stopPropagation();
+                          handleAddWishlist(product);
+                        }}
                       />
                     </motion.div>
                   );
                 })}
               </motion.div>
-
-
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -583,21 +735,23 @@ function AppContent() {
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-rose-50 dark:bg-rose-950/30 text-rose-400 shadow-xl shadow-rose-500/5">
                   <Heart size={40} />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">{t('emptyWishlist')}</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">
+                  {t("emptyWishlist")}
+                </h3>
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 font-medium max-w-xs mb-8">
-                  {t('emptyWishlistSubtitle')}
+                  {t("emptyWishlistSubtitle")}
                 </p>
                 <button
-                  onClick={() => setActiveTab('search')}
+                  onClick={() => setActiveTab("search")}
                   className="flex items-center gap-2.5 rounded-xl bg-brand-primary px-8 py-3.5 text-xs font-black text-white shadow-xl shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-wider"
                 >
-                  {t('exploreNow')}
+                  {t("exploreNow")}
                 </button>
               </motion.div>
             )}
           </div>
         );
-      case 'alerts':
+      case "alerts":
         return (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-8">
@@ -608,27 +762,37 @@ function AppContent() {
                   whileHover={{ rotate: [0, -10, 10, -10, 0] }}
                   className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-accent/10 text-brand-accent ring-1 ring-inset ring-brand-accent/20 shadow-xl shadow-brand-accent/10 backdrop-blur-md"
                 >
-                  <Bell size={32} className="fill-brand-accent" strokeWidth={2.5} />
+                  <Bell
+                    size={32}
+                    className="fill-brand-accent"
+                    strokeWidth={2.5}
+                  />
                 </motion.div>
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-accent mb-1 block font-display">Active Alerts</span>
-                  <h2 className="text-3xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">{t('priceAlerts')}</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{t('alertsSubtitle')}</p>
+                  <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-accent mb-1 block font-display">
+                    Active Alerts
+                  </span>
+                  <h2 className="text-3xl font-black tracking-tighter text-slate-950 dark:text-white font-display uppercase">
+                    {t("priceAlerts")}
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {t("alertsSubtitle")}
+                  </p>
                 </div>
               </div>
 
               {alerts.length > 0 && (
                 <button
-                  onClick={() => {
-                    if (window.confirm(t('confirmClearAlerts'))) {
-                      clearAlerts();
-                      showToast(t('alertSetSuccess'));
+                  onClick={async () => {
+                    if (window.confirm(t("confirmClearAlerts"))) {
+                      await clearAlerts();
+                      showToast("Đã xóa toàn bộ cảnh báo giá", "success");
                     }
                   }}
                   className="flex items-center gap-2.5 rounded-xl bg-white dark:bg-slate-900 px-6 py-3 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:ring-rose-200 dark:hover:ring-rose-800 shadow-sm uppercase tracking-wider"
                 >
                   <Trash2 size={16} />
-                  {t('clearAll')}
+                  {t("clearAll")}
                 </button>
               )}
             </div>
@@ -641,74 +805,77 @@ function AppContent() {
                 className="grid grid-cols-1 gap-6 lg:grid-cols-2"
               >
                 {alerts.map((alert) => {
-                  const product = MOCK_PRODUCTS.find(p => p.id === alert.productId);
-                  if (!product) return null;
-                  const currentMinPrice = Math.min(...product.platforms.map(p => p.price));
-                  const isReached = currentMinPrice <= alert.threshold;
+                  // Đọc dữ liệu từ backend thay vì MOCK_PRODUCTS
+                  const isReached = alert.status === 1; // Backend của bạn set status = 1 khi đã giảm giá
 
                   return (
                     <motion.div
-                      key={alert.productId}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(alerts.indexOf(alert), 10) }}
+                      key={alert.product_id}
+                      variants={itemVariants}
                       whileHover={{ scale: 1.01, y: -2 }}
                       className="group relative flex flex-col sm:flex-row items-center gap-6 rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-lg border border-slate-200/50 dark:border-slate-800/50 transition-all hover:shadow-xl hover:border-brand-primary/30"
                     >
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
-                        <img src={product.image} alt={product.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        <img
+                          src={
+                            alert.main_image_url ||
+                            `https://picsum.photos/seed/${alert.product_id}/400/400`
+                          }
+                          alt={alert.product_name || "Product Image"}
+                          className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-110"
+                        />
                       </div>
 
                       <div className="flex-grow space-y-3 text-center sm:text-left">
                         <div>
-                          <h3 className="text-lg font-black text-slate-900 dark:text-white line-clamp-1 font-display tracking-tight uppercase">{product.name}</h3>
+                          <h3 className="text-lg font-black text-slate-900 dark:text-white line-clamp-1 font-display tracking-tight uppercase">
+                            {alert.product_name ||
+                              "Đang tải thông tin sản phẩm..."}
+                          </h3>
                           <div className="mt-1.5 flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${isReached ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 shadow-sm' : 'bg-amber-100 text-amber-600 dark:bg-amber-950/30 shadow-sm'
-                              }`}>
-                              {isReached ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                              {isReached ? t('targetReached') : t('waiting')}
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${
+                                isReached
+                                  ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 shadow-sm"
+                                  : "bg-amber-100 text-amber-600 dark:bg-amber-950/30 shadow-sm"
+                              }`}
+                            >
+                              {isReached ? (
+                                <CheckCircle2 size={10} />
+                              ) : (
+                                <Clock size={10} />
+                              )}
+                              {isReached ? t("targetReached") : t("waiting")}
                             </span>
                           </div>
                         </div>
 
                         <div className="flex items-center justify-center sm:justify-start gap-6">
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">{t('currentPrice')}</p>
-                            <p className="text-xl font-black text-slate-900 dark:text-white font-mono tracking-tighter">
-                              {new Intl.NumberFormat(language === 'vi' ? 'vi-VN' : 'en-US', { style: 'currency', currency: language === 'vi' ? 'VND' : 'USD' }).format(currentMinPrice)}
+                            <p className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">
+                              {t("targetPrice")}
                             </p>
-                          </div>
-                          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">{t('targetPrice')}</p>
                             <p className="text-xl font-black text-brand-primary font-mono tracking-tighter">
-                              {new Intl.NumberFormat(language === 'vi' ? 'vi-VN' : 'en-US', { style: 'currency', currency: language === 'vi' ? 'VND' : 'USD' }).format(alert.threshold)}
+                              {new Intl.NumberFormat(
+                                language === "vi" ? "vi-VN" : "en-US",
+                                {
+                                  style: "currency",
+                                  currency: language === "vi" ? "VND" : "USD",
+                                },
+                              ).format(alert.target_price)}
                             </p>
                           </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 shadow-inner">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(100, (alert.threshold / currentMinPrice) * 100)}%` }}
-                            className={`h-full rounded-full transition-all shadow-sm ${isReached ? 'bg-brand-success' : 'bg-brand-primary'}`}
-                          />
                         </div>
                       </div>
 
                       <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto">
                         <button
-                          onClick={() => handleProductClick(product)}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-brand-primary/10 hover:text-brand-primary border border-transparent hover:border-brand-primary/20 uppercase tracking-wider"
-                        >
-                          <ExternalLink size={16} />
-                          <span className="hidden lg:inline">{t('viewProduct')}</span>
-                        </button>
-                        <button
-                          onClick={() => removeAlert(alert.productId)}
-                          className="flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/30 p-2.5 text-rose-500 transition-all hover:bg-rose-500 hover:text-white shadow-sm border border-transparent hover:border-rose-200"
-                          title={t('delete')}
+                          onClick={async () => {
+                            await removeAlert(alert.product_id);
+                            showToast("Đã xóa cảnh báo", "info");
+                          }}
+                          className="flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-rose-500 transition-all hover:bg-rose-500 hover:text-white shadow-sm border border-transparent hover:border-rose-200"
+                          title={t("delete")}
                         >
                           <Trash2 size={18} />
                         </button>
@@ -726,15 +893,17 @@ function AppContent() {
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800 text-slate-400 shadow-xl">
                   <Bell size={40} />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">{t('noAlerts')}</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">
+                  {t("noAlerts")}
+                </h3>
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 font-medium max-w-xs mb-8">
-                  {t('noAlertsSubtitle')}
+                  {t("noAlertsSubtitle")}
                 </p>
                 <button
-                  onClick={() => setActiveTab('search')}
+                  onClick={() => setActiveTab("search")}
                   className="flex items-center gap-2.5 rounded-xl bg-brand-primary px-8 py-3.5 text-xs font-black text-white shadow-xl shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-wider"
                 >
-                  {t('exploreNow')}
+                  {t("exploreNow")}
                 </button>
               </motion.div>
             )}
@@ -746,7 +915,11 @@ function AppContent() {
   const renderNavItem = (Icon: any, label: string, tab: Tab) => (
     <motion.button
       key={tab}
-      whileHover={{ x: 3, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+      whileHover={{
+        x: 3,
+        backgroundColor:
+          theme === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+      }}
       whileTap={{ scale: 0.98 }}
       onClick={() => {
         setActiveTab(tab);
@@ -755,22 +928,31 @@ function AppContent() {
         setIsMobileMenuOpen(false);
       }}
       className={`relative group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[9px] font-black transition-all font-display uppercase tracking-[0.2em]
-        ${activeTab === tab && !selectedPlatformProduct
-          ? 'text-white'
-          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+        ${
+          activeTab === tab && !selectedPlatformProduct
+            ? "text-white"
+            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
         }
       `}
     >
-      <Icon size={14} className="relative z-10" strokeWidth={activeTab === tab && !selectedPlatformProduct ? 3 : 2} />
+      <Icon
+        size={14}
+        className="relative z-10"
+        strokeWidth={activeTab === tab && !selectedPlatformProduct ? 3 : 2}
+      />
       <span className="relative z-10">{label}</span>
 
-      {tab === 'wishlist' && wishlistIds.size > 0 && (
-        <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedPlatformProduct ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+      {tab === "wishlist" && wishlistIds.size > 0 && (
+        <span
+          className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedPlatformProduct ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}
+        >
           {wishlistIds.size}
         </span>
       )}
-      {tab === 'alerts' && alerts.length > 0 && (
-        <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedPlatformProduct ? 'bg-white/20 text-white' : 'bg-brand-accent/10 text-brand-accent'}`}>
+      {tab === "alerts" && alerts.length > 0 && (
+        <span
+          className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedPlatformProduct ? "bg-white/20 text-white" : "bg-brand-accent/10 text-brand-accent"}`}
+        >
           {alerts.length}
         </span>
       )}
@@ -787,7 +969,10 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-brand-primary/10 selection:text-brand-primary transition-colors duration-300">
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
 
       {/* Background Decorative Elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -802,10 +987,10 @@ function AppContent() {
           <div className="flex items-center gap-8">
             <button
               onClick={() => {
-                localStorage.removeItem('app_started');
-                localStorage.removeItem('active_tab');
+                localStorage.removeItem("app_started");
+                localStorage.removeItem("active_tab");
                 setIsAppStarted(false);
-                setActiveTab('search');
+                setActiveTab("search");
                 setSelectedProduct(null);
               }}
               className="flex items-center gap-2 text-base font-black tracking-tighter text-slate-950 dark:text-white transition-transform active:scale-95 group"
@@ -813,21 +998,23 @@ function AppContent() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary text-white shadow-lg shadow-brand-primary/20 group-hover:rotate-12 transition-transform">
                 <Bird size={16} strokeWidth={3} />
               </div>
-              <span className="hidden sm:inline font-display uppercase">ProductHunter<span className="text-brand-primary">.</span></span>
+              <span className="hidden sm:inline font-display uppercase">
+                ProductHunter<span className="text-brand-primary">.</span>
+              </span>
             </button>
 
             {/* Desktop Search in Navbar */}
-            {(activeTab !== 'search' || selectedProduct) && (
+            {(activeTab !== "search" || selectedProduct) && (
               <div className="hidden md:block relative w-64 group">
                 <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                 <input
                   type="text"
-                  placeholder={t('searchProducts')}
+                  placeholder={t("searchProducts")}
                   className="w-full rounded-lg border-0 bg-slate-100 dark:bg-slate-900 py-1.5 pl-8 pr-4 text-[10px] font-black uppercase tracking-wider text-slate-950 dark:text-white ring-1 ring-inset ring-transparent transition-all focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-brand-primary font-display"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    if (activeTab !== 'search') setActiveTab('search');
+                    if (activeTab !== "search") setActiveTab("search");
                     if (selectedProduct) setSelectedProduct(null);
                   }}
                 />
@@ -842,14 +1029,14 @@ function AppContent() {
                 whileTap={{ rotate: 180, scale: 0.9 }}
                 onClick={toggleTheme}
                 className="rounded-md p-1.5 text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all"
-                title={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+                title={theme === "light" ? "Dark Mode" : "Light Mode"}
               >
-                {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+                {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+                onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
                 className="flex items-center gap-1 rounded-md p-1.5 text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all font-black text-[8px] font-display"
                 title="Change Language"
               >
@@ -862,8 +1049,8 @@ function AppContent() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -1 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveTab('wishlist')}
-                className={`relative rounded-md p-1.5 transition-all ${activeTab === 'wishlist' ? 'bg-white dark:bg-slate-700 text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                onClick={() => setActiveTab("wishlist")}
+                className={`relative rounded-md p-1.5 transition-all ${activeTab === "wishlist" ? "bg-white dark:bg-slate-700 text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}
               >
                 <Heart size={16} />
                 {wishlistIds.size > 0 && (
@@ -875,8 +1062,8 @@ function AppContent() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -1 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveTab('alerts')}
-                className={`relative rounded-md p-1.5 transition-all ${activeTab === 'alerts' ? 'bg-white dark:bg-slate-700 text-brand-accent shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                onClick={() => setActiveTab("alerts")}
+                className={`relative rounded-md p-1.5 transition-all ${activeTab === "alerts" ? "bg-white dark:bg-slate-700 text-brand-accent shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}
               >
                 <Bell size={16} />
                 {alerts.length > 0 && (
@@ -898,14 +1085,14 @@ function AppContent() {
                 >
                   <div className="hidden text-right lg:block">
                     <p className="text-[10px] font-black text-slate-900 dark:text-white font-display uppercase tracking-wider leading-none">
-                      {user.full_name || 'USER'}
+                      {user.full_name || "USER"}
                     </p>
                     <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-none mt-1">
                       {user.email}
                     </p>
                   </div>
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary font-black ring-1 ring-brand-primary/20 text-[10px] font-display uppercase">
-                    {user.full_name?.[0] || 'U'}
+                    {user.full_name?.[0] || "U"}
                   </div>
                 </button>
 
@@ -929,21 +1116,25 @@ function AppContent() {
                         <div className="p-2">
                           {/* Hiển thị tên trên mobile vì mobile bị ẩn ở nút bấm */}
                           <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 lg:hidden mb-1">
-                            <p className="text-xs font-black text-slate-900 dark:text-white font-display uppercase truncate">{user.full_name || 'USER'}</p>
-                            <p className="text-[10px] font-medium text-slate-500 truncate">{user.email}</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white font-display uppercase truncate">
+                              {user.full_name || "USER"}
+                            </p>
+                            <p className="text-[10px] font-medium text-slate-500 truncate">
+                              {user.email}
+                            </p>
                           </div>
 
                           {/* Nút đăng xuất chính thức */}
                           <button
                             onClick={() => {
                               logout();
-                              showToast(t('logoutSuccess'), 'info');
+                              showToast(t("logoutSuccess"), "info");
                               setIsProfileMenuOpen(false);
                             }}
                             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-black text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors uppercase tracking-widest font-display"
                           >
                             <LogOut size={14} />
-                            {t('logout')}
+                            {t("logout")}
                           </button>
                         </div>
                       </motion.div>
@@ -953,13 +1144,13 @@ function AppContent() {
               </div>
             ) : (
               <motion.button
-                whileHover={{ scale: 1.05, backgroundColor: '#000' }}
+                whileHover={{ scale: 1.05, backgroundColor: "#000" }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsAuthModalOpen(true)}
                 className="flex items-center gap-2 rounded-lg bg-brand-secondary px-3.5 py-1.5 text-[9px] font-black text-white shadow-lg shadow-brand-secondary/20 transition-all uppercase tracking-[0.2em] font-display"
               >
                 <LogIn size={14} />
-                <span className="hidden sm:inline">{t('login')}</span>
+                <span className="hidden sm:inline">{t("login")}</span>
               </motion.button>
             )}
 
@@ -975,27 +1166,35 @@ function AppContent() {
 
       <div className="mx-auto flex max-w-[1600px] relative z-10">
         {/* Sidebar */}
-        <aside className={`
+        <aside
+          className={`
           fixed left-0 top-[52px] z-40 flex h-[calc(100vh-52px)] w-56 flex-col border-r border-slate-200/40 dark:border-slate-800/40 glass-surface transition-transform duration-300 ease-in-out
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:sticky lg:translate-x-0'}
-        `}>
+          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:sticky lg:translate-x-0"}
+        `}
+        >
           <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-6">
-            <div className="mb-2.5 px-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-400/80 font-display">{t('explore')}</div>
-            {renderNavItem(Search, t('searchAndCompare'), 'search')}
-            {renderNavItem(TrendingUp, t('trendingDeals'), 'trending')}
+            <div className="mb-2.5 px-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-400/80 font-display">
+              {t("explore")}
+            </div>
+            {renderNavItem(Search, t("searchAndCompare"), "search")}
+            {renderNavItem(TrendingUp, t("trendingDeals"), "trending")}
 
-            <div className="mb-2.5 mt-8 px-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-400/80 font-display">{t('personal')}</div>
-            {renderNavItem(Heart, t('wishlist'), 'wishlist')}
-            {renderNavItem(Bell, t('priceAlerts'), 'alerts')}
+            <div className="mb-2.5 mt-8 px-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-400/80 font-display">
+              {t("personal")}
+            </div>
+            {renderNavItem(Heart, t("wishlist"), "wishlist")}
+            {renderNavItem(Bell, t("priceAlerts"), "alerts")}
 
             <div className="mt-auto pt-8 pb-4">
               <div className="rounded-xl bg-gradient-to-br from-brand-primary/10 to-brand-accent/10 p-4 ring-1 ring-inset ring-brand-primary/10">
-                <p className="text-[10px] font-black text-brand-primary mb-1 font-display uppercase tracking-wider">{t('sidebarPromoTitle')}</p>
+                <p className="text-[10px] font-black text-brand-primary mb-1 font-display uppercase tracking-wider">
+                  {t("sidebarPromoTitle")}
+                </p>
                 <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
-                  {t('sidebarPromoDesc')}
+                  {t("sidebarPromoDesc")}
                 </p>
                 <button className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display">
-                  {t('upgradeNow')}
+                  {t("upgradeNow")}
                 </button>
               </div>
             </div>
@@ -1014,7 +1213,7 @@ function AppContent() {
         <main className="flex-1 min-w-0 px-4 py-8 sm:px-8 lg:px-12">
           <AnimatePresence mode="wait">
             <motion.div
-              key={selectedProduct ? 'detail' : activeTab}
+              key={selectedProduct ? "detail" : activeTab}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
