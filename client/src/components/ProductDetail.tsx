@@ -60,9 +60,25 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   };
  
 
+  const normalizeImageUrl = (url: string | null | undefined): string | null => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return null;
+    let cleaned = url.trim();
+    if (cleaned.includes(',')) {
+      cleaned = cleaned.split(',')[0].trim();
+    }
+    cleaned = cleaned.split(/\s+/)[0].trim();
+    if (cleaned.startsWith('//')) {
+      cleaned = `https:${cleaned}`;
+    } else if (cleaned.startsWith('cdn2.fptshop.com.vn') || cleaned.startsWith('fptshop.com.vn')) {
+      cleaned = `https://${cleaned}`;
+    }
+    return cleaned || null;
+  };
+
   // Ảnh và tên luôn lấy từ prop gốc, loại bỏ URL mock
   const rawImage = product?.main_image_url || currentPlatformData?.main_image_url;
-  const productImage = isRealImageUrl(rawImage) ? rawImage : null;
+  const normalizedImage = normalizeImageUrl(rawImage);
+  const productImage = isRealImageUrl(normalizedImage) ? normalizedImage : null;
   const rawName = product?.product_name || product?.normalized_name || currentPlatformData?.raw_name || currentPlatformData?.raw_name || '';
   const productName = formatDisplayName(rawName);
   

@@ -79,13 +79,13 @@ class TypesenseHandler:
         collection: str,
         query: str,
         query_by: str = "normalized_name,product_name",
-        query_by_weights: str = "4,4",
+        query_by_weights: str = "2,8",
         num_typos: int = 2,
         min_len_1typo: int = 4,
         min_len_2typo: int = 7,
-        typo_tokens_threshold: int = 1,
+        typo_tokens_threshold: int = 0,
         infix: str = "always",
-        drop_tokens_threshold: int = 2,
+        drop_tokens_threshold: int = 1,
         prefix: str = "true",
         per_page: int = 10,
     ) -> Dict[str, Any]:
@@ -102,6 +102,9 @@ class TypesenseHandler:
             "infix": infix,
             "drop_tokens_threshold": drop_tokens_threshold,
             "prefix": prefix,
+            "enable_typos_for_numeric_tokens": "true",
+            "prioritize_exact_match": "false",
+            "split_join_tokens": "always",
             "per_page": per_page,
         }
         response = session.get(url, params=params, headers=self._headers(), timeout=self.timeout)

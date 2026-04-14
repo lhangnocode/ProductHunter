@@ -31,13 +31,30 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
   const [targetPriceInput, setTargetPriceInput] = useState('');
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
 
+  const normalizeImageUrl = (url: string | null | undefined): string | null => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return null;
+    let cleaned = url.trim();
+    if (cleaned.includes(',')) {
+      cleaned = cleaned.split(',')[0].trim();
+    }
+    cleaned = cleaned.split(/\s+/)[0].trim();
+    if (cleaned.startsWith('//')) {
+      cleaned = `https:${cleaned}`;
+    } else if (cleaned.startsWith('cdn2.fptshop.com.vn') || cleaned.startsWith('fptshop.com.vn')) {
+      cleaned = `https://${cleaned}`;
+    }
+    return cleaned || null;
+  };
+
   // Lọc URL mock không hợp lệ
   const isRealImageUrl = (url: string | null | undefined): boolean => {
     if (!url || typeof url !== 'string' || url.trim() === '') return false;
     const mockPatterns = ['picsum.photos', 'placeholder.com', 'placehold.co', 'loremflickr', 'dummyimage', 'via.placeholder'];
     return !mockPatterns.some(p => url.includes(p));
   };
-  const productImage = isRealImageUrl(product.main_image_url) ? product.main_image_url : null;
+
+  const normalizedImageUrl = normalizeImageUrl(product.main_image_url);
+  const productImage = isRealImageUrl(normalizedImageUrl) ? normalizedImageUrl : null;
 
   // State track lỗi ảnh — reset khi ảnh mới
   const [imgError, setImgError] = useState(false);
