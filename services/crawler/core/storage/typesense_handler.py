@@ -79,7 +79,7 @@ class TypesenseHandler:
         collection: str,
         query: str,
         query_by: str = "normalized_name,product_name",
-        query_by_weights: str = "8,8",
+        query_by_weights: str = "4,4",
         num_typos: int = 2,
         min_len_1typo: int = 4,
         min_len_2typo: int = 7,
