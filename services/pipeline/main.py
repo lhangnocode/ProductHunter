@@ -25,7 +25,7 @@ from services.pipeline.config import (
     TYPESENSE_PORT,
     TYPESENSE_PROTOCOL,
 )
-from services.pipeline.db import ensure_staging_schema, get_server_conn, get_staging_conn
+from services.pipeline.db import ensure_server_schema, ensure_staging_schema, get_server_conn, get_staging_conn
 from services.pipeline.llm_normalizer import normalize_pending
 from services.pipeline.staging_loader import load_csvs_to_staging
 
@@ -57,6 +57,7 @@ def main() -> None:
         # ── Schema setup ──────────────────────────────────────────────────────
         print("\n[pipeline] Stage 0: Ensuring schemas...")
         ensure_staging_schema(staging_conn)
+        ensure_server_schema(server_conn)
         try:
             typesense.ensure_collection()
             print("[pipeline] Typesense collection ensured.")

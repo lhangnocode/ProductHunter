@@ -73,3 +73,20 @@ def ensure_staging_schema(conn) -> None:
             cur.execute(migration)
     conn.commit()
     print("[db] Staging schema ensured.")
+
+
+def ensure_server_schema(conn) -> None:
+    """
+    Apply additive adjustments to the server schema required by the pipeline.
+    """
+    ddl = """
+    ALTER TABLE platform_products
+    ALTER COLUMN url DROP NOT NULL;
+
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS slug TEXT;
+    """
+    with conn.cursor() as cur:
+        cur.execute(ddl)
+    conn.commit()
+    print("[db] Server schema ensured.")
