@@ -23,10 +23,9 @@ TYPESENSE_COLLECTION_SCHEMA: dict[str, Any] = {
         {"name": "id", "type": "string"},
         {"name": "normalized_name", "type": "string", "infix": True},
         {"name": "product_name", "type": "string", "infix": True},
-        {"name": "slug", "type": "string", "infix": True},
     ],
 }
-TYPESENSE_INFIX_FIELDS = ("normalized_name", "product_name", "slug")
+TYPESENSE_INFIX_FIELDS = ("normalized_name", "product_name")
 
 
 def _typesense_search(client: typesense.Client, params: Any) -> Any:
@@ -119,7 +118,6 @@ async def upsert_product(
         "id": str(product.id),
         "normalized_name": product.normalized_name,
         "product_name": product.product_name,
-        "slug": product.slug,
     }
     await asyncio.to_thread(
         client.collections["products"].documents.upsert,
@@ -150,14 +148,17 @@ async def search_product(
             search_params: dict[str, Any] = {
                 "q": query_value,
                 "query_by": "normalized_name,product_name",
-                "query_by_weights": "2,2",
+                "query_by_weights": "2,8",
                 "num_typos": 2,
                 "min_len_1typo": 4,
                 "min_len_2typo": 7,
-                "typo_tokens_threshold": 1,
+                "typo_tokens_threshold": 0,
                 "infix": "always",
-                "drop_tokens_threshold": 2,
+                "drop_tokens_threshold": 1,
                 "prefix": True,
+                "enable_typos_for_numeric_tokens": "true",
+                "prioritize_exact_match": "false",
+                "split_join_tokens": "always",
                 "per_page": limit,
                 "page": page,
             }
@@ -208,7 +209,7 @@ async def search_product(
     
     base_condition = or_(
         Product.normalized_name.ilike(f"%{query_value}%"),
-        Product.slug.ilike(f"%{query_value}%"),
+        Product.product_name.ilike(f"%{query_value}%"),
     )
     
     count_stmt = select(func.count(Product.id)).where(base_condition)
