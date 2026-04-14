@@ -45,13 +45,17 @@ export async function searchPlatformProducts(productId: string): Promise<any[]> 
 
 export async function searchProducts(name: string): Promise<any[]> {
   try {
-    const response = await fetch(`${CONFIG.API_URL}/products/search?q=${encodeURIComponent(name)}`);
+    const url = `${CONFIG.API_URL}/products/search?q=${encodeURIComponent(name)}`;
+    console.debug('[searchProducts] requesting', url);
+    const response = await fetch(url);
+    console.debug('[searchProducts] status', response.status);
     if (!response.ok) {
       console.error(`Search API failed with status: ${response.status}`);
       return []; 
     }
 
     const result = await response.json();
+    console.debug('[searchProducts] response body', result);
 
     if (Array.isArray(result)) {
       return result;

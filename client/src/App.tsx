@@ -65,23 +65,23 @@ function AppContent() {
       }
       try {
         setIsLoading(true);
-        // Use compare API which returns product groups with platforms
-        const groups = await fetchCompareGroups(searchQuery);
+        const resp = await searchProducts(searchQuery);
+        const groups = Array.isArray(resp) ? resp : (resp && Array.isArray((resp as any).data) ? (resp as any).data : []);
 
         // Flatten to items suitable for ProductCard: pick representative fields
         const items: any[] = [];
         groups.forEach((g: any) => {
           // Choose a representative price (lowest_price) and image
           items.push({
-            id: g.id, // product id (group)
-            normalized_name: g.normalized_name || g.slug,
-            slug: g.normalized_name || g.slug || '',
-            raw_name: g.normalized_name || g.slug || '',
-            main_image_url: g.main_image_url || undefined,
+           id: g.id,
+            normalized_name: g.normalized_name || g.slug || g.raw_name || '',
+            slug: g.slug || g.normalized_name || '',
+            raw_name: g.normalized_name || g.slug || g.raw_name || '',
+            main_image_url: g.main_image_url || g.image_url || undefined,
             lowest_price: g.lowest_price ?? null,
             platforms: Array.isArray(g.platforms) ? g.platforms : [],
             // For compatibility, set current_price to lowest_price so cards show a price
-            current_price: g.lowest_price ?? null,
+            current_price: g.lowest_price ?? g.current_price ?? null,
           });
         });
 

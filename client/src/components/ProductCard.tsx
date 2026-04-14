@@ -108,11 +108,23 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
   // Hàm làm đẹp tên sản phẩm
   const formatDisplayName = (name: string) => {
     if (!name) return '';
-    // Bước 1: Thay thế dấu gạch ngang (-) hoặc gạch dưới (_) bằng khoảng trắng
-    let cleanName = name.replace(/[-_]/g, ' ');
-    
-    // Bước 2: Viết hoa chữ cái đầu tiên của mỗi từ
-    return cleanName.replace(/\b\w/g, (char) => char.toUpperCase());
+
+    // Try to decode any HTML entities if present (safe in browser)
+    let decoded = name;
+    try {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = name;
+      decoded = txt.value;
+    } catch (e) {
+      decoded = name;
+    }
+
+    // Replace common separators (dash, underscore, dot, slash, backslash) with spaces
+    let cleanName = decoded.replace(/[-_./\\]+/g, ' ');
+    // Collapse multiple spaces and trim
+    cleanName = cleanName.replace(/\s+/g, ' ').trim();
+    // Lowercase then capitalize each word for consistent display
+    return cleanName.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
   return (
