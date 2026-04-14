@@ -54,16 +54,16 @@ Use these query parameters when searching:
 ```text
 query_by=normalized_name,product_name
 query_by_weights=2,8
-num_typos=1
-min_len_1typo=5
-min_len_2typo=9
-typo_tokens_threshold=2
-infix=off
-drop_tokens_threshold=0
+num_typos=2
+min_len_1typo=4
+min_len_2typo=7
+typo_tokens_threshold=1
+infix=always
+drop_tokens_threshold=1
 prefix=true
-enable_typos_for_numeric_tokens=false
-prioritize_exact_match=true
-split_join_tokens=off
+enable_typos_for_numeric_tokens=true
+prioritize_exact_match=false
+split_join_tokens=always
 ```
 
 Rationale:
@@ -111,7 +111,7 @@ Create a synonym set for common variants (e.g., “iphone 15 pro max” vs “ip
 Search by name:
 
 ```bash
-curl "http://localhost:8108/collections/products/documents/search?q=iphone&query_by=normalized_name,product_name&query_by_weights=2,8&num_typos=1&min_len_1typo=5&min_len_2typo=9&typo_tokens_threshold=2&infix=off&drop_tokens_threshold=0&prefix=true&enable_typos_for_numeric_tokens=false&prioritize_exact_match=true&split_join_tokens=off"
+curl "http://localhost:8108/collections/products/documents/search?q=iphone&query_by=normalized_name,product_name&query_by_weights=2,8&num_typos=2&min_len_1typo=4&min_len_2typo=7&typo_tokens_threshold=1&infix=always&drop_tokens_threshold=1&prefix=true&enable_typos_for_numeric_tokens=true&prioritize_exact_match=false&split_join_tokens=always"
 ```
 
 ## DB Lookup Flow
