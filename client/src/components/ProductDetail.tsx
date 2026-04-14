@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom'; // Thêm createPortal cho Modal
+import { formatDisplayName } from '../lib/utils';
+import { createPortal } from 'react-dom';
 import { PriceChart } from './PriceChart';
 import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2, ChevronDown } from 'lucide-react'; // Thêm X và Loader2
 import { motion } from 'motion/react';
@@ -11,6 +12,7 @@ import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProd
 import { priceAlertService } from '../services/priceAlert';
 
 interface ProductDetailProps {
+  product: any; 
   platformProduct: any;
   initialPlatformId: string;
   onBack: () => void;
@@ -19,7 +21,7 @@ interface ProductDetailProps {
   isWishlisted: boolean;
 }
 
-export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
+export function ProductDetail({ product,platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
   const { t, language } = useLanguage();
   const { user } = useUser(); // Lấy thông tin user
   const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
@@ -56,12 +58,14 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     const mockPatterns = ['picsum.photos', 'placeholder.com', 'placehold.co', 'loremflickr', 'dummyimage', 'via.placeholder'];
     return !mockPatterns.some(p => url.includes(p));
   };
+ 
 
   // Ảnh và tên luôn lấy từ prop gốc, loại bỏ URL mock
-  const rawImage = platformProduct?.main_image_url || currentPlatformData?.main_image_url;
+  const rawImage = product?.main_image_url || currentPlatformData?.main_image_url;
   const productImage = isRealImageUrl(rawImage) ? rawImage : null;
-  const productName = platformProduct?.raw_name || currentPlatformData?.raw_name || '';
-
+  const rawName = product?.normalized_name || currentPlatformData?.raw_name || currentPlatformData?.raw_name || '';
+  const productName = formatDisplayName(rawName);
+  
   // State track lỗi ảnh
   const [imgError, setImgError] = React.useState(false);
 
@@ -75,6 +79,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   // Note: platformProduct can be either a Product (from search) or PlatformProduct
   // When it's a Product: platformProduct.id = product_id
   // When it's a PlatformProduct: platformProduct.product_id = product_id
+
   useEffect(() => {
     async function loadPlatformProducts() {
       setPlatformsLoading(true);
@@ -203,6 +208,8 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     setSelectedPlatformProduct(platform);
     setShowPlatformSelector(false);
   };
+
+  
 
   return (
     <>

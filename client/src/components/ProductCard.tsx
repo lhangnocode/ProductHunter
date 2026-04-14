@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDisplayName } from '../lib/utils';
 import { createPortal } from 'react-dom'; // Bắt buộc dùng để popup hiển thị đè lên toàn trang
 import { Star, CheckCircle2, X, Heart, Bell, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -117,27 +118,7 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
       setTargetPriceInput('');
     }
   };
-  // Hàm làm đẹp tên sản phẩm
-  const formatDisplayName = (name: string) => {
-    if (!name) return '';
-
-    // Try to decode any HTML entities if present (safe in browser)
-    let decoded = name;
-    try {
-      const txt = document.createElement('textarea');
-      txt.innerHTML = name;
-      decoded = txt.value;
-    } catch (e) {
-      decoded = name;
-    }
-
-    // Replace common separators (dash, underscore, dot, slash, backslash) with spaces
-    let cleanName = decoded.replace(/[-_./\\]+/g, ' ');
-    // Collapse multiple spaces and trim
-    cleanName = cleanName.replace(/\s+/g, ' ').trim();
-    // Lowercase then capitalize each word for consistent display
-    return cleanName.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-  };
+  // Use shared name formatter from utils
 
   return (
     <>
