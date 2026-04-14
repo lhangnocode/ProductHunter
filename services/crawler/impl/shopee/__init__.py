@@ -1,1 +1,0 @@
-"""Shopee crawler implementation."""

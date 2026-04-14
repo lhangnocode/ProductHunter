@@ -32,108 +32,95 @@ def _empty_to_none(value: Any) -> Any:
     return s
 
 
-def _read_csv(path: Path) -> list[dict[str, str]]:
-    """Read a CSV file into a list of dicts using stdlib csv (no pandas needed)."""
-    rows = []
+def _read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
+    """Read a CSV file into rows plus header fieldnames."""
+    rows: list[dict[str, str]] = []
     with open(path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
+        fieldnames = [name for name in (reader.fieldnames or []) if name]
         for row in reader:
             rows.append(row)
-    return rows
+    return rows, fieldnames
 
 
 def load_csvs_to_staging(staging_conn) -> None:
     """
-    Read all configured CSV pairs and upsert into staging.raw_crawl.
+    Read all configured CSVs and insert into staging.raw_product.
     """
     total_inserted = 0
-    total_updated = 0
 
-    for products_csv, platform_csv, platform_id in CSV_FILES:
+    for platform_csv, platform_id in CSV_FILES:
         if not Path(platform_csv).exists():
             print(f"[loader] Skipping {platform_csv.name} — file not found.")
             continue
 
-        # Build a slug → main_image_url lookup from products CSV (best-effort)
-        image_map: dict[str, str] = {}
-        if Path(products_csv).exists():
-            for row in _read_csv(products_csv):
-                slug = (row.get("slug") or "").strip()
-                img = (row.get("main_image_url") or "").strip()
-                if slug and img:
-                    image_map[slug] = img
-        else:
-            print(f"[loader] Note: {products_csv.name} not found — image_url lookup skipped.")
-
         source_name = platform_csv.name
         rows = []
 
-        for row in _read_csv(platform_csv):
-            original_item_id = (row.get("original_item_id") or "").strip()
+        platform_rows, platform_fields = _read_csv(platform_csv)
+        is_raw_crawler_csv = "original_item_id" not in platform_fields and "price" in platform_fields
+
+        for row in platform_rows:
             raw_name = (row.get("raw_name") or "").strip()
-            if not original_item_id or not raw_name:
+            if not raw_name:
                 continue
 
-            main_image_url = image_map.get(original_item_id) or None
+            if is_raw_crawler_csv:
+                rows.append({
+                    "platform_id": platform_id,
+                    "raw_name": raw_name,
+                    "url": _empty_to_none(row.get("url")),
+                    "price": _empty_to_none(row.get("price")),
+                    "category": _empty_to_none(row.get("category")),
+                    "main_image_url": _empty_to_none(row.get("main_image_url")),
+                    "crawled_at": _empty_to_none(row.get("crawled_at")),
+                })
+                continue
 
-            rows.append((
-                source_name,
-                platform_id,
-                raw_name,
-                original_item_id,
-                _empty_to_none(row.get("url")),
-                _empty_to_none(row.get("affiliate_url")),
-                _empty_to_none(row.get("current_price")),
-                _empty_to_none(row.get("original_price")),
-                _to_bool(row.get("in_stock")),
-                _empty_to_none(row.get("last_crawled_at")),
-                main_image_url,
-            ))
+            rows.append({
+                "platform_id": platform_id,
+                "raw_name": raw_name,
+                "url": _empty_to_none(row.get("url")),
+                "price": _empty_to_none(row.get("current_price")),
+                "category": _empty_to_none(row.get("category")),
+                "main_image_url": _empty_to_none(row.get("main_image_url")),
+                "crawled_at": _empty_to_none(row.get("last_crawled_at")),
+            })
 
         if not rows:
             print(f"[loader] {source_name}: no valid rows found.")
             continue
 
-        upsert_sql = """
-            INSERT INTO staging.raw_crawl (
-                source_file, platform_id, raw_name, original_item_id,
-                url, affiliate_url, current_price, original_price,
-                in_stock, last_crawled_at, main_image_url
+        insert_sql = """
+            INSERT INTO staging.raw_product (
+                platform_id, raw_name, url, price, category, main_image_url, crawled_at
             ) VALUES %s
-            ON CONFLICT (platform_id, original_item_id) DO UPDATE SET
-                source_file      = EXCLUDED.source_file,
-                raw_name         = EXCLUDED.raw_name,
-                current_price    = EXCLUDED.current_price,
-                original_price   = EXCLUDED.original_price,
-                in_stock         = EXCLUDED.in_stock,
-                main_image_url   = COALESCE(EXCLUDED.main_image_url, staging.raw_crawl.main_image_url),
-                last_crawled_at  = EXCLUDED.last_crawled_at,
-                llm_status       = CASE
-                    WHEN staging.raw_crawl.raw_name IS DISTINCT FROM EXCLUDED.raw_name THEN 'pending'
-                    ELSE staging.raw_crawl.llm_status
-                END
         """
 
         inserted = 0
-        updated = 0
 
         with staging_conn.cursor() as cur:
             for i in range(0, len(rows), DB_BATCH_SIZE):
-                batch = rows[i : i + DB_BATCH_SIZE]
-                before_count = _row_count(cur, "staging.raw_crawl")
-                psycopg2.extras.execute_values(cur, upsert_sql, batch)
-                after_count = _row_count(cur, "staging.raw_crawl")
-                batch_inserted = after_count - before_count
-                batch_updated = len(batch) - batch_inserted
-                inserted += batch_inserted
-                updated += batch_updated
+                batch_rows = rows[i : i + DB_BATCH_SIZE]
+                values = []
+                for row in batch_rows:
+                    values.append((
+                        row["platform_id"],
+                        row["raw_name"],
+                        row["url"],
+                        row["price"],
+                        row["category"],
+                        row["main_image_url"],
+                        row["crawled_at"],
+                    ))
+                psycopg2.extras.execute_values(cur, insert_sql, values)
+                inserted += len(values)
 
         staging_conn.commit()
-        print(f"[loader] {source_name}: {inserted} inserted, {updated} updated.")
+        print(f"[loader] {source_name}: {inserted} inserted.")
         total_inserted += inserted
-        total_updated += updated
 
-    print(f"[loader] Done. Total: {total_inserted} inserted, {total_updated} updated.")
+    print(f"[loader] Done. Total: {total_inserted} inserted.")
 
 
 def _to_bool(value: Any) -> bool | None:
@@ -145,9 +132,3 @@ def _to_bool(value: Any) -> bool | None:
     if s in {"false", "0", "no"}:
         return False
     return None
-
-
-def _row_count(cur, table: str) -> int:
-    cur.execute(f"SELECT COUNT(*) FROM {table}")
-    result = cur.fetchone()
-    return result[0] if result else 0

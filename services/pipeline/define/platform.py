@@ -1,0 +1,11 @@
+class Platform:
+    HOANGHA = 1
+    DIENMAYXANH = 2
+    THEGIOIDIDONG = 3
+    CELLPHONES = 4
+    HACOM = 5
+    ANPHATPC = 6
+    FPTSHOP = 7
+    PHONGVU = 8
+    VIETTELSTORE = 9
+    TIKI = 10
