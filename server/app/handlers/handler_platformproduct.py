@@ -49,14 +49,17 @@ async def search_platform_products(
             search_params: dict[str, Any] = {
                 "q": query_value,
                 "query_by": "normalized_name,product_name",
-                "query_by_weights": "4,8",
+                "query_by_weights": "2,8",
                 "num_typos": 2,
                 "min_len_1typo": 4,
                 "min_len_2typo": 7,
-                "typo_tokens_threshold": 1,
+                "typo_tokens_threshold": 0,
                 "infix": "always",
-                "drop_tokens_threshold": 2,
+                "drop_tokens_threshold": 1,
                 "prefix": True,
+                "enable_typos_for_numeric_tokens": "true",
+                "prioritize_exact_match": "false",
+                "split_join_tokens": "always",
                 "per_page": limit,
                 "page": page,
             }
@@ -118,7 +121,7 @@ async def search_platform_products(
         .where(
             or_(
                 Product.normalized_name.ilike(f"%{query_value}%"),
-                Product.slug.ilike(f"%{query_value}%"),
+                Product.product_name.ilike(f"%{query_value}%"),
             )
         )
         .offset((page - 1) * limit)
