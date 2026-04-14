@@ -146,8 +146,8 @@ async def search_product(
             
             search_params: dict[str, Any] = {
                 "q": query_value,
-                "query_by": "normalized_name,slug",
-                "query_by_weights": "8,2",
+                "query_by": "normalized_name,product_name",
+                "query_by_weights": "4,8",
                 "num_typos": 2,
                 "min_len_1typo": 4,
                 "min_len_2typo": 7,
