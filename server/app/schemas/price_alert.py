@@ -7,12 +7,11 @@ class PriceAlertCreate(BaseModel):
     target_price: float
 
 class PriceAlertResponse(BaseModel):
-    id: UUID
-    user_id: UUID
     product_id: UUID
     target_price: float
     status: int
-    created_at: datetime
+    product_name: Optional[str] = None
+    main_image_url: Optional[str] = None
 
     class Config:
         from_attributes = True

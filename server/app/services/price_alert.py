@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select, delete
 from uuid import UUID
 from fastapi import BackgroundTasks, HTTPException, status
-
+from sqlalchemy.orm import selectinload
 from app.models.price_alert import PriceAlert
 from app.models.product import Product
 from app.models.user import User
@@ -47,19 +47,30 @@ async def set_price_alert(
     return result.scalar_one()
 
 async def get_user_alerts(db: AsyncSession, user_id: UUID):
-    """
-    Lấy toàn bộ cảnh báo giá của 1 user.
-    """
-    # Nếu bạn muốn lấy cả thông tin Product (Tên, Ảnh) thì dùng selectinload
-    # from sqlalchemy.orm import selectinload
-    # stmt = select(PriceAlert).options(selectinload(PriceAlert.product)).where(PriceAlert.user_id == user_id)
-    
-    stmt = select(PriceAlert).where(
-        PriceAlert.user_id == user_id
-    ).order_by(PriceAlert.created_at.desc()) # Sắp xếp mới nhất lên đầu
+    stmt = (
+        select(PriceAlert)
+        .options(selectinload(PriceAlert.product)) # Tự động JOIN lấy data product
+        .where(PriceAlert.user_id == user_id)
+        # Bỏ comment dòng order_by dưới đây nếu model của bạn có trường created_at
+        .order_by(PriceAlert.created_at.desc()) 
+    )
     
     result = await db.execute(stmt)
-    return result.scalars().all()
+    rows = result.scalars().all()
+
+    # 2. Map dữ liệu để trả về theo đúng định dạng của PriceAlertResponse
+    alerts = []
+    for row in rows:
+        alerts.append({
+            "product_id": row.product_id,
+            "target_price": row.target_price,
+            "status": row.status,
+            # Lấy thông tin từ bảng product (nếu product tồn tại)
+            "product_name": row.product.normalized_name if row.product else "Sản phẩm không xác định",
+            "main_image_url": row.product.main_image_url if row.product else None,
+        })
+        
+    return alerts
 
 # ==========================================
 #! 2. HÀM DÀNH CHO HỆ THỐNG (Crawler gọi để check)
