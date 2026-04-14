@@ -14,7 +14,7 @@ DEFAULT_COLLECTION_SCHEMA = {
     "fields": [
         {"name": "id", "type": "string"},
         {"name": "normalized_name", "type": "string", "infix": True},
-        {"name": "slug", "type": "string", "infix": True},
+        {"name": "product_name", "type": "string", "infix": True},
     ],
 }
 
@@ -78,8 +78,8 @@ class TypesenseHandler:
         self,
         collection: str,
         query: str,
-        query_by: str = "normalized_name,slug",
-        query_by_weights: str = "8,2",
+        query_by: str = "normalized_name,product_name",
+        query_by_weights: str = "8,8",
         num_typos: int = 2,
         min_len_1typo: int = 4,
         min_len_2typo: int = 7,

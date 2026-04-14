@@ -63,7 +63,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   // Ảnh và tên luôn lấy từ prop gốc, loại bỏ URL mock
   const rawImage = product?.main_image_url || currentPlatformData?.main_image_url;
   const productImage = isRealImageUrl(rawImage) ? rawImage : null;
-  const rawName = product?.normalized_name || currentPlatformData?.raw_name || currentPlatformData?.raw_name || '';
+  const rawName = product?.product_name || product?.normalized_name || currentPlatformData?.raw_name || currentPlatformData?.raw_name || '';
   const productName = formatDisplayName(rawName);
   
   // State track lỗi ảnh

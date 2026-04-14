@@ -219,7 +219,7 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
         {/* Content Section */}
         <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
           <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
-            {formatDisplayName(product.slug || product.normalized_name || product.raw_name || '')}
+            {formatDisplayName(product.product_name || product.slug || product.normalized_name || product.raw_name || '')}
           </h3>
         </div>
       </motion.div>
