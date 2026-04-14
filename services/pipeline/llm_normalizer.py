@@ -87,7 +87,7 @@ def _call_llm(names: list[str], headers: dict[str, str]) -> list[dict[str, Any]]
             f"{LITELLM_BASE_URL}/api/conversations/data-normalizer/messages",
             json={"message": prompt},
             headers=headers,
-            timeout=180,       # large batches on slow models can take ~2 min
+            timeout=500,       # large batches on slow models can take ~2 min
         )
         resp.raise_for_status()
         reply = resp.json().get("reply", "")
