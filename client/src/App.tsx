@@ -183,6 +183,15 @@ function AppContent() {
 
   // 4. Cập nhật hàm điều hướng
   const handleNavigateToDetail = (platformProduct: any, platformId: string) => {
+    // Ensure ProductDetail receives a `product` object containing `normalized_name`.
+    // platformProduct may include a nested `product` object or `normalized_name`/`raw_name` fields.
+    const derivedProduct = {
+      id: platformProduct.product_id || platformProduct.id || platformId,
+      normalized_name: platformProduct.product?.normalized_name || platformProduct.normalized_name || platformProduct.raw_name || platformProduct.slug || '',
+      main_image_url: platformProduct.product?.main_image_url || platformProduct.main_image_url || null,
+    };
+
+    setSelectedProduct(derivedProduct as any);
     setSelectedPlatformProduct(platformProduct);
     setCurrentPlatformId(platformId);
   };
@@ -303,6 +312,7 @@ function AppContent() {
       return (
         <ProductDetail
           // 2. Truyền prop đúng tên: platformProduct
+          product={selectedProduct}
           platformProduct={selectedPlatformProduct}
           // 3. QUAN TRỌNG: Phải truyền thêm ID để lấy lịch sử giá
           initialPlatformId={currentPlatformId}
