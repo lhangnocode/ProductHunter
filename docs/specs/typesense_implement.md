@@ -53,14 +53,17 @@ Use these query parameters when searching:
 
 ```text
 query_by=normalized_name,product_name
-query_by_weights=8,2
+query_by_weights=2,8
 num_typos=2
 min_len_1typo=4
 min_len_2typo=7
-typo_tokens_threshold=1
+typo_tokens_threshold=0
 infix=always
-drop_tokens_threshold=2
+drop_tokens_threshold=1
 prefix=true
+enable_typos_for_numeric_tokens=true
+prioritize_exact_match=false
+split_join_tokens=always
 ```
 
 Rationale:
