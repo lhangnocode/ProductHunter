@@ -1,5 +1,5 @@
 """
-Stage 3b — Load into server DB + Typesense
+Stage 3b — Load into server DB + Typesense (ADD SAVE PRICE RECORDS)
 
 Persists resolved products into the production server database:
   1. Upsert platforms
@@ -53,8 +53,13 @@ def persist(
     if skipped:
         print(f"[persister] Skipped {skipped} records with no product_id.")
 
-    # ── 3. Upsert platform_products ───────────────────────────────────────────
-    _upsert_platform_products(server_conn, valid)
+    # ── 3. Upsert platform_products and retrieve the ID to save the price history.───────────────────────────────────────────
+    # _upsert_platform_products(server_conn, valid)
+    platform_product_info = _upsert_platform_products(server_conn, valid)
+
+    # 3.5 Save to the price_records table
+    if platform_product_info:
+        _insert_price_records(server_conn, platform_product_info)
 
     # ── 4. Typesense sync (only new products) ─────────────────────────────────
     _sync_typesense(typesense, new_products)
@@ -148,6 +153,7 @@ def _upsert_platform_products(conn, records: list[ResolvedProduct]) -> None:
             original_price  = EXCLUDED.original_price,
             in_stock        = EXCLUDED.in_stock,
             last_crawled_at = EXCLUDED.last_crawled_at
+        RETURNING id, current_price, original_price
     """
     rows = [
         (
@@ -166,15 +172,58 @@ def _upsert_platform_products(conn, records: list[ResolvedProduct]) -> None:
         if r.product_id  # safety guard
     ]
 
-    total = 0
+    if not rows:
+        return []
+
+    results = []
+    with conn.cursor() as cur:
+        for i in range(0, len(rows), DB_BATCH_SIZE):
+            batch = rows[i : i + DB_BATCH_SIZE]
+            # psycopg2.extras.execute_values(cur, sql, batch)
+            # total += len(batch)
+            # 2. Sử dụng fetch=True để nhận kết quả từ RETURNING
+            batch_results = psycopg2.extras.execute_values(
+                cur, sql, batch, fetch=True
+            )
+            results.extend(batch_results)
+
+    conn.commit()
+    print(f"[persister] platform_products upserted: {len(results)}")
+    return results
+
+
+def _insert_price_records(conn, price_data: list[tuple]) -> None:
+    """
+    Chèn dữ liệu mới vào bảng price_records.
+    price_data: list of (platform_product_id, price, original_price)
+    """
+    sql = """
+        INSERT INTO price_records (
+            platform_product_id, price, original_price, is_flash_sale, recorded_at
+        ) VALUES %s
+    """
+    # Chuẩn bị dữ liệu (thêm mặc định is_flash_sale = False và timestamp hiện tại)
+    rows = [
+        (
+            info[0], # platform_product_id (UUID)
+            info[1], # price
+            info[2], # original_price
+            False,   # is_flash_sale (mặc định)
+            'now()'  # recorded_at
+        )
+        for info in price_data if info[1] is not None # Chỉ lưu nếu có giá
+    ]
+
+    if not rows:
+        return
+
     with conn.cursor() as cur:
         for i in range(0, len(rows), DB_BATCH_SIZE):
             batch = rows[i : i + DB_BATCH_SIZE]
             psycopg2.extras.execute_values(cur, sql, batch)
-            total += len(batch)
-
+    
     conn.commit()
-    print(f"[persister] platform_products upserted: {total}")
+    print(f"[persister] price_records inserted: {len(rows)}")
 
 
 def _sync_typesense(
