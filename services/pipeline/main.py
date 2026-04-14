@@ -27,8 +27,6 @@ from services.pipeline.config import (
 )
 from services.pipeline.db import ensure_staging_schema, get_server_conn, get_staging_conn
 from services.pipeline.llm_normalizer import normalize_pending
-from services.pipeline.persister import persist
-from services.pipeline.product_resolver import resolve_products
 from services.pipeline.staging_loader import load_csvs_to_staging
 
 
@@ -65,21 +63,13 @@ def main() -> None:
         except Exception as exc:
             print(f"[pipeline] Warning: Typesense unavailable — {exc}")
 
-        # ── Stage 1: Extract → Bronze ─────────────────────────────────────────
-        print("\n[pipeline] Stage 1: Loading CSVs into staging.raw_crawl...")
-        load_csvs_to_staging(staging_conn)
+        # # ── Stage 1: Extract → Bronze ─────────────────────────────────────────
+        # print("\n[pipeline] Stage 1: Loading CSVs into staging.raw_crawl...")
+        # load_csvs_to_staging(staging_conn)
 
-        # ── Stage 2: Transform via LLM → Silver ───────────────────────────────
+        # ── Stage 2: LLM normalization ─────────────────────────────────────────
         print("\n[pipeline] Stage 2: LLM normalization...")
         normalize_pending(staging_conn)
-
-        # ── Stage 3a: Resolve product IDs ─────────────────────────────────────
-        print("\n[pipeline] Stage 3a: Resolving product IDs via Typesense...")
-        resolved = resolve_products(staging_conn, typesense)
-
-        # ── Stage 3b: Persist → Gold ──────────────────────────────────────────
-        print("\n[pipeline] Stage 3b: Persisting to server DB + Typesense...")
-        persist(resolved, server_conn, typesense)
 
     except Exception:
         print("\n[pipeline] FATAL ERROR:")
