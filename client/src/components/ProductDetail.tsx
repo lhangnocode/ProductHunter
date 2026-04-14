@@ -417,22 +417,8 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
 
               {/* Current Platform Info */}
               {!platformsLoading && allPlatformProducts.length > 0 && (
-              <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="text-sm">
-                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Các sàn khác có bán:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {allPlatformProducts.map((platform) => (
-                      <div key={platform.id} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 max-w-[220px]">
-                        <div className="whitespace-nowrap overflow-hidden text-ellipsis">
-                          {getPlatformName(platform.platform_id)}
-                        </div>
-                        {platform.raw_name && (
-                          <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{platform.raw_name}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="p-6 ">
+                
                 <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
                   {t('goToSeller')}
                 </a>
