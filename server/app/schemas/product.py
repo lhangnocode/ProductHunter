@@ -54,7 +54,7 @@ class ProductResponse(BaseModel):
     id: UUID
     normalized_name: str
     product_name: Optional[str] = None
-    slug: str
+    slug: Optional[str] = None
     main_image_url: Optional[str] = None
     
 
@@ -93,7 +93,7 @@ class ProductSearchItem(BaseModel):
     id: UUID
     normalized_name: str
     product_name: Optional[str] = None
-    slug: str
+    slug: Optional[str] = None
     brand: Optional[str] = None
     category: Optional[str] = None
     main_image_url: Optional[str] = None
