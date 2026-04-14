@@ -18,8 +18,25 @@ type Tab = 'search' | 'trending' | 'wishlist' | 'alerts';
 type SortOption = 'trending' | 'price-asc' | 'price-desc' | 'rating';
 
 function AppContent() {
-  const [isAppStarted, setIsAppStarted] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('search');
+  // Restore isAppStarted & activeTab from localStorage khi F5
+  const [isAppStarted, setIsAppStarted] = useState<boolean>(() => {
+    return localStorage.getItem('app_started') === 'true';
+  });
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const saved = localStorage.getItem('active_tab') as Tab | null;
+    return (saved && ['search', 'trending', 'wishlist', 'alerts'].includes(saved)) ? saved : 'search';
+  });
+
+  // Sync activeTab → localStorage
+  useEffect(() => {
+    localStorage.setItem('active_tab', activeTab);
+  }, [activeTab]);
+
+  // Sync isAppStarted → localStorage
+  useEffect(() => {
+    localStorage.setItem('app_started', String(isAppStarted));
+  }, [isAppStarted]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -31,17 +48,17 @@ function AppContent() {
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  const { user, logout, wishlist, wishlistIds, toggleWishlist, clearWishlist, alerts, removeAlert, setAlert, clearAlerts } = useUser();
+  const { user, logout, wishlist, wishlistIds, isWishlistLoading, toggleWishlist, clearWishlist, alerts, removeAlert, setAlert, clearAlerts } = useUser();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
 
-  // THÊM ĐOẠN NÀY: Tự động khởi động app nếu đã có user
+  // Tự động khởi động app nếu đã có user (chỉ check 1 lần sau khi restore session xong)
   useEffect(() => {
     if (user && !isAppStarted) {
       setIsAppStarted(true);
     }
-  }, [user, isAppStarted]);
+  }, [user]);
 
   const handleProductClick = (product: any) => {
     setSelectedPlatformProduct(product);
@@ -58,42 +75,30 @@ function AppContent() {
   const [currentPlatformId, setCurrentPlatformId] = useState<string>('');
 
   useEffect(() => {
+    let ignore = false;
     const fetchSearchData = async () => {
-      if (!searchQuery.trim()) {
-        setPlatformProducts([]);
+      const query = searchQuery.trim();
+      if (!query || query.length < 2) {
+        if (!ignore) setPlatformProducts([]);
         return;
       }
       try {
-        setIsLoading(true);
-        const resp = await searchProducts(searchQuery);
-        const groups = Array.isArray(resp) ? resp : (resp && Array.isArray((resp as any).data) ? (resp as any).data : []);
-
-        // Flatten to items suitable for ProductCard: pick representative fields
-        const items: any[] = [];
-        groups.forEach((g: any) => {
-          // Choose a representative price (lowest_price) and image
-          items.push({
-           id: g.id,
-            normalized_name: g.normalized_name || g.slug || g.raw_name || '',
-            slug: g.slug || g.normalized_name || '',
-            raw_name: g.normalized_name || g.slug || g.raw_name || '',
-            main_image_url: g.main_image_url || g.image_url || undefined,
-            lowest_price: g.lowest_price ?? null,
-            platforms: Array.isArray(g.platforms) ? g.platforms : [],
-            // For compatibility, set current_price to lowest_price so cards show a price
-            current_price: g.lowest_price ?? g.current_price ?? null,
-          });
-        });
-
-        setPlatformProducts(items); // Lưu vào platformProducts
+        if (!ignore) setIsLoading(true);
+        const data = await searchProducts(query);
+        if (!ignore) {
+          setPlatformProducts(data); // Lưu vào platformProducts
+        }
       } catch (error) {
-        console.error("Lỗi truy vấn DB:", error);
+        if (!ignore) console.error("Lỗi truy vấn DB:", error);
       } finally {
-        setIsLoading(false);
+        if (!ignore) setIsLoading(false);
       }
     };
     const timer = setTimeout(fetchSearchData, 500);
-    return () => clearTimeout(timer);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
   }, [searchQuery]);
 
   // 3. Cập nhật useMemo
@@ -267,8 +272,9 @@ function AppContent() {
               >
                 <Zap size={12} className="animate-pulse" /> {t('realTimeComparison')}
               </motion.div>
-              <h1 className="text-4xl font-black tracking-tighter text-slate-950 dark:text-white sm:text-6xl mb-6 leading-[0.9] font-display uppercase">
-                {t('findDealsInAFlash').split('.')[0]} <br />
+              <h1 className="text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-6xl mb-6 leading-normal md:leading-[1.3] font-display uppercase">
+                {t('findDealsInAFlash').split('.')[0]}
+                <br />
                 <span className="text-brand-primary">{t('findDealsInAFlash').split('.')[1] || ''}</span>
               </h1>
               <p className="text-slate-500 dark:text-slate-400 text-base font-medium max-w-lg mx-auto leading-relaxed">
@@ -438,8 +444,13 @@ function AppContent() {
                   animate="visible"
                   className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                 >
-                  {searchResults.map((product) => (
-                    <motion.div key={product.id} variants={itemVariants}>
+                  {searchResults.map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(index, 10) }}
+                    >
                       <ProductCard
                         product={product}
                         onClick={handleNavigateToDetail}
@@ -472,11 +483,11 @@ function AppContent() {
             )}
           </div>
         );
-      
-      
+
+
       case 'trending':
         return (
-          <TrendingDeals 
+          <TrendingDeals
             onProductClick={handleNavigateToDetail}
             wishlistIds={wishlistIds}
             onToggleWishlist={handleAddWishlist}
@@ -520,7 +531,12 @@ function AppContent() {
               )}
             </div>
 
-            {wishlist.length > 0 ? (
+            {isWishlistLoading ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-100 dark:border-rose-900/30 border-t-rose-500" />
+                <p className="text-sm font-bold text-slate-400 animate-pulse">Đang tải danh sách yêu thích...</p>
+              </div>
+            ) : wishlist.length > 0 ? (
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
@@ -531,6 +547,7 @@ function AppContent() {
                   // Build a minimal product shape for ProductCard
                   const product = {
                     id: item.product_id,
+                    product_id: item.product_id,
                     slug: item.product_name ?? '',
                     raw_name: item.product_name ?? '',
                     main_image_url: item.main_image_url ?? undefined,
@@ -540,16 +557,23 @@ function AppContent() {
                     platform_id: null,
                   };
                   return (
-                    <motion.div key={item.product_id} variants={itemVariants}>
+                    <motion.div
+                      key={item.product_id || Math.random().toString()}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(wishlist.indexOf(item), 10) }}
+                    >
                       <ProductCard
                         product={product}
-                        onClick={handleNavigateToDetail}
+                        onClick={(p) => handleNavigateToDetail(p, p.product_id)}
                         onRemove={(e) => { e.stopPropagation(); handleAddWishlist(product); }}
                       />
                     </motion.div>
                   );
                 })}
               </motion.div>
+
+
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -625,7 +649,9 @@ function AppContent() {
                   return (
                     <motion.div
                       key={alert.productId}
-                      variants={itemVariants}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.05 * Math.min(alerts.indexOf(alert), 10) }}
                       whileHover={{ scale: 1.01, y: -2 }}
                       className="group relative flex flex-col sm:flex-row items-center gap-6 rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-lg border border-slate-200/50 dark:border-slate-800/50 transition-all hover:shadow-xl hover:border-brand-primary/30"
                     >
@@ -717,37 +743,39 @@ function AppContent() {
     }
   };
 
-  const NavItem = ({ icon: Icon, label, tab }: { icon: any, label: string, tab: Tab }) => (
+  const renderNavItem = (Icon: any, label: string, tab: Tab) => (
     <motion.button
+      key={tab}
       whileHover={{ x: 3, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
       whileTap={{ scale: 0.98 }}
       onClick={() => {
         setActiveTab(tab);
         setSelectedProduct(null);
+        setSelectedPlatformProduct(null); // ← clear ProductDetail khi đổi tab
         setIsMobileMenuOpen(false);
       }}
       className={`relative group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[9px] font-black transition-all font-display uppercase tracking-[0.2em]
-        ${activeTab === tab && !selectedProduct
+        ${activeTab === tab && !selectedPlatformProduct
           ? 'text-white'
           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
         }
       `}
     >
-      <Icon size={14} className="relative z-10" strokeWidth={activeTab === tab && !selectedProduct ? 3 : 2} />
+      <Icon size={14} className="relative z-10" strokeWidth={activeTab === tab && !selectedPlatformProduct ? 3 : 2} />
       <span className="relative z-10">{label}</span>
 
       {tab === 'wishlist' && wishlistIds.size > 0 && (
-        <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedProduct ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+        <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedPlatformProduct ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
           {wishlistIds.size}
         </span>
       )}
       {tab === 'alerts' && alerts.length > 0 && (
-        <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedProduct ? 'bg-white/20 text-white' : 'bg-brand-accent/10 text-brand-accent'}`}>
+        <span className={`relative z-10 ml-auto rounded-md px-1.5 py-0.5 text-[8px] font-black ${activeTab === tab && !selectedPlatformProduct ? 'bg-white/20 text-white' : 'bg-brand-accent/10 text-brand-accent'}`}>
           {alerts.length}
         </span>
       )}
 
-      {activeTab === tab && !selectedProduct && (
+      {activeTab === tab && !selectedPlatformProduct && (
         <motion.div
           layoutId="activeTabIndicator"
           className="absolute inset-0 rounded-lg bg-brand-primary shadow-lg shadow-brand-primary/20"
@@ -774,6 +802,8 @@ function AppContent() {
           <div className="flex items-center gap-8">
             <button
               onClick={() => {
+                localStorage.removeItem('app_started');
+                localStorage.removeItem('active_tab');
                 setIsAppStarted(false);
                 setActiveTab('search');
                 setSelectedProduct(null);
@@ -951,12 +981,12 @@ function AppContent() {
         `}>
           <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-6">
             <div className="mb-2.5 px-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-400/80 font-display">{t('explore')}</div>
-            <NavItem icon={Search} label={t('searchAndCompare')} tab="search" />
-            <NavItem icon={TrendingUp} label={t('trendingDeals')} tab="trending" />
+            {renderNavItem(Search, t('searchAndCompare'), 'search')}
+            {renderNavItem(TrendingUp, t('trendingDeals'), 'trending')}
 
             <div className="mb-2.5 mt-8 px-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-400/80 font-display">{t('personal')}</div>
-            <NavItem icon={Heart} label={t('wishlist')} tab="wishlist" />
-            <NavItem icon={Bell} label={t('priceAlerts')} tab="alerts" />
+            {renderNavItem(Heart, t('wishlist'), 'wishlist')}
+            {renderNavItem(Bell, t('priceAlerts'), 'alerts')}
 
             <div className="mt-auto pt-8 pb-4">
               <div className="rounded-xl bg-gradient-to-br from-brand-primary/10 to-brand-accent/10 p-4 ring-1 ring-inset ring-brand-primary/10">

@@ -107,6 +107,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('app_started');
+    localStorage.removeItem('active_tab');
     setUser(null);
     setWishlist([]);
   };

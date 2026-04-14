@@ -36,7 +36,7 @@ oauth.register(
 
 # 1. API chuyển hướng người dùng sang trang đăng nhập của Google/Github
 @router.get("/{provider}/login")
-async def social_login(provider: str, request: Request):
+async def social_login(provider: str, request: Request, frontend_url: str = None):
     if provider not in SUPPORTED_PROVIDERS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
@@ -44,7 +44,14 @@ async def social_login(provider: str, request: Request):
         )
     client = oauth.create_client(provider)
     redirect_uri = f"{settings.BACKEND_URL}/api/v1/auth/{provider}/callback"
-    return await client.authorize_redirect(request, redirect_uri)
+    response = await client.authorize_redirect(request, redirect_uri)
+    
+    if frontend_url:
+        allowed = [settings.FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000"]
+        if frontend_url.rstrip("/") in allowed:
+            response.set_cookie("frontend_url", frontend_url.rstrip("/"), max_age=300)
+            
+    return response
 
 
 # 2. API nhận callback trả về từ Google/Github
@@ -114,5 +121,9 @@ async def social_callback(provider: str, request: Request, db: AsyncSession = De
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
 
-    frontend_redirect_url = f"{settings.FRONTEND_URL}/?access_token={access_token}&refresh_token={refresh_token}"
-    return RedirectResponse(url=frontend_redirect_url)
+    frontend_base_url = request.cookies.get("frontend_url") or settings.FRONTEND_URL
+    frontend_redirect_url = f"{frontend_base_url}/?access_token={access_token}&refresh_token={refresh_token}"
+    
+    response = RedirectResponse(url=frontend_redirect_url)
+    response.delete_cookie("frontend_url")
+    return response

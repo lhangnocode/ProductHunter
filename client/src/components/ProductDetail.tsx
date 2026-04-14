@@ -49,7 +49,25 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
   const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
   const currentPlatformId = selectedPlatformProduct?.id || initialPlatformId;
-  
+
+  // Lọc bỏ URL ảnh mock/placeholder không hợp lệ
+  const isRealImageUrl = (url: string | null | undefined): boolean => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return false;
+    const mockPatterns = ['picsum.photos', 'placeholder.com', 'placehold.co', 'loremflickr', 'dummyimage', 'via.placeholder'];
+    return !mockPatterns.some(p => url.includes(p));
+  };
+
+  // Ảnh và tên luôn lấy từ prop gốc, loại bỏ URL mock
+  const rawImage = platformProduct?.main_image_url || currentPlatformData?.main_image_url;
+  const productImage = isRealImageUrl(rawImage) ? rawImage : null;
+  const productName = platformProduct?.raw_name || currentPlatformData?.raw_name || '';
+
+  // State track lỗi ảnh
+  const [imgError, setImgError] = React.useState(false);
+
+  // Reset imgError khi product thay đổi
+  React.useEffect(() => { setImgError(false); }, [productImage]);
+
   // Check if we have valid price data (only PlatformProduct has current_price)
   const hasPriceData = currentPlatformData?.current_price !== undefined && currentPlatformData?.current_price !== null;
 
@@ -233,11 +251,24 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
           {/* 2. Cột trái: Ảnh & Thông tin cơ bản */}
           <div className="p-8 md:p-12 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800">
             <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8 border border-slate-100 dark:border-slate-700">
-              <img
-                src={currentPlatformData.main_image_url || "https://picsum.photos/seed/product/400/400"}
-                alt={currentPlatformData.raw_name}
-                className="h-full w-full object-contain"
-              />
+              {productImage && !imgError ? (
+                <img
+                  src={productImage}
+                  alt={productName}
+                  className="h-full w-full object-contain"
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-4 text-slate-300 dark:text-slate-600 w-full h-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span className="text-xs font-bold uppercase tracking-widest">Không có ảnh</span>
+                </div>
+              )}
             </div>
 
             {analysis && (
@@ -248,7 +279,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
             )}
 
             <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display leading-tight">
-              {currentPlatformData.raw_name}
+              {productName}
             </h1>
 
             <div className="mb-8 flex flex-wrap gap-4">
