@@ -85,6 +85,9 @@ def ensure_server_schema(conn) -> None:
 
     ALTER TABLE products
     ADD COLUMN IF NOT EXISTS slug TEXT;
+
+    ALTER TABLE products
+    ALTER COLUMN slug DROP NOT NULL;
     """
     with conn.cursor() as cur:
         cur.execute(ddl)

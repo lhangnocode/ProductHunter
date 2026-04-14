@@ -76,7 +76,7 @@ class ProductCompareGroup(BaseModel):
     id: UUID
     normalized_name: str
     product_name: Optional[str] = None
-    slug: str
+    slug: Optional[str] = None
     main_image_url: Optional[str] = None
     lowest_price: Optional[float] = None 
     platforms: List[PlatformPriceItem]
