@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(python -c ':*)",
-      "Bash(python -c \"import pandas; print\\(pandas.__version__, pandas.__file__\\)\")"
+      "Bash(python -c \"import pandas; print\\(pandas.__version__, pandas.__file__\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('services/crawler/impl/fpt/crawler_fptshop.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('services/crawler/impl/phongvu/crawler_phongvu.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")"
     ]
   }
 }

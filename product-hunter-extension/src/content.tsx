@@ -109,7 +109,7 @@ const ProductCompareOverlay = () => {
                   <div className="flex gap-3 mb-2">
                     <img src={group.main_image_url || "https://via.placeholder.com/150"} className="w-14 h-14 object-contain rounded" />
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-800 text-xs line-clamp-2">{group.normalized_name}</h4>
+                      <h4 className="font-bold text-gray-800 text-xs line-clamp-2">{group.product_name || group.normalized_name}</h4>
                       <p className="text-red-600 font-extrabold text-sm mt-1">{group.lowest_price?.toLocaleString()}₫</p>
                     </div>
                   </div>

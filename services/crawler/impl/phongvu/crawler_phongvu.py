@@ -1,351 +1,169 @@
 from __future__ import annotations
 
+import csv
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import sys
+import re
 import time
-import unicodedata
-import urllib.parse
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import List, Optional
 
-import pandas as pd
-from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import ElementHandle, sync_playwright
 from playwright_stealth.stealth import Stealth
 
-from services.crawler.core.crawler import Crawler
-from services.crawler.core.define.platform_type import PlatformType
-from services.crawler.utils.text_parser import ProductNormalizer
+from services.crawler.models.raw_product import RawProduct
+
+PLATFORM_ID = 8
+PLATFORM_BASE_URL = "https://phongvu.vn"
+OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
+
+CATEGORY_MAP: dict[str, str] = {
+    "c/laptop":                 "laptop",
+    "c/apple":                  "smartphone",
+    "c/dien-thoai-tablet":      "smartphone",
+    "c/man-hinh-may-tinh":      "monitor",
+    "c/pc":                     "desktop",
+    "c/linh-kien-may-tinh":     "pc_component",
+    "c/thiet-bi-am-thanh":      "speaker",
+    "c/gaming-gear":            "peripheral",
+    "c/phu-kien":               "peripheral",
+    "c/thiet-bi-van-phong":     "peripheral",
+    "c/dien-may":               "appliance",
+    "c/dien-gia-dung":          "houseware",
+}
 
 
-class PhongVuCrawler(Crawler):
-    PLATFORM_ID = PlatformType.PHONGVU
-    PLATFORM_NAME = "Phong Vũ"
-    PLATFORM_BASE_URL = "https://phongvu.vn"
-    BATCH_SIZE = 200
+class PhongVuCrawler:
+    parent_selector = "div.grow"
+    product_card = "div[class*='product'], div.relative"
 
     def __init__(self, output_dir: Optional[str] = None):
-        base_url = self.PLATFORM_BASE_URL
-        output_dir = output_dir or str(Path(__file__).resolve().parent)
-        super().__init__(name="phongvu", output_dir=output_dir, base_url=base_url)
-        self.products: List[Dict[str, object]] = []
-        self.platform_products: List[Dict[str, object]] = []
-        self.normalizer = ProductNormalizer()
-
-        # Danh mục chuẩn của Phong Vũ (Slug)
-        self.categories = [
-            "c/laptop", "c/apple", "c/dien-may", "c/dien-gia-dung",
-            "c/pc", "c/man-hinh-may-tinh", "c/linh-kien-may-tinh",
-            "c/phu-kien", "c/gaming-gear", "c/dien-thoai-tablet",
-            "c/thiet-bi-am-thanh", "c/thiet-bi-van-phong",
-        ]
-
-    def extract_brand(self, name: str) -> str:
-        """Đoán hãng sản xuất từ tên sản phẩm"""
-        if not name:
-            return "Phong Vũ"
-        words = name.split()
-        brand = words[0].capitalize()
-
-        if brand.lower() in [
-            "laptop", "pc", "màn", "chuột", "bàn", "tai", "loa", "tivi",
-            "máy", "điện", "apple", "vỏ", "nguồn", "ổ", "ram", "card",
-            "cpu", "mainboard",
-        ]:
-            if len(words) >= 3:
-                if brand.lower() in ["máy", "điện", "ổ", "card", "màn", "tai"]:
-                    brand = words[2].capitalize()
-                else:
-                    brand = words[1].capitalize()
-        return brand
-
-    def _slugify(self, text: str) -> str:
-        if not text:
-            return ""
-        text = unicodedata.normalize("NFKD", text)
-        text = text.encode("ascii", "ignore").decode("ascii")
-        text = text.lower()
-        text = "".join(ch if ch.isalnum() else "-" for ch in text)
-        text = "-".join(part for part in text.split("-") if part)
-        return text
-
-    def _normalize_name(self, name: str) -> str:
-        raw = self.normalizer.normalize(name)
-        text = unicodedata.normalize("NFKD", raw)
-        text = text.encode("ascii", "ignore").decode("ascii")
-        return " ".join(text.split())
-
-    def _parse_price(self, price: str) -> Optional[Decimal]:
-        if not price:
-            return None
-        cleaned = "".join(ch for ch in price if ch.isdigit())
-        if not cleaned:
-            return None
-        try:
-            return Decimal(cleaned)
-        except (InvalidOperation, ValueError):
-            return None
-
-    def _extract_original_item_id(self, url: str, fallback: str) -> str:
-        if not url:
-            return fallback
-        parsed = urllib.parse.urlparse(url)
-        slug = parsed.path.rstrip("/").split("/")[-1]
-        return slug or fallback
-
-    def scroll_and_load_all(self, page):
-        """Hàm tự động cuộn và đấm nút 'Xem thêm sản phẩm' liên tục"""
-        try:
-            print("[*] Đang rà soát và tắt Popup...")
-            page.mouse.click(10, 10)
-            page.wait_for_timeout(1000)
-        except Exception:
-            pass
-
-        click_count = 0
-        stuck_counter = 0
-
-        while True:
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight - 800);")
-            page.wait_for_timeout(1500)
-
-            count_before = page.locator("text='₫'").count()
-
-            try:
-                clicked = page.evaluate(
-                    """
-                    () => {
-                        let elements = Array.from(document.querySelectorAll('button, div, a, span'));
-                        let loadMoreBtn = elements.reverse().find(b =>
-                            b.innerText &&
-                            (b.innerText.toLowerCase().includes('xem thêm sản phẩm') || b.innerText.toLowerCase().includes('xem thêm')) &&
-                            b.innerText.length < 40
-                        );
-                        if (loadMoreBtn) {
-                            loadMoreBtn.click();
-                            return true;
-                        }
-                        return false;
-                    }
-                    """
-                )
-
-                if not clicked:
-                    print("[*] Không tìm thấy nút 'Xem thêm sản phẩm'. Đã cào đến đáy danh mục!")
-                    break
-
-                print(f"[*] Đã bấm 'Xem thêm sản phẩm' lần {click_count + 1} (Đang có {count_before} SP). Chờ tải...")
-
-                is_loaded = False
-                for _ in range(15):
-                    page.wait_for_timeout(1000)
-                    if page.locator("text='₫'").count() > count_before:
-                        is_loaded = True
-                        break
-
-                if is_loaded:
-                    click_count += 1
-                    stuck_counter = 0
-                else:
-                    stuck_counter += 1
-                    if stuck_counter >= 5:
-                        print(f"\n[!] PHÁT HIỆN NÚT ZOMBIE: Thử 5 lần nhưng web ngừng nhả dữ liệu. Rút lui với {count_before} SP!")
-                        break
-                    print(f"[*] Cảnh báo kẹt ({stuck_counter}/5): Mạng chậm, sẽ cuộn và thử click lại...")
-
-            except Exception as e:
-                print(f"[*] Lỗi tương tác nút: {e}. Dừng tải.")
-                break
-
-        print("[*] Hoàn tất bung HTML. Đang cuộn rà soát để tải ảnh sắc nét...")
-        page.evaluate("window.scrollTo(0, 0);")
-        total_items = page.locator("text='₫'").count()
-        scroll_steps = int(total_items / 10) + 3
-        for _ in range(scroll_steps):
-            page.mouse.wheel(0, 900)
-            page.wait_for_timeout(300)
-        page.wait_for_timeout(2000)
-
-    def parse_product_block(
-        self,
-        p_tag,
-        category: str,
-        seen_links: Set[str],
-    ) -> Optional[Tuple[Dict[str, object], Dict[str, object]]]:
-        """Thuật toán mỏ neo: leo từ chữ '₫' lên thẻ bọc ngoài để lấy thông tin"""
-        parent = p_tag.parent
-        for _ in range(6):
-            if not parent:
-                break
-
-            link_tag = parent.find("a", href=True)
-            img_tag = parent.find("img")
-
-            if link_tag and img_tag:
-                href = link_tag["href"]
-                base_url = self.base_url or ""
-                url = urllib.parse.urljoin(base_url, href)
-
-                if any(bad in url for bad in ["help.", "/p/he-thong"]):
-                    return None
-
-                if url in seen_links:
-                    return None
-
-                seen_links.add(url)
-
-                name_tag = parent.find(
-                    ["h3", "div"],
-                    class_=lambda c: isinstance(c, str) and ("product-name" in c.lower() or "title" in c.lower()),
-                )
-                name = name_tag.text.strip() if name_tag else link_tag.text.strip()
-                if len(name) < 5:
-                    return None
-
-                price = p_tag.parent.text.strip()
-                img_url = img_tag.get("src") or img_tag.get("data-src")
-                brand = self.extract_brand(name)
-
-                normalized_name = self._normalize_name(name)
-                product_slug = self._slugify(name) or self._slugify(normalized_name)
-                original_item_id = self._extract_original_item_id(url, product_slug or normalized_name)
-                current_price = self._parse_price(price)
-                category_name = category.replace("c/", "", 1)
-
-                product = {
-                    "normalized_name": normalized_name,
-                    "slug": product_slug,
-                    "brand": brand,
-                    "category": category_name,
-                    "main_image_url": img_url,
-                }
-
-                platform_product = {
-                    "product_id": None,
-                    "platform_id": self._platform_id(),
-                    "raw_name": name,
-                    "original_item_id": original_item_id,
-                    "url": url,
-                    "affiliate_url": None,
-                    "current_price": current_price,
-                    "original_price": None,
-                    "in_stock": True,
-                    "last_crawled_at": datetime.now(timezone.utc).isoformat(),
-                }
-
-                return product, platform_product
-            parent = parent.parent
-        return None
-
-    def _platform_id(self) -> int:
-        value = self.PLATFORM_ID
-        if isinstance(value, tuple):
-            value = value[0] if value else 0
-        return int(value)
-
-    def _chunk(self, items: List[Dict[str, object]]) -> Iterable[List[Dict[str, object]]]:
-        for i in range(0, len(items), self.BATCH_SIZE):
-            yield items[i:i + self.BATCH_SIZE]
-
-    def _dedupe_products(self, products: List[Dict[str, object]]) -> List[Dict[str, object]]:
-        by_slug: Dict[str, Dict[str, object]] = {}
-        for product in products:
-            slug = str(product.get("slug") or "")
-            if not slug:
-                continue
-            by_slug[slug] = product
-        return list(by_slug.values())
-
-    def _dedupe_platform_products(self, platform_products: List[Dict[str, object]]) -> List[Dict[str, object]]:
-        by_key: Dict[Tuple[object, object], Dict[str, object]] = {}
-        for record in platform_products:
-            key = (record.get("platform_id"), record.get("original_item_id"))
-            if key[0] is None or key[1] in (None, ""):
-                continue
-            by_key[key] = record
-        return list(by_key.values())
+        self.platform_id = PLATFORM_ID
+        self.base_url = PLATFORM_BASE_URL
+        self.output_dir = Path(output_dir) if output_dir else OUTPUT_DIR
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def crawl(self) -> None:
-        start_time = datetime.now()
-        print(f"\n[+] KHỞI ĐỘNG CỖ MÁY CÀO PHONG VŨ - {start_time}")
-
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            browser = p.chromium.launch(headless=False, args=["--no-sandbox", "--disable-setuid-sandbox"])
             context = browser.new_context(viewport={"width": 1920, "height": 1080})
 
-            for category in self.categories:
+            for category_slug, category_name in CATEGORY_MAP.items():
                 page = context.new_page()
                 Stealth().apply_stealth_sync(page)
 
-                base_url = self.base_url or ""
-                url = f"{base_url}/{category}"
-                print(f"\n{'='*60}\n>>> MỤC TIÊU MỚI: {url}\n{'='*60}")
+                category_url = f"{self.base_url}/{category_slug}"
+                print(f"Crawling category: {category_name} ({category_slug})")
+                page.goto(category_url, timeout=90000, wait_until="domcontentloaded")
+                time.sleep(3)
 
-                try:
-                    page.goto(url, timeout=90000, wait_until="domcontentloaded")
-                    self.scroll_and_load_all(page)
+                # Click "Xem thêm" until it disappears
+                while True:
+                    try:
+                        xem_them_button = page.query_selector("a.css-b0m1yo")
+                        if not xem_them_button:
+                            break
+                        xem_them_button.click()
+                        time.sleep(2)  # Wait for new products to load
+                    except Exception as e:
+                        print(f"Error clicking 'Xem thêm': {e}")
+                        break
 
-                    soup = BeautifulSoup(page.content(), "html.parser")
-                    price_tags = soup.find_all(string=lambda text: bool(text) and "₫" in text)
+                product_elements = page.query_selector_all(self.product_card)
+                print(f"Found {len(product_elements)} products in category '{category_name}'")
 
-                    parsed_items: List[Tuple[Dict[str, object], Dict[str, object]]] = []
-                    seen_links: Set[str] = set()
+                products: List[RawProduct] = []
+                for elem in product_elements:
+                    try:
+                        product = self._extract_product_data(elem, category_name)
+                        if product:
+                            products.append(product)
+                    except Exception as e:
+                        print(f"Error extracting product data: {e}")
 
-                    for p_tag in price_tags:
-                        result = self.parse_product_block(p_tag, category, seen_links)
-                        if result:
-                            parsed_items.append(result)
-
-                    print(f"[+] Bóc tách thành công {len(parsed_items)} sản phẩm ngành {category}.")
-
-                    for product, platform_product in parsed_items:
-                        self.products.append(product)
-                        self.platform_products.append(platform_product)
-                    self.clean_and_save()
-
-                except Exception as e:
-                    print(f"[-] Bỏ qua danh mục {category} do gặp lỗi: {e}")
-
-                finally:
-                    page.close()
-                    time.sleep(2)
+                self._save_to_csv(products)
+                page.close()
+                time.sleep(2)
 
             browser.close()
 
-            end_time = datetime.now()
-            print("\n" + "#" * 60)
-            print(f"[+] CHIẾN DỊCH HOÀN TẤT! TỔNG THỜI GIAN: {end_time - start_time}")
-            print("#" * 60 + "\n")
+    def _extract_product_data(self, elem: ElementHandle, category_name: str) -> Optional[RawProduct]:
+        try:
+            name_elem = elem.query_selector("h3, [class*='product-name'], [class*='title']")
+            name = name_elem.inner_text().strip() if name_elem else None
+            if not name:
+                return None
 
-    def clean_and_save(self) -> None:
-        if not self.products and not self.platform_products:
+            url_elem = elem.query_selector("a")
+            url = url_elem.get_attribute("href") if url_elem else None
+            if not url:
+                return None
+            if url and not url.startswith("http"):
+                url = self.base_url + url
+            if any(bad in url for bad in ["help.", "/p/he-thong"]):
+                return None
+
+            price_text = self._extract_price_text(elem)
+            price = self._parse_price(price_text)
+
+            if price == 0 or price is None:
+                return None
+
+            image_elem = elem.query_selector("img")
+            image_url = None
+            if image_elem:
+                image_url = (
+                    image_elem.get_attribute("src")
+                    or image_elem.get_attribute("data-src")
+                    or image_elem.get_attribute("data-srcset")
+                )
+
+            print(f"[phongvu] {name} - {price_text} - {url}")
+
+            return RawProduct(
+                platform_id=self.platform_id,
+                raw_name=name,
+                url=url,
+                price=price,
+                category=category_name,
+                main_image_url=image_url,
+                crawled_at=datetime.now(timezone.utc),
+            )
+        except Exception:
+            return None
+
+    def _extract_price_text(self, elem: ElementHandle) -> str:
+        price_elem = elem.query_selector("[class*='price']")
+        if price_elem:
+            text = price_elem.inner_text().strip()
+            if text:
+                return text
+        try:
+            text = elem.inner_text()
+        except Exception:
+            return "0"
+        matches = re.findall(r"\d[\d\.,]*\s*₫", text)
+        if matches:
+            return matches[-1]
+        if "₫" in text:
+            return "₫"
+        return "0"
+
+    def _parse_price(self, price_text: str) -> Decimal:
+        try:
+            cleaned = "".join(c for c in price_text if c.isdigit() or c in ",.").replace(",", "").replace(".", "")
+            return Decimal(cleaned)
+        except InvalidOperation:
+            return Decimal(0)
+
+    def _save_to_csv(self, products: List[RawProduct]) -> None:
+        if not products:
             return
-
-        output_path = Path(self.output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        if self.products:
-            products_df = pd.DataFrame(self.products)
-            products_df = products_df.drop_duplicates(subset=["slug"], keep="first")
-            products_df = products_df.dropna(subset=["slug", "normalized_name"])
-            products_file = output_path / "phongvu_products.csv"
-            products_df.to_csv(products_file, index=False, encoding="utf-8-sig")
-            print(f"   ↳ [ĐÃ LƯU] File {products_file} | Tổng: {len(products_df)} sản phẩm.")
-
-        if self.platform_products:
-            platform_df = pd.DataFrame(self.platform_products)
-            platform_df = platform_df.drop_duplicates(subset=["platform_id", "original_item_id"], keep="first")
-            platform_df = platform_df.dropna(subset=["platform_id", "original_item_id", "url"])
-            platform_file = output_path / "phongvu_platform_products.csv"
-            platform_df.to_csv(platform_file, index=False, encoding="utf-8-sig")
-            print(f"   ↳ [ĐÃ LƯU] File {platform_file} | Tổng: {len(platform_df)} listing.")
-
-
-if __name__ == "__main__":
-    try:
-        crawler = PhongVuCrawler()
-        crawler.crawl()
-    except KeyboardInterrupt:
-        print("\n[!] Nhận lệnh ngắt Ctrl+C. Hệ thống dừng an toàn!")
-        sys.exit(0)
+        output_file = self.output_dir / "phongvu_products.csv"
+        with output_file.open("a", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(RawProduct.csv_headers())
+            for product in products:
+                writer.writerow(product.to_csv_row())
+        print(f"Saved {len(products)} products to {output_file}")

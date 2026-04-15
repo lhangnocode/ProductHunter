@@ -143,49 +143,46 @@ async def search_products_list(
 
 
 
-@router.get("/compare",
-             response_model=SearchCompareResponse,
-)
+from fastapi import Query, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+# Import các schema và dependency cần thiết của bạn ở đây...
+
+@router.get("/compare", response_model=SearchCompareResponse)
 async def search_and_compare_products(
-    q: str = Query(..., min_length=2, description="Từ khóa tìm kiếm"),
+    q: str = Query(..., min_length=2, description="Keyword"),
     db: AsyncSession = Depends(get_db),
 ):
-
-    stmt = (
-        select(Product)
-        .options(selectinload(Product.platform_products)) 
-        .where(Product.normalized_name.ilike(f"%{q}%"))
-        .order_by(Product.created_at.desc())
-    )
-    
-    result = await db.execute(stmt)
-    products = result.scalars().all()
+    products, total_results = await search_product(query=q, db=db, limit=50, page=1)
 
     response_list = []
     
     for product in products:
         platforms_data = []
         valid_prices = []
-        for pp in product.platform_products:
-            platforms_data.append(
-                PlatformPriceItem(
-                    platform_id=pp.platform_id,
-                    url=pp.url,
-                    affiliate_url=pp.affiliate_url,
-                    current_price=pp.current_price,
-                    original_price=pp.original_price,
-                    in_stock=pp.in_stock,
-                    last_crawled_at=pp.last_crawled_at
+        
+        if getattr(product, "platform_products", None):
+            for pp in product.platform_products:
+                platforms_data.append(
+                    PlatformPriceItem(
+                        platform_id=pp.platform_id,
+                        url=pp.url,
+                        affiliate_url=pp.affiliate_url,
+                        current_price=pp.current_price,
+                        original_price=pp.original_price,
+                        in_stock=pp.in_stock,
+                        last_crawled_at=pp.last_crawled_at
+                    )
                 )
-            )
-            if pp.in_stock and pp.current_price is not None:
-                valid_prices.append(pp.current_price)
+                if pp.in_stock and pp.current_price is not None:
+                    valid_prices.append(pp.current_price)
 
         lowest_price = min(valid_prices) if valid_prices else None
+        
         response_list.append(
             ProductCompareGroup(
                 id=product.id,
                 normalized_name=product.normalized_name,
+                product_name=getattr(product, "product_name", None),
                 slug=product.slug,
                 main_image_url=product.main_image_url,
                 lowest_price=lowest_price,
@@ -193,15 +190,13 @@ async def search_and_compare_products(
             )
         )
 
-
     response_list.sort(key=lambda x: x.lowest_price if x.lowest_price is not None else float('inf'))
 
     return SearchCompareResponse(
         keyword=q,
-        total_results=len(response_list),
+        total_results=total_results,
         data=response_list
     )
-
 
 @router.get("/compare2", response_model=SearchCompareResponse)
 async def search_and_compare_mock(
@@ -246,6 +241,7 @@ async def search_and_compare_mock(
         group = ProductCompareGroup(
             id=product.id,
             normalized_name=product.normalized_name,
+            product_name=getattr(product, "product_name", None),
             slug=product.slug if hasattr(product, 'slug') else "slug-tam",
             main_image_url=product.image_url if hasattr(product, 'image_url') else None,
             lowest_price=lowest_price,

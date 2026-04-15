@@ -22,7 +22,7 @@ CREATE TABLE users (
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     normalized_name VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) UNIQUE NOT NULL,
+    product_name VARCHAR(255) UNIQUE NOT NULL,
     brand VARCHAR(255),
     category VARCHAR(255),
     main_image_url TEXT,

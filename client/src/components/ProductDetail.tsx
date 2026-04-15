@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom'; // Thêm createPortal cho Modal
+import { formatDisplayName } from '../lib/utils';
+import { createPortal } from 'react-dom';
 import { PriceChart } from './PriceChart';
 import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2, ChevronDown } from 'lucide-react'; // Thêm X và Loader2
 import { motion } from 'motion/react';
@@ -11,6 +12,7 @@ import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProd
 import { priceAlertService } from '../services/priceAlert';
 
 interface ProductDetailProps {
+  product: any; 
   platformProduct: any;
   initialPlatformId: string;
   onBack: () => void;
@@ -19,7 +21,7 @@ interface ProductDetailProps {
   isWishlisted: boolean;
 }
 
-export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
+export function ProductDetail({ product,platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
   const { t, language } = useLanguage();
   const { user } = useUser(); // Lấy thông tin user
   const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
@@ -49,7 +51,43 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
   const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
   const currentPlatformId = selectedPlatformProduct?.id || initialPlatformId;
+
+  // Lọc bỏ URL ảnh mock/placeholder không hợp lệ
+  const isRealImageUrl = (url: string | null | undefined): boolean => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return false;
+    const mockPatterns = ['picsum.photos', 'placeholder.com', 'placehold.co', 'loremflickr', 'dummyimage', 'via.placeholder'];
+    return !mockPatterns.some(p => url.includes(p));
+  };
+ 
+
+  const normalizeImageUrl = (url: string | null | undefined): string | null => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return null;
+    let cleaned = url.trim();
+    if (cleaned.includes(',')) {
+      cleaned = cleaned.split(',')[0].trim();
+    }
+    cleaned = cleaned.split(/\s+/)[0].trim();
+    if (cleaned.startsWith('//')) {
+      cleaned = `https:${cleaned}`;
+    } else if (cleaned.startsWith('cdn2.fptshop.com.vn') || cleaned.startsWith('fptshop.com.vn')) {
+      cleaned = `https://${cleaned}`;
+    }
+    return cleaned || null;
+  };
+
+  // Ảnh và tên luôn lấy từ prop gốc, loại bỏ URL mock
+  const rawImage = product?.main_image_url || currentPlatformData?.main_image_url;
+  const normalizedImage = normalizeImageUrl(rawImage);
+  const productImage = isRealImageUrl(normalizedImage) ? normalizedImage : null;
+  const rawName = product?.product_name || product?.normalized_name || currentPlatformData?.raw_name || currentPlatformData?.raw_name || '';
+  const productName = formatDisplayName(rawName);
   
+  // State track lỗi ảnh
+  const [imgError, setImgError] = React.useState(false);
+
+  // Reset imgError khi product thay đổi
+  React.useEffect(() => { setImgError(false); }, [productImage]);
+
   // Check if we have valid price data (only PlatformProduct has current_price)
   const hasPriceData = currentPlatformData?.current_price !== undefined && currentPlatformData?.current_price !== null;
 
@@ -57,6 +95,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
   // Note: platformProduct can be either a Product (from search) or PlatformProduct
   // When it's a Product: platformProduct.id = product_id
   // When it's a PlatformProduct: platformProduct.product_id = product_id
+
   useEffect(() => {
     async function loadPlatformProducts() {
       setPlatformsLoading(true);
@@ -186,6 +225,8 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
     setShowPlatformSelector(false);
   };
 
+  
+
   return (
     <>
       <div className="overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200/60 dark:border-slate-800/60">
@@ -233,11 +274,24 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
           {/* 2. Cột trái: Ảnh & Thông tin cơ bản */}
           <div className="p-8 md:p-12 lg:col-span-5 border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800">
             <div className="mb-10 aspect-square overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-8 border border-slate-100 dark:border-slate-700">
-              <img
-                src={currentPlatformData.main_image_url || "https://picsum.photos/seed/product/400/400"}
-                alt={currentPlatformData.raw_name}
-                className="h-full w-full object-contain"
-              />
+              {productImage && !imgError ? (
+                <img
+                  src={productImage}
+                  alt={productName}
+                  className="h-full w-full object-contain"
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-4 text-slate-300 dark:text-slate-600 w-full h-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span className="text-xs font-bold uppercase tracking-widest">Không có ảnh</span>
+                </div>
+              )}
             </div>
 
             {analysis && (
@@ -248,7 +302,7 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
             )}
 
             <h1 className="mb-6 text-3xl font-black uppercase tracking-tighter text-slate-950 dark:text-white font-display leading-tight">
-              {currentPlatformData.raw_name}
+              {productName}
             </h1>
 
             <div className="mb-8 flex flex-wrap gap-4">
@@ -386,22 +440,8 @@ export function ProductDetail({ platformProduct, initialPlatformId, onBack, onAd
 
               {/* Current Platform Info */}
               {!platformsLoading && allPlatformProducts.length > 0 && (
-              <div className="p-6 rounded-[1.5rem] bg-brand-primary/5 border border-brand-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="text-sm">
-                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Các sàn khác có bán:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {allPlatformProducts.map((platform) => (
-                      <div key={platform.id} className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 max-w-[220px]">
-                        <div className="whitespace-nowrap overflow-hidden text-ellipsis">
-                          {getPlatformName(platform.platform_id)}
-                        </div>
-                        {platform.raw_name && (
-                          <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{platform.raw_name}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="p-6 ">
+                
                 <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
                   {t('goToSeller')}
                 </a>

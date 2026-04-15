@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { formatDisplayName } from '../lib/utils';
 import { createPortal } from 'react-dom'; // Bắt buộc dùng để popup hiển thị đè lên toàn trang
 import { Star, CheckCircle2, X, Heart, Bell, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -29,6 +30,35 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [targetPriceInput, setTargetPriceInput] = useState('');
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
+
+  const normalizeImageUrl = (url: string | null | undefined): string | null => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return null;
+    let cleaned = url.trim();
+    if (cleaned.includes(',')) {
+      cleaned = cleaned.split(',')[0].trim();
+    }
+    cleaned = cleaned.split(/\s+/)[0].trim();
+    if (cleaned.startsWith('//')) {
+      cleaned = `https:${cleaned}`;
+    } else if (cleaned.startsWith('cdn2.fptshop.com.vn') || cleaned.startsWith('fptshop.com.vn')) {
+      cleaned = `https://${cleaned}`;
+    }
+    return cleaned || null;
+  };
+
+  // Lọc URL mock không hợp lệ
+  const isRealImageUrl = (url: string | null | undefined): boolean => {
+    if (!url || typeof url !== 'string' || url.trim() === '') return false;
+    const mockPatterns = ['picsum.photos', 'placeholder.com', 'placehold.co', 'loremflickr', 'dummyimage', 'via.placeholder'];
+    return !mockPatterns.some(p => url.includes(p));
+  };
+
+  const normalizedImageUrl = normalizeImageUrl(product.main_image_url);
+  const productImage = isRealImageUrl(normalizedImageUrl) ? normalizedImageUrl : null;
+
+  // State track lỗi ảnh — reset khi ảnh mới
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => { setImgError(false); }, [productImage]);
 
   const currentPrice = parseFloat(product.current_price) || 0;
   const originalPrice = parseFloat(product.original_price) || 0;
@@ -105,22 +135,14 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
       setTargetPriceInput('');
     }
   };
-  // Hàm làm đẹp tên sản phẩm
-  const formatDisplayName = (name: string) => {
-    if (!name) return '';
-    // Bước 1: Thay thế dấu gạch ngang (-) hoặc gạch dưới (_) bằng khoảng trắng
-    let cleanName = name.replace(/[-_]/g, ' ');
-    
-    // Bước 2: Viết hoa chữ cái đầu tiên của mỗi từ
-    return cleanName.replace(/\b\w/g, (char) => char.toUpperCase());
-  };
+  // Use shared name formatter from utils
 
   return (
     <>
-      <motion.div 
-        layout
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
         whileHover={{ y: -6 }}
         onClick={() => onClick(product, product.id)}
         className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 transition-all duration-300 hover:shadow-xl"
@@ -174,13 +196,26 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
 
         {/* Image Section */}
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-white dark:bg-slate-800/50 flex items-center justify-center p-6 border-b border-slate-100 dark:border-slate-800/50">
-          <motion.img 
-            src={product.main_image_url || `https://picsum.photos/seed/${product.id}/400/400`} 
-            alt={product.raw_name} 
-            whileHover={{ scale: 1.05 }}
-            className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
-            referrerPolicy="no-referrer"
-          />
+          {productImage && !imgError ? (
+            <motion.img
+              src={productImage}
+              alt={product.raw_name}
+              whileHover={{ scale: 1.05 }}
+              className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
+              referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 w-full h-full">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary/20 to-brand-primary/5 dark:from-brand-primary/30 dark:to-brand-primary/10 flex items-center justify-center border border-brand-primary/10 shadow-sm">
+                <span className="text-2xl font-black text-brand-primary/60 dark:text-brand-primary/70 font-display uppercase select-none">
+                  {(product.raw_name || product.slug || '?').charAt(0)}
+                </span>
+              </div>
+              <p className="text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest">Chưa có ảnh</p>
+            </div>
+          )}
+
           
           <div className="absolute left-3 top-3 flex flex-col gap-1 z-10">
             {product.in_stock && (
@@ -201,7 +236,7 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
         {/* Content Section */}
         <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
           <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
-            {formatDisplayName(product.slug || product.normalized_name || product.raw_name || '')}
+            {formatDisplayName(product.product_name || product.slug || product.normalized_name || product.raw_name || '')}
           </h3>
         </div>
       </motion.div>

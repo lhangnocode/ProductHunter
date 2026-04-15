@@ -13,7 +13,8 @@ class Product(Base):
 
     id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     normalized_name = Column(String(255), nullable=False)
-    slug = Column(String(255), nullable=False, unique=True, index=True)
+    product_name = Column(String(255), nullable=True, unique=True, index=True)
+    slug = Column(String(255), nullable=True, unique=True, index=True)
     brand = Column(String(255), nullable=True)
     category = Column(String(255), nullable=True)
     main_image_url = Column(Text, nullable=True)

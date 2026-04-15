@@ -1,364 +1,167 @@
 from __future__ import annotations
 
+import csv
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-import sys
 import time
-import unicodedata
-import urllib.parse
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import List, Optional
 
-import pandas as pd
-from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import ElementHandle, sync_playwright
 from playwright_stealth.stealth import Stealth
 
-from services.crawler.core.crawler import Crawler
-from services.crawler.core.define.platform_type import PlatformType
-from services.crawler.utils.text_parser import ProductNormalizer
+from services.crawler.models.raw_product import RawProduct
+
+PLATFORM_ID = 7
+PLATFORM_BASE_URL = "https://fptshop.com.vn"
+OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
+
+CATEGORY_MAP: dict[str, str] = {
+    "dien-thoai":           "smartphone",
+    "may-tinh-xach-tay":    "laptop",
+    "may-tinh-bang":        "tablet",
+    "may-tinh-de-ban":      "desktop",
+    "man-hinh":             "monitor",
+    "dong-ho-thong-minh":   "wearable",
+    "linh-kien-may-tinh":   "pc_component",
+    "thiet-bi-mang":        "networking",
+    "smart-home":           "smart_home",
+    "may-in":               "peripheral",
+    "tivi":                 "tv",
+    "dieu-hoa":             "appliance",
+    "tu-lanh":              "appliance",
+    "tu-dong":              "appliance",
+    "may-giat":             "appliance",
+    "may-say-quan-ao":      "appliance",
+    "robot-hut-bui":        "houseware",
+    "may-hut-bui":          "houseware",
+    "may-loc-khong-khi":    "houseware",
+    "may-hut-am":           "houseware",
+    "quat":                 "houseware",
+    "may-loc-nuoc":         "houseware",
+    "cay-nuoc-nong-lanh":   "houseware",
+    "may-massage":          "houseware",
+    "may-say-toc":          "houseware",
+    "noi-chien-khong-dau":  "houseware",
+    "lo-vi-song":           "houseware",
+    "lo-nuong":             "houseware",
+    "bep-nuong-dien":       "houseware",
+    "may-rua-bat":          "houseware",
+    "may-hut-mui":          "houseware",
+    "noi-com-dien":         "houseware",
+    "am-sieu-toc":          "houseware",
+    "may-xay-sinh-to":      "houseware",
+    "bep-dien-tu":          "houseware",
+    "noi-ap-suat":          "houseware",
+}
 
 
-class FptTrojanPro(Crawler):
-    PLATFORM_ID = PlatformType.FPTSHOP
-    PLATFORM_NAME = "FPT Shop"
-    PLATFORM_BASE_URL = "https://fptshop.com.vn"
-    BATCH_SIZE = 200
+# Flow: Click "Xem thêm" -> Get device cards -> For each card, get element -> Extract data -> Save to CSV
 
+class FPTShopCrawler:
+    parent_selector = "div.grow"
+    product_card = "div.group.relative.flex.h-full.flex-col.justify-between.relative"
+    
     def __init__(self, output_dir: Optional[str] = None):
-        base_url = self.PLATFORM_BASE_URL
-        output_dir = output_dir or str(Path(__file__).resolve().parent)
-        super().__init__(name="fptshop", output_dir=output_dir, base_url=base_url)
-        self.products: List[Dict[str, object]] = []
-        self.platform_products: List[Dict[str, object]] = []
-        self.normalizer = ProductNormalizer()
+        self.platform_id = PLATFORM_ID
+        self.base_url = PLATFORM_BASE_URL
+        self.output_dir = Path(output_dir) if output_dir else OUTPUT_DIR
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Danh sách toàn bộ danh mục FPT Shop (Đã chuyển sang dạng Slug chuẩn)
-        self.categories = [
-            # --- ĐỒ ĐIỆN TỬ & CÔNG NGHỆ ---
-            "dien-thoai", "may-tinh-xach-tay", "may-tinh-bang", "dong-ho-thong-minh",
-            "may-tinh-de-ban", "man-hinh", "linh-kien-may-tinh", "phu-kien",
-            "may-in", "phan-mem", "thiet-bi-mang", "smart-home",
-            
-            # --- ĐIỆN TỬ - ĐIỆN LẠNH ---
-            "tivi", "dieu-hoa", "tu-lanh", "tu-dong", "may-giat", "may-say-quan-ao",
-            
-            # --- GIA DỤNG & SỨC KHỎE ---
-            "robot-hut-bui", "may-hut-bui", "may-loc-khong-khi", "may-hut-am",
-            "quat", "may-loc-nuoc", "cay-nuoc-nong-lanh", "may-massage", "may-say-toc",
-            
-            # --- THIẾT BỊ NHÀ BẾP ---
-            "noi-chien-khong-dau", "lo-vi-song", "lo-nuong", "bep-nuong-dien",
-            "may-rua-bat", "may-hut-mui", "noi-com-dien", "am-sieu-toc",
-            "may-xay-sinh-to", "bep-dien-tu", "noi-ap-suat"
-        ]
-
-    def scroll_and_load_all(self, page):
-        """Hàm xử lý Tắt Popup, Cuộn và Click nút Xem thêm bằng Smart Wait"""
-        
-        # 1. Rà soát và tắt Popup Cookie/Quảng cáo
-        try:
-            print("[*] Đang rà soát và tắt Popup Cookie/Quảng cáo...")
-            cookie_btn = page.locator("text='Chấp nhận'")
-            if cookie_btn.is_visible(timeout=3000):
-                cookie_btn.click()
-                page.wait_for_timeout(1000)
-        except Exception:
-            pass 
-
-        click_count = 0
-        stuck_counter = 0 # Bộ đếm chống kẹt
-        
-        # 2. Vòng lặp tải dữ liệu
-        while True:
-            # Cuộn xuống gần cuối trang để kích nút Xem thêm
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight - 800);")
-            page.wait_for_timeout(1500)
-
-            # Lấy số lượng sản phẩm TRƯỚC KHI bấm
-            count_before = page.locator("div[class*='cardDefault']").count()
-
-            try:
-                # Tiêm JS để quét và bấm nút Xem thêm (Quét ngược từ dưới lên để lấy nút chính xác nhất)
-                clicked = page.evaluate("""
-                    () => {
-                        let btns = Array.from(document.querySelectorAll('button'));
-                        let loadMoreBtn = btns.reverse().find(b => b.innerText.includes('Xem thêm') || b.textContent.includes('Xem thêm'));
-                        if (loadMoreBtn) {
-                            loadMoreBtn.click();
-                            return true;
-                        }
-                        return false;
-                    }
-                """)
-                
-                if not clicked:
-                    print(f"[*] Không tìm thấy nút 'Xem thêm' nữa. Đã đến đáy danh mục!")
-                    break
-                    
-                print(f"[*] Đã bấm 'Xem thêm' lần {click_count + 1} (Đang có {count_before} SP). Chờ server trả hàng...")
-                
-                try:
-                    # SMART WAIT: Bắt trình duyệt đợi tới khi số lượng SP > count_before (Tối đa 15s)
-                    page.wait_for_function(
-                        f"document.querySelectorAll('div[class*=\"cardDefault\"]').length > {count_before}", 
-                        timeout=15000
-                    )
-                    click_count += 1
-                    stuck_counter = 0 # Nếu thành công, reset bộ đếm kẹt
-                    
-                except Exception:
-                    # Nếu đợi 15s mà số lượng không tăng, nghi ngờ là Nút Zombie
-                    stuck_counter += 1
-                    if stuck_counter >= 5:
-                        print(f"\n[!] PHÁT HIỆN NÚT ZOMBIE: Đã thử 5 lần (chờ tổng cộng ~75s) nhưng web ngừng nhả dữ liệu. Rút lui với {count_before} SP!")
-                        break
-                    else:
-                        print(f"[*] Cảnh báo kẹt mạng ({stuck_counter}/5): Web phản hồi chậm, sẽ thử click ép lại...")
-                
-            except Exception as e:
-                print(f"[*] Lỗi tương tác không xác định: {e}. Dừng tải.")
-                break
-
-        # 3. Cuộn chậm để tải toàn bộ ảnh (Lazy Load)
-        print(f"[*] Hoàn tất mở rộng trang. Đang cuộn lấy ảnh sắc nét...")
-        page.evaluate("window.scrollTo(0, 0);")
-        
-        # Tính toán số lần cuộn dựa trên số SP thực tế để không bị sót ảnh
-        total_items = page.locator("div[class*='cardDefault']").count()
-        scroll_steps = int(total_items / 8) + 3
-        
-        for _ in range(scroll_steps):
-            page.mouse.wheel(0, 900)
-            page.wait_for_timeout(300) 
-        page.wait_for_timeout(2000)
-
-    def extract_brand(self, name: str) -> str:
-        """Đoán hãng sản xuất từ tên sản phẩm để chia cột cho đẹp"""
-        if not name:
-            return "FPT Shop"
-        words = name.split()
-        brand = words[0].capitalize()
-        
-        # Lọc bỏ các danh từ chung chung đứng ở đầu tên
-        if brand.lower() in ["điện", "máy", "laptop", "pc", "màn", "tủ", "lò", "nồi", "bếp", "quạt", "robot", "loa"]:
-            if len(words) >= 3:
-                brand = words[2].capitalize() if brand.lower() in ["điện", "máy"] else words[1].capitalize()
-        return brand
-
-    def _slugify(self, text: str) -> str:
-        if not text:
-            return ""
-        text = unicodedata.normalize("NFKD", text)
-        text = text.encode("ascii", "ignore").decode("ascii")
-        text = text.lower()
-        text = "".join(ch if ch.isalnum() else "-" for ch in text)
-        text = "-".join(part for part in text.split("-") if part)
-        return text
-
-    def _normalize_name(self, name: str) -> str:
-        raw = self.normalizer.normalize(name)
-        text = unicodedata.normalize("NFKD", raw)
-        text = text.encode("ascii", "ignore").decode("ascii")
-        return " ".join(text.split())
-
-    def _parse_price(self, price: str) -> Optional[Decimal]:
-        if not price:
-            return None
-        cleaned = "".join(ch for ch in price if ch.isdigit())
-        if not cleaned:
-            return None
-        try:
-            return Decimal(cleaned)
-        except (InvalidOperation, ValueError):
-            return None
-
-    def _extract_original_item_id(self, url: str, fallback: str) -> str:
-        if not url:
-            return fallback
-        parsed = urllib.parse.urlparse(url)
-        slug = parsed.path.rstrip("/").split("/")[-1]
-        return slug or fallback
-
-    def _platform_id(self) -> int:
-        value = self.PLATFORM_ID
-        if isinstance(value, tuple):
-            value = value[0] if value else 0
-        return int(value)
-
-    def parse_product_block(self, block, category: str) -> Optional[Tuple[Dict[str, object], Dict[str, object]]]:
-        """Bóc tách thông tin chuẩn từ khối HTML"""
-        # Lấy Tên & Link
-        name_tag = block.find('h3', class_=lambda c: isinstance(c, str) and 'cardTitle' in c)
-        if not name_tag or not name_tag.find('a'): return None
-        
-        name = name_tag.find('a').get('title', '').strip() or name_tag.text.strip()
-        if len(name) < 5: return None
-        
-        link_tag = name_tag.find('a', href=True)
-        base_url = self.base_url or ""
-        url = urllib.parse.urljoin(base_url, link_tag['href']) if link_tag else ""
-
-        # Lấy Giá
-        price_container = block.find('div', class_=lambda c: isinstance(c, str) and 'cardInfo' in c)
-        price = ''
-        if price_container:
-            price_tag = price_container.find('p', class_=lambda c: isinstance(c, str) and 'b1-semibold' in c)
-            if price_tag:
-                 price = price_tag.text.strip()
-            else:
-                 price_tags = price_container.find_all(string=lambda text: text and ('₫' in text or 'đ' in text.lower()))
-                 if price_tags: price = price_tags[0].strip()
-
-        # Lấy Ảnh
-        img_container = block.find('div', class_=lambda c: isinstance(c, str) and 'relative' in c)
-        img_url = None
-        if img_container:
-            img_tag = img_container.find('img')
-            if img_tag:
-                srcset = img_tag.get('srcset')
-                img_url = srcset.split(',')[0].split(' ')[0].strip() if srcset else img_tag.get('src')
-
-        brand = self.extract_brand(name)
-
-        normalized_name = self._normalize_name(name)
-        product_slug = self._slugify(name) or self._slugify(normalized_name)
-        original_item_id = self._extract_original_item_id(url, product_slug or normalized_name)
-        current_price = self._parse_price(price)
-
-        product = {
-            "normalized_name": normalized_name,
-            "slug": product_slug,
-            "brand": brand,
-            "category": category,
-            "main_image_url": img_url,
-        }
-
-        platform_product = {
-            "product_id": None,
-            "platform_id": self._platform_id(),
-            "raw_name": name,
-            "original_item_id": original_item_id,
-            "url": url,
-            "affiliate_url": None,
-            "current_price": current_price,
-            "original_price": None,
-            "in_stock": True,
-            "last_crawled_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-        return product, platform_product
-
-    def _chunk(self, items: List[Dict[str, object]]) -> Iterable[List[Dict[str, object]]]:
-        for i in range(0, len(items), self.BATCH_SIZE):
-            yield items[i:i + self.BATCH_SIZE]
-
-    def _dedupe_products(self, products: List[Dict[str, object]]) -> List[Dict[str, object]]:
-        by_slug: Dict[str, Dict[str, object]] = {}
-        for product in products:
-            slug = str(product.get("slug") or "")
-            if not slug:
-                continue
-            by_slug[slug] = product
-        return list(by_slug.values())
-
-    def _dedupe_platform_products(self, platform_products: List[Dict[str, object]]) -> List[Dict[str, object]]:
-        by_key: Dict[Tuple[object, object], Dict[str, object]] = {}
-        for record in platform_products:
-            key = (record.get("platform_id"), record.get("original_item_id"))
-            if key[0] is None or key[1] in (None, ""):
-                continue
-            by_key[key] = record
-        return list(by_key.values())
-
     def crawl(self) -> None:
-        start_time = datetime.now()
-        print(f"\n[+] KHỞI ĐỘNG CHIẾN DỊCH CÀO TOÀN BỘ FPT SHOP - {start_time}")
-        
         with sync_playwright() as p:
-            # Mở trình duyệt có giao diện để dễ theo dõi
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"]) 
-            context = browser.new_context(viewport={'width': 1920, 'height': 1080})
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context()
+            page = context.new_page()
+            Stealth().apply_stealth_sync(page)
             
-            for category in self.categories:
-                # KỸ THUẬT TIẾT KIỆM RAM: Mở Tab mới cho mỗi danh mục, xài xong đóng lại
-                page = context.new_page()
-                Stealth().apply_stealth_sync(page)
+            # Loop over categories
+            for category_slug, category_name in CATEGORY_MAP.items():
+                print(f"Crawling category: {category_name} ({category_slug})")
+                category_url = f"{self.base_url}/{category_slug}"
+                page.goto(category_url, timeout=60000)
+                time.sleep(3)  # Wait for initial load
                 
-                base_url = self.base_url or ""
-                url = f"{base_url}/{category}"
-                print(f"\n{'='*60}\n>>> MỤC TIÊU MỚI: {url}\n{'='*60}")
-
-                try:
-                    page.goto(url, timeout=90000)
-                    
-                    if "cloudflare" in page.title().lower() or "just a moment" in page.title().lower():
-                        print("[!] Chốt chặn Cloudflare! Hãy click xác nhận trên trình duyệt...")
-                        page.wait_for_selector("h3", timeout=120000) 
-                        print("[+] Đã qua mặt Cloudflare!")
-
-                    # Thực thi chuỗi thao tác tự động
-                    self.scroll_and_load_all(page)
-
-                    soup = BeautifulSoup(page.content(), 'html.parser')
-                    product_blocks = soup.find_all('div', class_=lambda c: isinstance(c, str) and 'cardDefault' in c)
-                    
-                    parsed_items = []
-                    for block in product_blocks:
-                        result = self.parse_product_block(block, category)
-                        if result:
-                            parsed_items.append(result)
-                         
-                    print(f"[+] Bóc tách thành công {len(parsed_items)} sản phẩm ngành {category}.")
-
-                    # Cộng dồn dữ liệu và LƯU FILE NGAY LẬP TỨC để phòng ngừa sự cố
-                    for product, platform_product in parsed_items:
-                        self.products.append(product)
-                        self.platform_products.append(platform_product)
-                    self.clean_and_save() 
-
-                except Exception as e:
-                    print(f"[-] Bỏ qua danh mục {category} do gặp lỗi: {e}")
+                # Click "Xem thêm" until it disappears
+                while True:
+                    try:
+                        xem_them_button = page.query_selector("button.flex.items-center.justify-center.transition-all.duration-300.ease-out.relative.rounded-3xl.text-sm.font-medium.leading-5.bg-bgWhiteDefault.text-textOnWhitePrimary.border.border-iconDividerOnWhite.px-4.py-2")
+                        if not xem_them_button:
+                            break
+                        xem_them_button.click()
+                        time.sleep(2)  # Wait for new products to load
+                    except Exception as e:
+                        print(f"Error clicking 'Xem thêm': {e}")
+                        break
                 
-                finally:
-                    # Rất quan trọng: Đóng Tab sau khi cào xong để giải phóng RAM
-                    page.close()
-                    time.sleep(2)
-                        
+                # Get product cards
+                product_elements = page.query_selector_all(self.product_card)
+                print(f"Found {len(product_elements)} products in category '{category_name}'")
+                
+                products = []
+                for elem in product_elements:
+                    try:
+                        product = self._extract_product_data(elem, category_name)
+                        if product:
+                            products.append(product)
+                    except Exception as e:
+                        print(f"Error extracting product data: {e}")
+                
+                # Save to CSV
+                self._save_to_csv(products)
             browser.close()
             
-            end_time = datetime.now()
-            print("\n" + "#"*60)
-            print(f"[+] CHIẾN DỊCH HOÀN TẤT! TỔNG THỜI GIAN: {end_time - start_time}")
-            print("#"*60 + "\n")
-
-    def clean_and_save(self):
-        if not self.products and not self.platform_products:
+    def _extract_product_data(self, elem: ElementHandle, category_name: str) -> Optional[RawProduct]:
+        try:
+            name_elem = elem.query_selector("h3.mb-1")
+            name = name_elem.inner_text().strip() if name_elem else "Unknown"
+            
+            url_elem = elem.query_selector("a")
+            url = url_elem.get_attribute("href") if url_elem else None
+            if url and not url.startswith("http"):
+                url = self.base_url + url
+            
+            price_elem = elem.query_selector("p.text-textOnWhitePrimary.transition-all.duration-300.b1-semibold")
+            price_text = price_elem.inner_text().strip() if price_elem else "0"
+            price = self._parse_price(price_text)
+            
+            if price == 0 or price is None:
+                print(f"Skipping product with invalid price: {name} - {price_text}")
+                return None
+            
+            image_elem = elem.query_selector("img")
+            image_url = image_elem.get_attribute("srcset") if image_elem else None
+            
+            print(f"[fpt] {name} - {price_text} - {url}")
+            
+            return RawProduct(
+                platform_id=self.platform_id,
+                raw_name=name,
+                url=url,
+                price=price,
+                category=category_name,
+                main_image_url=image_url,
+                crawled_at=datetime.now(timezone.utc)
+            )
+        except Exception as e:
+            print(f"Error in _extract_product_data: {e}")
+            return None
+        
+    def _parse_price(self, price_text: str) -> Decimal:
+        try:
+            # Remove non-digit characters (except for decimal separator)
+            cleaned = ''.join(c for c in price_text if c.isdigit() or c in ',.').replace(',', '').replace('.', '')
+            return Decimal(cleaned)
+        except InvalidOperation:
+            return Decimal(0)
+    
+    def _save_to_csv(self, products: List[RawProduct]) -> None:
+        if not products:
             return
-
-        output_path = Path(self.output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        if self.products:
-            products_df = pd.DataFrame(self.products)
-            products_df = products_df.drop_duplicates(subset=["slug"], keep="first")
-            products_df = products_df.dropna(subset=["slug", "normalized_name"])
-            products_file = output_path / "fpt_products.csv"
-            products_df.to_csv(products_file, index=False, encoding="utf-8-sig")
-            print(f" [LƯU TRỮ AN TOÀN] Đã cập nhật file {products_file} | Tổng: {len(products_df)} sản phẩm.")
-
-        if self.platform_products:
-            platform_df = pd.DataFrame(self.platform_products)
-            platform_df = platform_df.drop_duplicates(subset=["platform_id", "original_item_id"], keep="first")
-            platform_df = platform_df.dropna(subset=["platform_id", "original_item_id", "url"])
-            platform_file = output_path / "fpt_platform_products.csv"
-            platform_df.to_csv(platform_file, index=False, encoding="utf-8-sig")
-            print(f" [LƯU TRỮ AN TOÀN] Đã cập nhật file {platform_file} | Tổng: {len(platform_df)} listing.")
-
-if __name__ == "__main__":
-    try:
-        crawler = FptTrojanPro()
-        crawler.crawl()
-    except KeyboardInterrupt:
-        print("\n[!] Bạn đã nhấn Ctrl+C. Hệ thống dừng khẩn cấp!")
-        sys.exit(0)
+        output_file = self.output_dir / f"fptshop_products.csv"
+        with output_file.open('a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(RawProduct.csv_headers())
+            for product in products:
+                writer.writerow(product.to_csv_row())
+        print(f"Saved {len(products)} products to {output_file}")

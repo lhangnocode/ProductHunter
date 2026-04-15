@@ -65,7 +65,7 @@ TYPESENSE_PORT: str = os.getenv("TYPESENSE_PORT", "8108")
 TYPESENSE_PROTOCOL: str = os.getenv("TYPESENSE_PROTOCOL", "http")
 
 # ── Pipeline tuning ───────────────────────────────────────────────────────────
-LLM_BATCH_SIZE: int = int(os.getenv("LLM_BATCH_SIZE", "20"))
+LLM_BATCH_SIZE: int = int(os.getenv("LLM_BATCH_SIZE", "10"))
 LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", "3"))
 DEDUP_SCORE_THRESHOLD: float = float(os.getenv("DEDUP_SCORE_THRESHOLD", "0.85"))
 DB_BATCH_SIZE: int = 200
@@ -74,16 +74,8 @@ DB_BATCH_SIZE: int = 200
 CRAWLER_OUTPUT_DIR: Path = Path(__file__).resolve().parents[1] / "crawler" / "output"
 
 # ── CSV file registry ─────────────────────────────────────────────────────────
-# Each entry: (products_csv, platform_products_csv, platform_id)
-CSV_FILES: list[tuple[Path, Path, int]] = [
-    (
-        CRAWLER_OUTPUT_DIR / "fpt_products.csv",
-        CRAWLER_OUTPUT_DIR / "fpt_platform_products.csv",
-        7,   # PlatformType.FPTSHOP
-    ),
-    (
-        CRAWLER_OUTPUT_DIR / "phongvu_products.csv",
-        CRAWLER_OUTPUT_DIR / "phongvu_platform_products.csv",
-        8,   # PlatformType.PHONGVU
-    ),
+# Each entry: (platform_products_csv, platform_id)
+CSV_FILES: list[tuple[Path, int]] = [
+    (CRAWLER_OUTPUT_DIR / "fptshop_products.csv", 7),
+    (CRAWLER_OUTPUT_DIR / "phongvu_products.csv", 8),
 ]
