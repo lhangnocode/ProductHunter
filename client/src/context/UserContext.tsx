@@ -28,7 +28,7 @@ interface UserContextType {
   isWishlistLoading: boolean;
   toggleWishlist: (productId: string) => Promise<void>;
   clearWishlist: () => Promise<void>;
-  // Price alerts (local only — no backend for alerts yet)
+
   alerts: PriceAlertItem[];
   isAlertsLoading: boolean;
   setAlert: (productId: string, threshold: number) => Promise<void>;
