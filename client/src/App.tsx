@@ -92,6 +92,7 @@ function AppContent() {
     toggleWishlist,
     clearWishlist,
     alerts,
+    alertIds,
     removeAlert,
     setAlert,
     clearAlerts,
@@ -187,9 +188,23 @@ function AppContent() {
     // platformProduct may include a nested `product` object or `product_name`/`normalized_name`/`raw_name` fields.
     const derivedProduct = {
       id: platformProduct.product_id || platformProduct.id || platformId,
-      product_name: platformProduct.product?.product_name || platformProduct.product_name || platformProduct.normalized_name || platformProduct.raw_name || platformProduct.slug || '',
-      normalized_name: platformProduct.product?.normalized_name || platformProduct.normalized_name || platformProduct.raw_name || platformProduct.slug || '',
-      main_image_url: platformProduct.product?.main_image_url || platformProduct.main_image_url || null,
+      product_name:
+        platformProduct.product?.product_name ||
+        platformProduct.product_name ||
+        platformProduct.normalized_name ||
+        platformProduct.raw_name ||
+        platformProduct.slug ||
+        "",
+      normalized_name:
+        platformProduct.product?.normalized_name ||
+        platformProduct.normalized_name ||
+        platformProduct.raw_name ||
+        platformProduct.slug ||
+        "",
+      main_image_url:
+        platformProduct.product?.main_image_url ||
+        platformProduct.main_image_url ||
+        null,
     };
 
     setSelectedProduct(derivedProduct as any);
@@ -604,6 +619,7 @@ function AppContent() {
                         product={product}
                         onClick={handleNavigateToDetail}
                         isWishlisted={wishlistIds.has(getProductId(product))}
+                        isAlerted={alertIds.has(getProductId(product))} // THÊM DÒNG NÀY
                         onToggleWishlist={(e) => {
                           e.stopPropagation();
                           handleAddWishlist(product);
