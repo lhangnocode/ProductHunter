@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { formatDisplayName } from '../lib/utils';
 import { createPortal } from 'react-dom';
 import { PriceChart } from './PriceChart';
-import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2, ChevronDown } from 'lucide-react'; // Thêm X và Loader2
+import { ArrowLeft, Star, Bell, Heart, AlertTriangle, CheckCircle2, TrendingDown, Info, ShoppingBag, Package, ShoppingCart, ExternalLink, Zap, Share2, ShieldCheck, X, Loader2, ChevronDown, Trash2 } from 'lucide-react'; // Thêm X và Loader2
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext'; // Thêm useUser
 import { useToast } from './Toast'; // Thêm useToast
 import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProductsByProductId, PlatformProduct } from '../services/price_record_api';
-import { priceAlertService } from '../services/priceAlert';
 
 interface ProductDetailProps {
   product: any; 
@@ -23,7 +22,7 @@ interface ProductDetailProps {
 
 export function ProductDetail({ product,platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
   const { t, language } = useLanguage();
-  const { user } = useUser(); // Lấy thông tin user
+  const { user, setAlert, alertIds, removeAlert } = useUser(); // Lấy thông tin user, setAlert, alertIds và removeAlert
   const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
 
   // State quản lý các sàn
@@ -51,6 +50,8 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
   const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
   const currentPlatformId = selectedPlatformProduct?.id || initialPlatformId;
+  const targetProductId = platformProduct.product_id ?? platformProduct.id;
+  const isAlerted = alertIds.has(targetProductId);
 
   // Lọc bỏ URL ảnh mock/placeholder không hợp lệ
   const isRealImageUrl = (url: string | null | undefined): boolean => {
@@ -135,12 +136,9 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
     setIsSubmittingAlert(true);
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) throw new Error("Missing token");
-
       const targetProductId = platformProduct.product_id ?? platformProduct.id;
       
-      await priceAlertService.setAlert(token, targetProductId, numericPrice);
+      await setAlert(targetProductId, numericPrice);
 
       showToast('Đã đặt cảnh báo giá thành công!', 'success');
       setIsAlertModalOpen(false);
@@ -239,7 +237,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
             <ArrowLeft size={14} /> {t('back')}
           </button>
           
-          {/* THÊM NÚT ALERT CHUÔNG VÀO ĐÂY */}
+          {/* NÚT ALERT CHUÔNG - THAY ĐỔI MÀU DỰA TRÊN STATE */}
           <div className="flex items-center gap-2">
             <button 
               onClick={() => {
@@ -249,10 +247,14 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                 }
                 setIsAlertModalOpen(true);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full border transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-brand-accent hover:border-brand-accent/30"
-              title="Nhận thông báo khi giảm giá"
+              className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${
+                isAlerted
+                  ? 'bg-brand-accent text-white border-brand-accent'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+              }`}
+              title={isAlerted ? 'Bấm để sửa cảnh báo giá' : 'Nhận thông báo khi giảm giá'}
             >
-              <Bell size={16} />
+              <Bell size={16} fill={isAlerted ? 'currentColor' : 'none'} />
             </button>
 
             <button onClick={() => onAddWishlist(currentPlatformData)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}>
@@ -517,17 +519,38 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
               </span>
             </div>
 
-            <button
-              onClick={handleSaveAlert}
-              disabled={isSubmittingAlert || !targetPriceInput}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-accent py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-brand-accent/20 transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:pointer-events-none font-display"
-            >
-              {isSubmittingAlert ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                "Xác nhận đặt thông báo"
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveAlert}
+                disabled={isSubmittingAlert || !targetPriceInput}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-accent py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-brand-accent/20 transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:pointer-events-none font-display"
+              >
+                {isSubmittingAlert ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  "Xác nhận đặt thông báo"
+                )}
+              </button>
+              
+              {isAlerted && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await removeAlert?.(targetProductId);
+                      showToast('Đã xóa cảnh báo giá!', 'success');
+                      setIsAlertModalOpen(false);
+                      setTargetPriceInput('');
+                    } catch (error) {
+                      showToast('Không thể xóa cảnh báo giá', 'error');
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 px-4 py-4 text-xs font-black uppercase tracking-widest text-rose-500 shadow-sm border border-rose-200 dark:border-rose-900 transition-all hover:bg-rose-100 dark:hover:bg-rose-900/50 active:scale-95 font-display"
+                  title="Xóa cảnh báo giá này"
+                >
+                  <Trash2 size={16} />
+                </button>
               )}
-            </button>
+            </div>
           </div>
         </div>,
         document.body
