@@ -105,10 +105,14 @@ class PhongVuCrawler:
                 return None
 
             price_text = self._extract_price_text(elem)
-            price = self._parse_price(price_text)
+            current_price = self._parse_price(price_text)
 
-            if price == 0 or price is None:
+            if current_price == 0 or current_price is None:
                 return None
+
+            original_price_elem = elem.query_selector("div.att-product-detail-retail-price.css-18z00w6]")
+            original_price_text = original_price_elem.inner_text().strip() if original_price_elem else None
+            original_price = self._parse_price(original_price_text) if original_price_text else None
 
             image_elem = elem.query_selector("img")
             image_url = None
@@ -125,7 +129,8 @@ class PhongVuCrawler:
                 platform_id=self.platform_id,
                 raw_name=name,
                 url=url,
-                price=price,
+                current_price=current_price,
+                original_price=original_price,
                 category=category_name,
                 main_image_url=image_url,
                 crawled_at=datetime.now(timezone.utc),

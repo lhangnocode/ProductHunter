@@ -58,7 +58,7 @@ def load_csvs_to_staging(staging_conn) -> None:
         rows = []
 
         platform_rows, platform_fields = _read_csv(platform_csv)
-        is_raw_crawler_csv = "original_item_id" not in platform_fields and "price" in platform_fields
+        is_raw_crawler_csv = "current_price" in platform_fields
 
         for row in platform_rows:
             raw_name = (row.get("raw_name") or "").strip()
@@ -70,18 +70,21 @@ def load_csvs_to_staging(staging_conn) -> None:
                     "platform_id": platform_id,
                     "raw_name": raw_name,
                     "url": _empty_to_none(row.get("url")),
-                    "price": _empty_to_none(row.get("price")),
+                    "current_price": _empty_to_none(row.get("current_price")),
+                    "original_price": _empty_to_none(row.get("original_price")),
                     "category": _empty_to_none(row.get("category")),
                     "main_image_url": _empty_to_none(row.get("main_image_url")),
                     "crawled_at": _empty_to_none(row.get("crawled_at")),
                 })
                 continue
 
+            # Legacy CSV format fallback
             rows.append({
                 "platform_id": platform_id,
                 "raw_name": raw_name,
                 "url": _empty_to_none(row.get("url")),
-                "price": _empty_to_none(row.get("current_price")),
+                "current_price": _empty_to_none(row.get("current_price")),
+                "original_price": _empty_to_none(row.get("original_price")),
                 "category": _empty_to_none(row.get("category")),
                 "main_image_url": _empty_to_none(row.get("main_image_url")),
                 "crawled_at": _empty_to_none(row.get("last_crawled_at")),
@@ -93,7 +96,8 @@ def load_csvs_to_staging(staging_conn) -> None:
 
         insert_sql = """
             INSERT INTO staging.raw_product (
-                platform_id, raw_name, url, price, category, main_image_url, crawled_at
+                platform_id, raw_name, url, current_price, original_price,
+                category, main_image_url, crawled_at
             ) VALUES %s
         """
 
@@ -108,7 +112,8 @@ def load_csvs_to_staging(staging_conn) -> None:
                         row["platform_id"],
                         row["raw_name"],
                         row["url"],
-                        row["price"],
+                        row["current_price"],
+                        row["original_price"],
                         row["category"],
                         row["main_image_url"],
                         row["crawled_at"],
