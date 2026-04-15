@@ -166,9 +166,11 @@ class PhongVuCrawler:
         if not products:
             return
         output_file = self.output_dir / "phongvu_products.csv"
+        write_header = not output_file.exists()
         with output_file.open("a", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(RawProduct.csv_headers())
+            if write_header:
+                writer.writerow(RawProduct.csv_headers())
             for product in products:
                 writer.writerow(product.to_csv_row())
         print(f"Saved {len(products)} products to {output_file}")

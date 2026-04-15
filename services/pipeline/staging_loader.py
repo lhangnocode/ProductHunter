@@ -32,6 +32,24 @@ def _empty_to_none(value: Any) -> Any:
     return s
 
 
+def _to_numeric(value: Any) -> Any:
+    """Return value only if it parses as a number, else None.
+    Prevents header-repeat rows from passing a column name as a numeric value."""
+    v = _empty_to_none(value)
+    if v is None:
+        return None
+    try:
+        float(v)
+        return v
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_header_row(row: dict[str, str]) -> bool:
+    """Return True if this row is a repeated CSV header (raw_name == 'raw_name')."""
+    return (row.get("raw_name") or "").strip().lower() == "raw_name"
+
+
 def _read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     """Read a CSV file into rows plus header fieldnames."""
     rows: list[dict[str, str]] = []
@@ -65,13 +83,17 @@ def load_csvs_to_staging(staging_conn) -> None:
             if not raw_name:
                 continue
 
+            # Skip repeated header rows written by crawlers on each save
+            if _is_header_row(row):
+                continue
+
             if is_raw_crawler_csv:
                 rows.append({
                     "platform_id": platform_id,
                     "raw_name": raw_name,
                     "url": _empty_to_none(row.get("url")),
-                    "current_price": _empty_to_none(row.get("current_price")),
-                    "original_price": _empty_to_none(row.get("original_price")),
+                    "current_price": _to_numeric(row.get("current_price")),
+                    "original_price": _to_numeric(row.get("original_price")),
                     "category": _empty_to_none(row.get("category")),
                     "main_image_url": _empty_to_none(row.get("main_image_url")),
                     "crawled_at": _empty_to_none(row.get("crawled_at")),
@@ -83,8 +105,8 @@ def load_csvs_to_staging(staging_conn) -> None:
                 "platform_id": platform_id,
                 "raw_name": raw_name,
                 "url": _empty_to_none(row.get("url")),
-                "current_price": _empty_to_none(row.get("current_price")),
-                "original_price": _empty_to_none(row.get("original_price")),
+                "current_price": _to_numeric(row.get("current_price")),
+                "original_price": _to_numeric(row.get("original_price")),
                 "category": _empty_to_none(row.get("category")),
                 "main_image_url": _empty_to_none(row.get("main_image_url")),
                 "crawled_at": _empty_to_none(row.get("last_crawled_at")),
