@@ -60,3 +60,5 @@ class PlatformProductIngestResponse(BaseModel):
     in_stock: bool
     last_crawled_at: Optional[datetime] = None
     deal_status: Optional[str] = None
+
+    product: Optional[ProductIngestResponse] = None

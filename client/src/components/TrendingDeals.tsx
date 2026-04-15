@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion'; // Lưu ý: đổi lại thành framer-motion nếu bạn dùng bản cũ, hoặc giữ motion/react tùy setup của bạn
 import { TrendingUp } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { useLanguage } from '../context/LanguageContext';
@@ -11,10 +11,16 @@ interface TrendingDealsProps {
   onToggleWishlist: (product: any) => void;
 }
 
+// Helper function để làm sạch URL ảnh (xử lý srcset của FPT Shop)
+const cleanImageUrl = (url: string) => {
+  if (!url) return "https://via.placeholder.com/150";
+  // Nếu chuỗi chứa dấu phẩy (srcset), lấy phần tử đầu tiên, sau đó tách khoảng trắng để lấy URL
+  return url.split(',')[0].split(' ')[0].trim();
+};
+
 export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }: TrendingDealsProps) {
   const { t } = useLanguage();
   
-  // Quản lý state data và loading ngay trong component này
   const [deals, setDeals] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -23,7 +29,15 @@ export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }:
       try {
         setIsLoading(true);
         const data = await fetchTrendingDeals();
-        setDeals(data);
+        
+        const cleanedData = data.map((item: any) => ({
+          ...item,
+          // Lấy ảnh từ object product lồng bên trong
+          main_image_url: item.product?.main_image_url || null, 
+          // Lấy tên đẹp từ product
+          display_name: item.product?.product_name || item.raw_name 
+        }));
+        setDeals(cleanedData);
       } catch (error) {
         console.error("Lỗi khi tải Trending Deals:", error);
       } finally {
@@ -34,7 +48,6 @@ export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }:
     getDeals();
   }, []);
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
