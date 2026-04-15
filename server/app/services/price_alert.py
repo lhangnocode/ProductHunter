@@ -37,14 +37,25 @@ async def set_price_alert(
     await db.execute(stmt)
     await db.commit()
 
-    result = await db.execute(
-        select(PriceAlert).where(
+    query = (
+        select(PriceAlert)
+        .options(selectinload(PriceAlert.product)) 
+        .where(
             PriceAlert.user_id == user_id,
             PriceAlert.product_id == alert_in.product_id
         )
     )
+    result = await db.execute(query)
+    row = result.scalar_one()
 
-    return result.scalar_one()
+    # Trả về dict để khớp hoàn toàn với schema PriceAlertResponse
+    return {
+        "product_id": row.product_id,
+        "target_price": row.target_price,
+        "status": row.status,
+        "product_name": row.product.normalized_name if row.product else "Sản phẩm",
+        "main_image_url": row.product.main_image_url if row.product else None,
+    }
 
 async def get_user_alerts(db: AsyncSession, user_id: UUID):
     stmt = (
