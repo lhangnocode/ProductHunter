@@ -138,7 +138,9 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error("Missing token");
 
-      await priceAlertService.setAlert(token, currentPlatformData.id, numericPrice);
+      const targetProductId = platformProduct.product_id ?? platformProduct.id;
+      
+      await priceAlertService.setAlert(token, targetProductId, numericPrice);
 
       showToast('Đã đặt cảnh báo giá thành công!', 'success');
       setIsAlertModalOpen(false);
