@@ -4,8 +4,6 @@ import csv
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-import sys
-import re
 import time
 from typing import List, Optional
 
@@ -14,23 +12,24 @@ from playwright_stealth.stealth import Stealth
 
 from services.crawler.models.raw_product import RawProduct
 
-PLATFORM_ID = 8
-PLATFORM_BASE_URL = "https://phongvu.vn"
+PLATFORM_ID = 9
+PLATFORM_BASE_URL = "https://cellphones.com.vn"
 OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
 
 CATEGORY_MAP: dict[str, str] = {
-    "c/laptop":                 "laptop",
-    "c/apple":                  "smartphone",
-    "c/dien-thoai-tablet":      "smartphone",
-    "c/man-hinh-may-tinh":      "monitor",
-    "c/pc":                     "desktop",
-    "c/thiet-bi-am-thanh":      "speaker",
+    "mobile.html":               "smartphone",
+    "laptop.html":               "laptop",
+    "tablet.html":        "tablet",
+    "do-choi-cong-nghe.html":   "wearable",
+    "thiet-bi-am-thanh.html":             "headphone",
+    "man-hinh.html":    "monitor",
 }
 
 
-class PhongVuCrawler:
-    parent_selector = "div.grow"
-    product_card = "div.product-card.css-1msrncq"
+# Flow: Click "Xem thêm" -> Get device cards -> For each card, get element -> Extract data -> Save to CSV
+
+class CellphonesCrawler:
+    product_card = "div.product-info"
 
     def __init__(self, output_dir: Optional[str] = None):
         self.platform_id = PLATFORM_ID
@@ -41,21 +40,20 @@ class PhongVuCrawler:
     def crawl(self) -> None:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
-            context = browser.new_context(viewport={"width": 1920, "height": 1080})
+            context = browser.new_context()
+            page = context.new_page()
+            Stealth().apply_stealth_sync(page)
 
             for category_slug, category_name in CATEGORY_MAP.items():
-                page = context.new_page()
-                Stealth().apply_stealth_sync(page)
-
-                category_url = f"{self.base_url}/{category_slug}"
                 print(f"Crawling category: {category_name} ({category_slug})")
-                page.goto(category_url, timeout=90000, wait_until="domcontentloaded")
-                time.sleep(3)
+                category_url = f"{self.base_url}/{category_slug}"
+                page.goto(category_url, timeout=60000)
+                time.sleep(2)  # Wait for initial load
 
                 # Click "Xem thêm" until it disappears
                 while True:
                     try:
-                        xem_them_button = page.query_selector("a.css-b0m1yo")
+                        xem_them_button = page.query_selector("a.button.btn-show-more.button__show-more-product")
                         if not xem_them_button:
                             break
                         xem_them_button.click()
@@ -64,10 +62,11 @@ class PhongVuCrawler:
                         print(f"Error clicking 'Xem thêm': {e}")
                         break
 
+                # Get product cards
                 product_elements = page.query_selector_all(self.product_card)
                 print(f"Found {len(product_elements)} products in category '{category_name}'")
 
-                products: List[RawProduct] = []
+                products = []
                 for elem in product_elements:
                     try:
                         product = self._extract_product_data(elem, category_name)
@@ -76,53 +75,43 @@ class PhongVuCrawler:
                     except Exception as e:
                         print(f"Error extracting product data: {e}")
 
+                # Save to CSV
                 self._save_to_csv(products)
-                page.close()
-                time.sleep(2)
 
             browser.close()
 
     def _extract_product_data(self, elem: ElementHandle, category_name: str) -> Optional[RawProduct]:
         try:
-            name_elem = elem.query_selector("h3.css-1xdyrhj")
+            name_elem = elem.query_selector("h3")
             name = name_elem.inner_text().strip() if name_elem else None
             if not name:
-                print("No name found for product, skipping")
                 return None
 
-            url_elem = elem.query_selector("a.css-pxdb0j")
+            url_elem = elem.query_selector("a")
             url = url_elem.get_attribute("href") if url_elem else None
             if not url:
-                print("No URL found for product, skipping")
-
                 return None
-            if url and not url.startswith("http"):
+            if not url.startswith("http"):
                 url = self.base_url + url
-            if any(bad in url for bad in ["help.", "/p/he-thong"]):
-                print("Product URL contains blacklisted domains, skipping")
+
+            # TODO: add selector for current price
+            current_price_elem = elem.query_selector("p.product__price--show")
+            current_price_text = current_price_elem.inner_text().strip() if current_price_elem else None
+            current_price = self._parse_price(current_price_text) if current_price_text else None
+
+            if not current_price or current_price == 0:
+                print(f"Skipping product with invalid price: {name}")
                 return None
 
-            price_text = self._extract_price_text(elem)
-            current_price = self._parse_price(price_text)
-
-            if current_price == 0 or current_price is None:
-                print("Invalid price found, skipping product")
-                return None
-
-            original_price_elem = elem.query_selector("div.att-product-detail-retail-price.css-18z00w6")
+            # TODO: add selector for original / list price
+            original_price_elem = elem.query_selector("p.product__price--through")
             original_price_text = original_price_elem.inner_text().strip() if original_price_elem else None
             original_price = self._parse_price(original_price_text) if original_price_text else None
 
             image_elem = elem.query_selector("img")
-            image_url = None
-            if image_elem:
-                image_url = (
-                    image_elem.get_attribute("src")
-                    or image_elem.get_attribute("data-src")
-                    or image_elem.get_attribute("data-srcset")
-                )
+            image_url = image_elem.get_attribute("src") if image_elem else None
 
-            print(f"[phongvu] {name} - {price_text} - {url}")
+            print(f"[cellphones] {name} - {current_price_text} - {url}")
 
             return RawProduct(
                 platform_id=self.platform_id,
@@ -132,32 +121,15 @@ class PhongVuCrawler:
                 original_price=original_price,
                 category=category_name,
                 main_image_url=image_url,
-                crawled_at=datetime.now(timezone.utc),
+                crawled_at=datetime.now(timezone.utc)
             )
         except Exception as e:
             print(f"Error in _extract_product_data: {e}")
             return None
 
-    def _extract_price_text(self, elem: ElementHandle) -> str:
-        price_elem = elem.query_selector("div.att-product-detail-latest-price.css-do31rh")
-        if price_elem:
-            text = price_elem.inner_text().strip()
-            if text:
-                return text
-        try:
-            text = elem.inner_text()
-        except Exception:
-            return "0"
-        matches = re.findall(r"\d[\d\.,]*\s*₫", text)
-        if matches:
-            return matches[-1]
-        if "₫" in text:
-            return "₫"
-        return "0"
-
     def _parse_price(self, price_text: str) -> Decimal:
         try:
-            cleaned = "".join(c for c in price_text if c.isdigit() or c in ",.").replace(",", "").replace(".", "")
+            cleaned = ''.join(c for c in price_text if c.isdigit() or c in ',.').replace(',', '').replace('.', '')
             return Decimal(cleaned)
         except InvalidOperation:
             return Decimal(0)
@@ -165,10 +137,19 @@ class PhongVuCrawler:
     def _save_to_csv(self, products: List[RawProduct]) -> None:
         if not products:
             return
-        output_file = self.output_dir / "phongvu_products.csv"
-        with output_file.open("a", newline="", encoding="utf-8") as csvfile:
+        output_file = self.output_dir / "cellphones_products.csv"
+        with output_file.open('a', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(RawProduct.csv_headers())
             for product in products:
                 writer.writerow(product.to_csv_row())
         print(f"Saved {len(products)} products to {output_file}")
+
+
+def crawl(output_dir: Path = OUTPUT_DIR) -> None:
+    crawler = CellphonesCrawler(output_dir=str(output_dir))
+    crawler.crawl()
+
+
+if __name__ == "__main__":
+    crawl()
