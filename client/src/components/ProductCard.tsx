@@ -31,7 +31,7 @@ export function ProductCard({
   const { theme } = useTheme();
 
   // Lấy User và Toast để xử lý cảnh báo giá
-  const { user } = useUser();
+  const { user, setAlert } = useUser();
   const { showToast } = useToast();
 
   // State quản lý Modal Cảnh báo giá
@@ -151,7 +151,7 @@ export function ProductCard({
 
       const targetProductId = product.product_id ?? product.id;
 
-      await priceAlertService.setAlert(token, targetProductId, numericPrice);
+      await setAlert(targetProductId, numericPrice);
 
       showToast("Đã đặt cảnh báo giá thành công!", "success");
       setIsAlertModalOpen(false);

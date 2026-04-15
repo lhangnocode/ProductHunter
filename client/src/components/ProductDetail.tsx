@@ -23,7 +23,7 @@ interface ProductDetailProps {
 
 export function ProductDetail({ product,platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
   const { t, language } = useLanguage();
-  const { user } = useUser(); // Lấy thông tin user
+  const { user, setAlert } = useUser();; // Lấy thông tin user
   const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
 
   // State quản lý các sàn
@@ -122,16 +122,16 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
   // HÀM XỬ LÝ LƯU CẢNH BÁO GIÁ
   const handleSaveAlert = async () => {
-    if (!user) {
-      showToast('Vui lòng đăng nhập để sử dụng tính năng này!', 'error');
-      return;
-    }
+  if (!user) {
+    showToast('Vui lòng đăng nhập để sử dụng tính năng này!', 'error');
+    return;
+  }
 
     const numericPrice = parseFloat(targetPriceInput.replace(/\D/g, ''));
-    if (isNaN(numericPrice) || numericPrice <= 0) {
-      showToast('Vui lòng nhập mức giá hợp lệ!', 'error');
-      return;
-    }
+  if (isNaN(numericPrice) || numericPrice <= 0) {
+    showToast('Vui lòng nhập mức giá hợp lệ!', 'error');
+    return;
+  }
 
     setIsSubmittingAlert(true);
     try {
@@ -140,7 +140,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
       const targetProductId = platformProduct.product_id ?? platformProduct.id;
       
-      await priceAlertService.setAlert(token, targetProductId, numericPrice);
+      await setAlert(targetProductId, numericPrice);
 
       showToast('Đã đặt cảnh báo giá thành công!', 'success');
       setIsAlertModalOpen(false);
