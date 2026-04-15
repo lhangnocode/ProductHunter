@@ -50,7 +50,7 @@ async def analyze_price_status(
     label = "Giá ổn định"
 
     # Cực hời: Giá HT <= Thấp nhất lịch sử
-    if current_price <= lowest_ever:
+    if current_price <= lowest_ever and current_price < avg_30days:
         status = "extreme"
         label = "Rẻ kỷ lục"
     
