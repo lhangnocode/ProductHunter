@@ -114,7 +114,9 @@ export function ProductCard({ product, onClick, onRemove, onToggleWishlist, isWi
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error("Missing token");
 
-      await priceAlertService.setAlert(token, product.id, numericPrice);
+      const targetProductId = product.product_id ?? product.id;
+
+      await priceAlertService.setAlert(token, targetProductId, numericPrice);
       
       showToast('Đã đặt cảnh báo giá thành công!', 'success');
       setIsAlertModalOpen(false);
