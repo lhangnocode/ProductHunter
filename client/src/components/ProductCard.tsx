@@ -7,7 +7,6 @@ import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useUser } from "../context/UserContext";
 import { useToast } from "./Toast";
-import { priceAlertService } from "../services/priceAlert";
 
 interface ProductCardProps {
   product: any;
@@ -30,8 +29,8 @@ export function ProductCard({
   const { t, language } = useLanguage();
   const { theme } = useTheme();
 
-  // Lấy User và Toast để xử lý cảnh báo giá
-  const { user } = useUser();
+  // Lấy User, Toast và setAlert từ UserContext
+  const { user, setAlert } = useUser();
   const { showToast } = useToast();
 
   // State quản lý Modal Cảnh báo giá
@@ -146,12 +145,14 @@ export function ProductCard({
 
     setIsSubmittingAlert(true);
     try {
-      const token = localStorage.getItem("access_token");
-      if (!token) throw new Error("Missing token");
+      if (!user) {
+        showToast("Vui lòng đăng nhập để đặt cảnh báo giá!", "error");
+        return;
+      }
 
       const targetProductId = product.product_id ?? product.id;
 
-      await priceAlertService.setAlert(token, targetProductId, numericPrice);
+      await setAlert(targetProductId, numericPrice);
 
       showToast("Đã đặt cảnh báo giá thành công!", "success");
       setIsAlertModalOpen(false);
