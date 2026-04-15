@@ -7,7 +7,7 @@ from uuid import UUID
 import typesense
 from sqlalchemy import case, or_, select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
@@ -198,9 +198,13 @@ async def get_trending_deals(db: AsyncSession, limit: int = 20):
     # 3. Tạo câu truy vấn chính
     stmt = (
         select(PlatformProduct, subq_min.c.min_price, subq_avg.c.avg_price)
+        .join(Product, PlatformProduct.product_id == Product.id) # Join lấy info product chính
         .outerjoin(subq_min, PlatformProduct.id == subq_min.c.platform_product_id)
         .outerjoin(subq_avg, PlatformProduct.id == subq_avg.c.platform_product_id)
-        .options(selectinload(PlatformProduct.platform))
+        .options(
+            selectinload(PlatformProduct.platform),
+            joinedload(PlatformProduct.product) # Load thông tin cha (Product)
+        )
     )
 
     # 4. Điều kiện LỌC (Rõ ràng và không dùng case)
@@ -228,22 +232,36 @@ async def get_trending_deals(db: AsyncSession, limit: int = 20):
     
     # 6. Xử lý phân loại (Tagging) và Gói data trả về
     for row in rows:
-        platform_product = row[0]
-        min_price = row[1]
+        pp = row[0]
+        min_p_val = row[1]
+        avg_p_val = row[2]
+
+        # --- XỬ LÝ LỖI ẢNH (QUAN TRỌNG) ---
+        # Nếu link ảnh chứa srcset (có dấu phẩy), chỉ lấy link đầu tiên
+        raw_img = pp.product.main_image_url if pp.product and pp.product.main_image_url else ""
+        if "," in raw_img:
+            # Tách lấy phần đầu tiên, sau đó tách khoảng trắng bỏ "1x"
+            clean_img = raw_img.split(',')[0].split(' ')[0].strip()
+            pp.product.main_image_url = clean_img
+
+        # --- PHÂN LOẠI TAG ---
+        current_p = float(pp.current_price) if pp.current_price else 0
+        min_p = float(min_p_val) if min_p_val else current_p
+        avg_p = float(avg_p_val) if avg_p_val is not None else (current_p + 1)
         
-        # Ép kiểu để so sánh an toàn
-        current_p = float(platform_product.current_price) if platform_product.current_price else 0
-        min_p = float(min_price) if min_price else current_p
+        setattr(pp, "deal_status", "stable")
+        setattr(pp, "deal_label", "Giá ổn định")
 
-        # Nếu giá hiện tại <= giá thấp nhất -> Extreme. Ngược lại chắc chắn là Good (vì đã qua bộ lọc WHERE)
-        if current_p <= min_p:
-            setattr(platform_product, "deal_status", "extreme")
-        else:
-            setattr(platform_product, "deal_status", "good")
+        if current_p <= min_p and current_p < avg_p:
+            setattr(pp, "deal_status", "extreme")
+            setattr(pp, "deal_label", "Rẻ kỷ lục")
 
-        trending_items.append(platform_product)
+        elif current_p < avg_p:
+            setattr(pp, "deal_status", "good")
+            setattr(pp, "deal_label", "Giá tốt")
+        trending_items.append(pp)
 
-    # 7. Sắp xếp: Ưu tiên đưa Extreme (Rẻ kỷ lục) lên đầu tiên, sau đó mới tới Good (Giá tốt)
-    trending_items.sort(key=lambda x: 0 if x.deal_status == "extreme" else 1)
+    status_order = {"extreme": 0, "good": 1, "stable": 2}
+    trending_items.sort(key=lambda x: status_order.get(getattr(x, "deal_status", "stable"), 2))
 
     return trending_items
