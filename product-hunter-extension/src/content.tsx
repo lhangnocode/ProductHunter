@@ -81,6 +81,12 @@ const ProductCompareOverlay = () => {
   if (!productInfo.name) return null
 
 
+  const getFirstImageUrl = (urlPath: string) => {
+    if (!urlPath) return "https://via.placeholder.com/150";
+    // Tách dấu phẩy (nếu có srcset), lấy phần tử đầu tiên, sau đó tách khoảng trắng để bỏ "1x"
+    return urlPath.split(',')[0].split(' ')[0].trim();
+  };
+
   return (
     <div className="fixed bottom-10 right-10 z-[2147483647] font-sans">
       <button
@@ -107,7 +113,11 @@ const ProductCompareOverlay = () => {
               results.map((group) => (
                 <div key={group.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm hover:border-orange-300 transition-colors">
                   <div className="flex gap-3 mb-2">
-                    <img src={group.main_image_url || "https://via.placeholder.com/150"} className="w-14 h-14 object-contain rounded" />
+                    <img 
+                      src={getFirstImageUrl(group.main_image_url)} 
+                      className="w-14 h-14 object-contain rounded" 
+                      onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/150" }}
+                    />
                     <div className="flex-1">
                       <h4 className="font-bold text-gray-800 text-xs line-clamp-2">{group.product_name || group.normalized_name}</h4>
                       <p className="text-red-600 font-extrabold text-sm mt-1">{group.lowest_price?.toLocaleString()}₫</p>
@@ -115,17 +125,40 @@ const ProductCompareOverlay = () => {
                   </div>
                   
                   <div className="space-y-2 border-t pt-2">
-                    {group.platforms.map((p: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center text-[11px]">
-                        <span className={`px-2 py-0.5 rounded font-bold ${p.platform_id === 7 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                          {p.platform_id === 7 ? 'FPT SHOP' : 'SÀN KHÁC'}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-900">{p.current_price?.toLocaleString()}₫</span>
-                          <a href={p.url} target="_blank" className="bg-gray-900 text-white px-3 py-1 rounded no-underline font-bold hover:bg-orange-600 transition-colors">XEM</a>
+                    {group.platforms.map((p: any, idx: number) => {
+                      // Logic xác định nhãn và màu sắc dựa trên platform_id
+                      let platformLabel = "SÀN KHÁC";
+                      let platformStyle = "bg-gray-100 text-gray-600"; // Mặc định cho sàn khác
+
+                      if (p.platform_id === 7) {
+                        platformLabel = "FPT SHOP";
+                        platformStyle = "bg-red-100 text-red-600";
+                      } else if (p.platform_id === 8) {
+                        platformLabel = "PHONG VŨ";
+                        platformStyle = "bg-blue-100 text-blue-700"; // Phong Vũ thường dùng màu xanh dương
+                      }
+
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-[11px]">
+                          <span className={`px-2 py-0.5 rounded font-bold ${platformStyle}`}>
+                            {platformLabel}
+                          </span>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900">
+                              {p.current_price?.toLocaleString()}₫
+                            </span>
+                            <a
+                              href={p.url}
+                              target="_blank"
+                              className="bg-gray-900 text-white px-3 py-1 rounded no-underline font-bold hover:bg-orange-600 transition-colors"
+                            >
+                              XEM
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))

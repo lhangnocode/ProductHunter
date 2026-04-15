@@ -101,14 +101,50 @@ export const findProductPrice = (): number => {
 }
 
 /**
- * Hàm làm sạch tên sản phẩm để search API (giữ lại 6 từ đầu)
+ * Hàm làm sạch tên sản phẩm:
+ * 1. Loại bỏ cụm từ marketing (chính hãng, freeship...)
+ * 2. Loại bỏ từ khóa danh mục dư thừa (điện thoại, laptop...)
+ * 3. Làm sạch ký tự đặc biệt
+ * 4. Lấy 6 từ khóa chất lượng nhất (thường là Brand + Model + Specs)
  */
 export const cleanNameForSearch = (name: string): string => {
   if (!name) return ""
-  return name
-    .replace(/[\[\]\(\)\-\|]/g, " ") // Thay thế ký tự đặc biệt bằng khoảng trắng
-    .split(/\s+/)                   // Tách từ bằng khoảng trắng
-    .filter(word => word.length > 1) // Loại bỏ các từ đơn lẻ (ví dụ: "a", "à")
-    .slice(0, 6)                    // Lấy 6 từ đầu tiên
+
+  // 1. Chuyển về chữ thường
+  let cleaned = name.toLowerCase()
+
+  // 2. Danh sách các cụm từ marketing/nhiễu cần xóa bỏ hoàn toàn
+  const junkPhrases = [
+    "chính hãng", "freeship", "trả góp", "ưu đãi", "giá rẻ", 
+    "mới 100%", "fullbox", "quà tặng", "tặng kèm", "vn/a",
+    "hot sale", "flash sale", "nhập khẩu", "giảm giá", "miễn phí",
+    "lắp đặt", "hàng mới", "niêm yết"
+  ]
+
+  // Xóa các cụm từ này trước
+  junkPhrases.forEach(phrase => {
+    cleaned = cleaned.replace(new RegExp(phrase, 'g'), ' ')
+  })
+
+  // 3. Danh sách các từ đơn lẻ cần lọc bỏ (Stopwords)
+  // Bao gồm cả loại sản phẩm nếu bạn muốn tìm kiếm tập trung vào Model/Brand
+  const stopWords = new Set([
+    "điện", "thoại", "máy", "tính", "bảng", "laptop", "tivi", "loại", 
+    "chiếc", "cái", "hàng", "quà", "tặng", "kèm"
+  ])
+
+  return cleaned
+    .replace(/[\[\]\(\)\-\|\/\+\*\!\&\%\#\@\.\,]/g, " ") // Xóa ký tự đặc biệt, dấu chấm, phẩy
+    .split(/\s+/)                                       // Tách từ bằng khoảng trắng
+    .filter(word => {
+      const w = word.trim()
+      return (
+        w.length > 1 &&            // Bỏ từ 1 ký tự (a, à, s...)
+        !stopWords.has(w) &&       // Bỏ từ trong blacklist
+        !/^\d+$/.test(w)           // (Tùy chọn) Bỏ các từ chỉ có số đơn thuần nếu quá ngắn
+      )
+    })
+    .slice(0, 7)                   // Tăng lên khoảng 7 từ để tránh mất thông số quan trọng (ví dụ RAM/ROM)
     .join(" ")
+    .trim()
 }
