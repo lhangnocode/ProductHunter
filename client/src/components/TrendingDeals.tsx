@@ -30,13 +30,28 @@ export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }:
         setIsLoading(true);
         const data = await fetchTrendingDeals();
         
-        const cleanedData = data.map((item: any) => ({
-          ...item,
-          // Lấy ảnh từ object product lồng bên trong
-          main_image_url: item.product?.main_image_url || null, 
-          // Lấy tên đẹp từ product
-          display_name: item.product?.product_name || item.raw_name 
-        }));
+        // XỬ LÝ DỮ LIỆU: Làm sạch link ảnh trước khi lưu vào state
+        const cleanedData = data.map((item: any) => {
+          // Trường hợp dữ liệu lồng nhau (PlatformProduct -> Product)
+          if (item.product?.main_image_url) {
+            return {
+              ...item,
+              product: {
+                ...item.product,
+                main_image_url: cleanImageUrl(item.product.main_image_url)
+              }
+            };
+          } 
+          // Trường hợp link nằm trực tiếp ở cấp ngoài
+          if (item.main_image_url) {
+            return {
+              ...item,
+              main_image_url: cleanImageUrl(item.main_image_url)
+            };
+          }
+          return item;
+        });
+
         setDeals(cleanedData);
       } catch (error) {
         console.error("Lỗi khi tải Trending Deals:", error);

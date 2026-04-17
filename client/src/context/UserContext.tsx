@@ -209,13 +209,35 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem("access_token");
     if (!token) throw new Error("not_logged_in");
 
-    try {
-      const newAlert = await priceAlertService.setAlert(
-        token,
-        productId,
-        threshold,
-      );
+    const isExisting = alertIds.has(productId);
 
+    // --- Optimistic update ---
+    if (!isExisting) {
+      // Add a placeholder so the alert appears instantly
+      setAlerts((prev) => [
+        {
+          product_id: productId,
+          target_price: threshold,
+          status: 0,
+          product_name: null,
+          main_image_url: null,
+        },
+        ...prev,
+      ]);
+    } else {
+      // Update existing alert optimistically
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.product_id === productId ? { ...a, target_price: threshold } : a
+        )
+      );
+    }
+
+    try {
+      // Call API Backend (Backend sẽ trả về object đầy đủ tên và ảnh)
+      const newAlert = await priceAlertService.setAlert(token, productId, threshold);
+      
+      // Replace with authoritative data from backend
       setAlerts((prev) => {
         const idx = prev.findIndex((a) => a.product_id === productId);
         if (idx >= 0) {
@@ -223,9 +245,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           next[idx] = newAlert; // Cập nhật nếu đã có
           return next;
         }
-        return [newAlert, ...prev]; // Thêm mới vào đầu list
+        return [newAlert, ...prev];
       });
     } catch (err) {
+      // Rollback on failure
+      await loadAlerts();
       throw err;
     }
   };
