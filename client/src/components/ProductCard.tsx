@@ -314,7 +314,6 @@ export function ProductCard({
                 "",
             )}
           </h3>
-          // Nếu có alert thì hiển thị giá mục tiêu và trạng thái, nếu không thì hiển thị giá bình thường
           {alertTargetPrice !== undefined ? (
             <div className="mt-3 flex flex-col items-center gap-1.5">
               <div>
