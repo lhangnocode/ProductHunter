@@ -28,8 +28,9 @@ interface UserContextType {
   isWishlistLoading: boolean;
   toggleWishlist: (productId: string) => Promise<void>;
   clearWishlist: () => Promise<void>;
-  // Price alerts (local only — no backend for alerts yet)
+
   alerts: PriceAlertItem[];
+  alertIds: Set<string>;
   isAlertsLoading: boolean;
   setAlert: (productId: string, threshold: number) => Promise<void>;
   removeAlert: (productId: string) => Promise<void>;
@@ -51,13 +52,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [alerts, setAlerts] = useState<PriceAlertItem[]>([]);
   const [isAlertsLoading, setIsAlertsLoading] = useState(false);
 
+  const alertIds = new Set(alerts.map(a => a.product_id));
+
   // LOAD ALERTS TỪ BACKEND
   const loadAlerts = useCallback(async () => {
     const token = localStorage.getItem("access_token");
-    if (!token) {
-      setAlerts([]);
-      return;
-    }
+    if (!token) { setAlerts([]); return; }
     setIsAlertsLoading(true);
     try {
       const items = await priceAlertService.getAlerts(token);
@@ -206,25 +206,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem("access_token");
     if (!token) throw new Error("not_logged_in");
 
-    // Cập nhật giao diện lập tức (Optimistic UI)
-    setAlerts((prev) => {
-      const idx = prev.findIndex((a) => a.product_id === productId);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], target_price: threshold };
-        return next;
-      }
-      return [
-        ...prev,
-        { product_id: productId, target_price: threshold, status: 0 },
-      ];
-    });
-
     try {
-      await priceAlertService.setAlert(token, productId, threshold);
-      await loadAlerts(); // Tải lại để lấy Tên và Hình ảnh sản phẩm
+      // 1. Gọi API Backend (Backend sẽ trả về object đầy đủ tên và ảnh)
+      const newAlert = await priceAlertService.setAlert(token, productId, threshold);
+      
+      // 2. Cập nhật State ngay lập tức
+      setAlerts((prev) => {
+        const idx = prev.findIndex((a) => a.product_id === productId);
+        if (idx >= 0) {
+          // Nếu đã tồn tại, thay thế bằng bản ghi mới
+          const next = [...prev];
+          next[idx] = newAlert;
+          return next;
+        }
+        // Nếu chưa tồn tại, đẩy lên đầu danh sách
+        return [newAlert, ...prev];
+      });
     } catch (err) {
-      await loadAlerts(); // Nếu lỗi thì trả lại data cũ
       throw err;
     }
   };
@@ -258,20 +256,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   return (
     <UserContext.Provider
       value={{
-        user,
-        isLoadingUser,
-        setAuthData,
-        logout,
-        wishlist,
-        wishlistIds,
-        isWishlistLoading,
-        toggleWishlist,
-        clearWishlist,
-        alerts,
-        isAlertsLoading,
-        setAlert,
-        removeAlert,
-        clearAlerts,
+        user, isLoadingUser, setAuthData, logout,
+        wishlist, wishlistIds, isWishlistLoading, toggleWishlist, clearWishlist,
+        alerts, alertIds, isAlertsLoading, setAlert, removeAlert, clearAlerts, // Truyền alertIds ra ngoài
       }}
     >
       {children}
