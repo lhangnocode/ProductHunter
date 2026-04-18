@@ -246,15 +246,18 @@ async def get_trending_deals(db: AsyncSession, limit: int = 20):
         min_p = float(min_p_val) if min_p_val else current_p
         avg_p = float(avg_p_val) if avg_p_val is not None else (current_p + 1)
         
-        status = "stable"
-        label = "Giá ổn định"
+        status = None
+        label = ""
+
         if current_p <= min_p and current_p < avg_p:
             status = "extreme"
             label = "Rẻ kỷ lục"
         elif current_p < avg_p:
             status = "good"
             label = "Giá tốt"
-
+            
+        if status is None:
+            continue
         # 3. QUAN TRỌNG: Tạo object TrendingDealResponse
         # Không được append(pp), mà phải tạo object mới đúng schema
         item_res = TrendingDealResponse(
