@@ -1,27 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion'; // Lưu ý: đổi lại thành framer-motion nếu bạn dùng bản cũ, hoặc giữ motion/react tùy setup của bạn
+import { motion } from 'framer-motion';
 import { TrendingUp } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { useLanguage } from '../context/LanguageContext';
-import { fetchTrendingDeals } from '../services/price_record_api';
+import { fetchTrendingDeals } from '../services/trending_deal_api';
 
-interface TrendingDealsProps {
-  onProductClick: (product: any, id: string) => void;
-  wishlistIds: Set<string>;
-  onToggleWishlist: (product: any) => void;
+// 1. Định nghĩa Interface dựa trên TrendingDealResponse từ Backend
+interface TrendingDeal {
+  id: string; // platform_product_id
+  product_id: string;
+  product_name: string;
+  main_image_url: string;
+  current_price: number;
+  original_price?: number;
+  url: string;
+  deal_status: string;
+  deal_label: string;
+  platform_name?: string;
 }
 
-// Helper function để làm sạch URL ảnh (xử lý srcset của FPT Shop)
-const cleanImageUrl = (url: string) => {
-  if (!url) return "https://via.placeholder.com/150";
-  // Nếu chuỗi chứa dấu phẩy (srcset), lấy phần tử đầu tiên, sau đó tách khoảng trắng để lấy URL
-  return url.split(',')[0].split(' ')[0].trim();
-};
+interface TrendingDealsProps {
+  onProductClick: (product: TrendingDeal, id: string) => void;
+  wishlistIds: Set<string>;
+  onToggleWishlist: (product: TrendingDeal) => void;
+}
 
 export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }: TrendingDealsProps) {
   const { t } = useLanguage();
   
-  const [deals, setDeals] = useState<any[]>([]);
+  const [deals, setDeals] = useState<TrendingDeal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -30,29 +37,9 @@ export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }:
         setIsLoading(true);
         const data = await fetchTrendingDeals();
         
-        // XỬ LÝ DỮ LIỆU: Làm sạch link ảnh trước khi lưu vào state
-        const cleanedData = data.map((item: any) => {
-          // Trường hợp dữ liệu lồng nhau (PlatformProduct -> Product)
-          if (item.product?.main_image_url) {
-            return {
-              ...item,
-              product: {
-                ...item.product,
-                main_image_url: cleanImageUrl(item.product.main_image_url)
-              }
-            };
-          } 
-          // Trường hợp link nằm trực tiếp ở cấp ngoài
-          if (item.main_image_url) {
-            return {
-              ...item,
-              main_image_url: cleanImageUrl(item.main_image_url)
-            };
-          }
-          return item;
-        });
-
-        setDeals(cleanedData);
+        // Vì Backend đã xử lý cleanImageUrl và làm phẳng dữ liệu,
+        // chúng ta có thể set trực tiếp hoặc chỉ cần xử lý fallback nhẹ.
+        setDeals(data);
       } catch (error) {
         console.error("Lỗi khi tải Trending Deals:", error);
       } finally {
@@ -124,7 +111,8 @@ export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }:
               <ProductCard
                 product={product}
                 onClick={onProductClick}
-                isWishlisted={wishlistIds.has(product.product_id ?? product.id)}
+                // Sử dụng product.product_id để check wishlist (vì wishlist thường lưu ID sản phẩm chung)
+                isWishlisted={wishlistIds.has(product.product_id)}
                 onToggleWishlist={(e) => {
                   e.stopPropagation();
                   onToggleWishlist(product);
