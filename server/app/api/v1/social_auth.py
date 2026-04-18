@@ -9,7 +9,8 @@ from app.core.security import create_access_token, create_refresh_token, get_pas
 from app.models.user import User
 from sqlalchemy import select
 
-router = APIRouter()
+router = APIRouter(prefix="/auth/social", tags=["social"])
+
 oauth = OAuth()
 
 SUPPORTED_PROVIDERS = ["google", "github"]
@@ -127,3 +128,13 @@ async def social_callback(provider: str, request: Request, db: AsyncSession = De
     response = RedirectResponse(url=frontend_redirect_url)
     response.delete_cookie("frontend_url")
     return response
+
+
+
+
+
+
+
+
+
+
