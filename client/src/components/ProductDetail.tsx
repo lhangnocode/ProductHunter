@@ -340,6 +340,21 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                 </div>
 
                 <div className="space-y-5">
+                  {/* HIỂN THỊ GIÁ NIÊM YẾT (Nếu có và lớn hơn giá hiện tại) */}
+                  {originalPrice && originalPrice > currentPrice && (
+                    <div className="flex items-center justify-between border-b border-white/5 pb-4 opacity-60">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Giá niêm yết</span>
+                        <span className="text-[10px] font-bold text-brand-danger/80">
+                          (Giảm {Math.round((1 - currentPrice / originalPrice) * 100)}%)
+                        </span>
+                      </div>
+                      <span className="font-mono text-xl font-black text-slate-400 line-through decoration-brand-danger/40">
+                        {formatPrice(originalPrice)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between border-b border-white/5 pb-4">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Giá hiện tại</span>
                     <span className="font-mono text-2xl font-black text-brand-success tracking-tighter">{formatPrice(currentPrice)}</span>
