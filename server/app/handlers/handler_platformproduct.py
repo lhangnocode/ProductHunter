@@ -19,6 +19,7 @@ from app.handlers.handler_product import (
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
 from app.models.price_record import PriceRecord
+from app.schemas.trending_deal import TrendingDealResponse
 
 logger = logging.getLogger(__name__)
 
@@ -198,12 +199,12 @@ async def get_trending_deals(db: AsyncSession, limit: int = 20):
     # 3. Tạo câu truy vấn chính
     stmt = (
         select(PlatformProduct, subq_min.c.min_price, subq_avg.c.avg_price)
-        .join(Product, PlatformProduct.product_id == Product.id) # Join lấy info product chính
+        .join(Product, PlatformProduct.product_id == Product.id)
         .outerjoin(subq_min, PlatformProduct.id == subq_min.c.platform_product_id)
         .outerjoin(subq_avg, PlatformProduct.id == subq_avg.c.platform_product_id)
         .options(
             selectinload(PlatformProduct.platform),
-            joinedload(PlatformProduct.product) # Load thông tin cha (Product)
+            joinedload(PlatformProduct.product)
         )
     )
 
@@ -224,44 +225,57 @@ async def get_trending_deals(db: AsyncSession, limit: int = 20):
         )
     ).limit(limit)
 
-    # 5. Thực thi truy vấn
     result = await db.execute(stmt)
     rows = result.all()
 
     trending_items = []
     
-    # 6. Xử lý phân loại (Tagging) và Gói data trả về
     for row in rows:
-        pp = row[0]
-        min_p_val = row[1]
-        avg_p_val = row[2]
+        pp = row[0]        # Đây là PlatformProduct
+        min_p_val = row[1] # Giá thấp nhất
+        avg_p_val = row[2] # Giá trung bình
 
-        # --- XỬ LÝ LỖI ẢNH (QUAN TRỌNG) ---
-        # Nếu link ảnh chứa srcset (có dấu phẩy), chỉ lấy link đầu tiên
-        raw_img = pp.product.main_image_url if pp.product and pp.product.main_image_url else ""
-        if "," in raw_img:
-            # Tách lấy phần đầu tiên, sau đó tách khoảng trắng bỏ "1x"
+        # 1. Lấy và làm sạch ảnh từ bảng PRODUCT (bảng cha)
+        raw_img = pp.product.main_image_url if pp.product else ""
+        clean_img = raw_img
+        if raw_img and "," in raw_img:
             clean_img = raw_img.split(',')[0].split(' ')[0].strip()
-            pp.product.main_image_url = clean_img
 
-        # --- PHÂN LOẠI TAG ---
+        # 2. Logic phân loại Tag (Giữ nguyên)
         current_p = float(pp.current_price) if pp.current_price else 0
         min_p = float(min_p_val) if min_p_val else current_p
         avg_p = float(avg_p_val) if avg_p_val is not None else (current_p + 1)
         
-        setattr(pp, "deal_status", "stable")
-        setattr(pp, "deal_label", "Giá ổn định")
+        status = None
+        label = ""
 
         if current_p <= min_p and current_p < avg_p:
-            setattr(pp, "deal_status", "extreme")
-            setattr(pp, "deal_label", "Rẻ kỷ lục")
-
+            status = "extreme"
+            label = "Rẻ kỷ lục"
         elif current_p < avg_p:
-            setattr(pp, "deal_status", "good")
-            setattr(pp, "deal_label", "Giá tốt")
-        trending_items.append(pp)
+            status = "good"
+            label = "Giá tốt"
+            
+        if status is None:
+            continue
+        # 3. QUAN TRỌNG: Tạo object TrendingDealResponse
+        # Không được append(pp), mà phải tạo object mới đúng schema
+        item_res = TrendingDealResponse(
+            id=pp.id,
+            product_id=pp.product_id,
+            product_name=pp.product.product_name if pp.product else pp.raw_name,
+            main_image_url=clean_img,
+            current_price=current_p,
+            original_price=float(pp.original_price) if pp.original_price else None,
+            url=pp.url,
+            deal_status=status,
+            deal_label=label,
+            platform_name=pp.platform.name if pp.platform else None
+        )
+        trending_items.append(item_res)
 
+    # 4. Sắp xếp
     status_order = {"extreme": 0, "good": 1, "stable": 2}
-    trending_items.sort(key=lambda x: status_order.get(getattr(x, "deal_status", "stable"), 2))
+    trending_items.sort(key=lambda x: status_order.get(x.deal_status, 2))
 
     return trending_items

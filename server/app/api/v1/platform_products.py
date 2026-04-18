@@ -18,6 +18,7 @@ from app.handlers.handler_platformproduct import (
 from app.handlers.handler_product import upsert_product
 
 from app.schemas.crawler import PlatformProductIngestResponse
+from app.schemas.trending_deal import TrendingDealResponse
 
 router = APIRouter()
 
@@ -88,7 +89,7 @@ async def get_all_platform_products(
 
 @router.get(
     "/platform-products/trending",
-    response_model=List[PlatformProductIngestResponse],
+    response_model=List[TrendingDealResponse],
     status_code=status.HTTP_200_OK,
 )
 async def get_trending_platform_products(

@@ -123,16 +123,16 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
   // HÀM XỬ LÝ LƯU CẢNH BÁO GIÁ
   const handleSaveAlert = async () => {
-    if (!user) {
-      showToast('Vui lòng đăng nhập để sử dụng tính năng này!', 'error');
-      return;
-    }
+  if (!user) {
+    showToast('Vui lòng đăng nhập để sử dụng tính năng này!', 'error');
+    return;
+  }
 
     const numericPrice = parseFloat(targetPriceInput.replace(/\D/g, ''));
-    if (isNaN(numericPrice) || numericPrice <= 0) {
-      showToast('Vui lòng nhập mức giá hợp lệ!', 'error');
-      return;
-    }
+  if (isNaN(numericPrice) || numericPrice <= 0) {
+    showToast('Vui lòng nhập mức giá hợp lệ!', 'error');
+    return;
+  }
 
     setIsSubmittingAlert(true);
     try {
