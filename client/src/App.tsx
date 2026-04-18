@@ -829,84 +829,45 @@ function AppContent() {
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
-                className="grid grid-cols-1 gap-6 lg:grid-cols-2"
+                // Dùng chung grid layout với wishlist cho đồng bộ
+                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               >
-                {alerts.map((alert) => {
-                  // Đọc dữ liệu từ backend thay vì MOCK_PRODUCTS
-                  const isReached = alert.status === 1; // Backend của bạn set status = 1 khi đã giảm giá
+                {alerts.map((alert, index) => {
+                  // Đóng gói dữ liệu alert thành chuẩn product để truyền vào Card
+                  const productForCard = {
+                    id: alert.product_id,
+                    product_id: alert.product_id,
+                    raw_name: alert.product_name || "Sản phẩm",
+                    slug: alert.product_name || "Sản phẩm",
+                    main_image_url: alert.main_image_url || undefined,
+                  };
 
                   return (
                     <motion.div
                       key={alert.product_id}
-                      variants={itemVariants}
-                      whileHover={{ scale: 1.01, y: -2 }}
-                      className="group relative flex flex-col sm:flex-row items-center gap-6 rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-lg border border-slate-200/50 dark:border-slate-800/50 transition-all hover:shadow-xl hover:border-brand-primary/30"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 20,
+                        delay: 0.05 * Math.min(index, 10),
+                      }}
                     >
-                      <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
-                        <img
-                          src={
-                            alert.main_image_url ||
-                            `https://picsum.photos/seed/${alert.product_id}/400/400`
-                          }
-                          alt={alert.product_name || "Product Image"}
-                          className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-110"
-                        />
-                      </div>
-
-                      <div className="flex-grow space-y-3 text-center sm:text-left">
-                        <div>
-                          <h3 className="text-lg font-black text-slate-900 dark:text-white line-clamp-1 font-display tracking-tight uppercase">
-                            {alert.product_name ||
-                              "Đang tải thông tin sản phẩm..."}
-                          </h3>
-                          <div className="mt-1.5 flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${
-                                isReached
-                                  ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 shadow-sm"
-                                  : "bg-amber-100 text-amber-600 dark:bg-amber-950/30 shadow-sm"
-                              }`}
-                            >
-                              {isReached ? (
-                                <CheckCircle2 size={10} />
-                              ) : (
-                                <Clock size={10} />
-                              )}
-                              {isReached ? t("targetReached") : t("waiting")}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-center sm:justify-start gap-6">
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">
-                              {t("targetPrice")}
-                            </p>
-                            <p className="text-xl font-black text-brand-primary font-mono tracking-tighter">
-                              {new Intl.NumberFormat(
-                                language === "vi" ? "vi-VN" : "en-US",
-                                {
-                                  style: "currency",
-                                  currency: language === "vi" ? "VND" : "USD",
-                                },
-                              ).format(alert.target_price)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto">
-                        <button
-                          onClick={async () => {
-                            await removeAlert(alert.product_id);
-                            showToast("Đã xóa cảnh báo", "info");
-                          }}
-                          className="flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-rose-500 transition-all hover:bg-rose-500 hover:text-white shadow-sm border border-transparent hover:border-rose-200"
-                          title={t("delete")}
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                      <ProductCard
+                        product={productForCard}
+                        // Click vào thẻ thì bay tới trang chi tiết
+                        onClick={(p) => handleNavigateToDetail(p, p.product_id)}
+                        // Nút X để xóa cảnh báo
+                        onRemove={async (e) => {
+                          e.stopPropagation();
+                          await removeAlert(alert.product_id);
+                          showToast("Đã xóa cảnh báo", "info");
+                        }}
+                        // Truyền 2 prop mới tạo để Card biết đây là chế độ Alert
+                        alertTargetPrice={alert.target_price}
+                        alertStatus={alert.status}
+                      />
                     </motion.div>
                   );
                 })}

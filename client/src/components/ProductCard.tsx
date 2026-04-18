@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { formatDisplayName } from "../lib/utils";
 import { createPortal } from "react-dom"; // Bắt buộc dùng để popup hiển thị đè lên toàn trang
-import { Star, CheckCircle2, X, Heart, Bell, Loader2 } from "lucide-react";
+import {
+  Star,
+  CheckCircle2,
+  X,
+  Heart,
+  Bell,
+  Loader2,
+  Clock,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useUser } from "../context/UserContext";
 import { useToast } from "./Toast";
-import { priceAlertService } from "../services/priceAlert";
 
 interface ProductCardProps {
   product: any;
@@ -16,6 +23,8 @@ interface ProductCardProps {
   onToggleWishlist?: (e: React.MouseEvent, product: any) => void;
   isWishlisted?: boolean;
   isAlerted?: boolean;
+  alertTargetPrice?: number;
+  alertStatus?: number;
   key?: React.Key;
 }
 
@@ -25,13 +34,15 @@ export function ProductCard({
   onRemove,
   onToggleWishlist,
   isWishlisted,
-  isAlerted, 
+  isAlerted,
+  alertTargetPrice,
+  alertStatus,
 }: ProductCardProps) {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
 
-  // Lấy User và Toast để xử lý cảnh báo giá
-  const { user } = useUser();
+  // Lấy User, Toast và setAlert từ UserContext
+  const { user, setAlert } = useUser();
   const { showToast } = useToast();
 
   // State quản lý Modal Cảnh báo giá
@@ -146,12 +157,14 @@ export function ProductCard({
 
     setIsSubmittingAlert(true);
     try {
-      const token = localStorage.getItem("access_token");
-      if (!token) throw new Error("Missing token");
+      if (!user) {
+        showToast("Vui lòng đăng nhập để đặt cảnh báo giá!", "error");
+        return;
+      }
 
       const targetProductId = product.product_id ?? product.id;
 
-      await priceAlertService.setAlert(token, targetProductId, numericPrice);
+      await setAlert(targetProductId, numericPrice);
 
       showToast("Đã đặt cảnh báo giá thành công!", "success");
       setIsAlertModalOpen(false);
@@ -291,7 +304,6 @@ export function ProductCard({
         </div>
 
         {/* Content Section */}
-        {/* Content Section */}
         <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
           <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
             {formatDisplayName(
@@ -302,6 +314,47 @@ export function ProductCard({
                 "",
             )}
           </h3>
+          {alertTargetPrice !== undefined ? (
+            <div className="mt-3 flex flex-col items-center gap-1.5">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
+                  Giá mục tiêu
+                </span>
+                <span className="text-lg font-black text-brand-primary font-mono tracking-tighter">
+                  {formatPrice(alertTargetPrice)}
+                </span>
+              </div>
+
+              <span
+                className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest shadow-sm ${
+                  alertStatus === 1
+                    ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30"
+                    : "bg-amber-100 text-amber-600 dark:bg-amber-950/30"
+                }`}
+              >
+                {alertStatus === 1 ? (
+                  <CheckCircle2 size={10} />
+                ) : (
+                  <Clock size={10} />
+                )}
+                {alertStatus === 1 ? t("targetReached") : t("waiting")}
+              </span>
+            </div>
+          ) : (
+            /* NẾU LÀ SEARCH/TRENDING/WISHLIST THÌ HIỂN THỊ GIÁ BÌNH THƯỜNG */
+            displayPrice > 0 && (
+              <div className="mt-3 flex flex-col items-center">
+                <span className="text-lg font-black text-brand-success font-mono tracking-tighter">
+                  {formatPrice(displayPrice)}
+                </span>
+                {displayOriginal > displayPrice && (
+                  <span className="text-[11px] font-bold text-slate-400 line-through">
+                    {formatPrice(displayOriginal)}
+                  </span>
+                )}
+              </div>
+            )
+          )}
         </div>
       </motion.div>
 
