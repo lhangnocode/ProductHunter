@@ -284,7 +284,6 @@ def _sync_typesense(records: Iterable[StagingRecord], product_ids: dict[str, str
         if not product_id:
             continue
         documents.append({
-            "id": product_id,
             "normalized_name": r.normalized_name,
             "product_name": r.product_name,
         })
@@ -293,6 +292,7 @@ def _sync_typesense(records: Iterable[StagingRecord], product_ids: dict[str, str
         return
     try:
         typesense.import_documents("products", documents)
+        print(f"[typesense] Synced {len(documents)} documents.")
     except Exception as exc:
         print(f"[typesense] Import failed: {exc}")
 
