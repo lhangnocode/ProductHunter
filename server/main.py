@@ -28,9 +28,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 logger = logging.getLogger(__name__)
 
 # Enable debug logging for the server
-if settings.DEBUG:
-    logging.basicConfig(level=logging.DEBUG)
-
+logger.setLevel(logging.DEBUG)
 
 @app.get("/")
 async def root():
