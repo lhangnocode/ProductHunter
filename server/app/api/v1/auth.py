@@ -1,4 +1,5 @@
 # app/api/v1/auth.py
+import uuid
 from datetime import timedelta
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -89,7 +90,7 @@ async def refresh_access_token(
         if user_id is None or token_type != "refresh":
             raise credentials_exception
             
-        stmt = select(User).where(User.id == user_id)
+        stmt = select(User).where(User.id == uuid.UUID(user_id))
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
         

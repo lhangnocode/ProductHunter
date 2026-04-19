@@ -1,0 +1,1534 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-8.3.5, pluggy-1.6.0
+rootdir: D:\Khang's_Project\ProductHunter\server
+configfile: pytest.ini
+plugins: anyio-4.13.0, asyncio-0.25.3
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 105 items
+
+test_auth.py .............                                               [ 12%]
+test_crawler.py ......F.                                                 [ 20%]
+test_platform_products.py .............                                  [ 32%]
+test_platforms.py .......                                                [ 39%]
+test_price_alert.py .............F.                                      [ 53%]
+test_price_record.py .......EE.E.E.EE                                    [ 68%]
+test_products_api.py ...........                                         [ 79%]
+test_security.py ...                                                     [ 81%]
+test_social_auth.py F.F..                                                [ 86%]
+test_wish_list.py ..............                                         [100%]
+
+=================================== ERRORS ====================================
+______________ ERROR at setup of test_push_price_record_success _______________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028D9E901E50>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite'>>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>
+parameters = [{'affiliate_url': 'https://shopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'id': UUID('cccccc3f-e7f0-4085-877a-e6f755eb8da4'), 'in_stock': True, ...}]
+execution_options = immutabledict({'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x0000028D9E8646D0>})
+args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>, [{'affiliate_url': 'https://shopee.vn/...f-e7f0-4085-877a-e6f755eb8da4'), 'in_stock': True, ...}], <sqlalchemy.sql.dml.Insert object at 0x0000028D9E903E30>, [])
+kw = {'cache_hit': <CacheStats.CACHE_MISS: 1>}, yp = None
+conn = <sqlalchemy.pool.base._ConnectionFairy object at 0x0000028DA05B1BB0>
+
+    def _execute_context(
+        self,
+        dialect: Dialect,
+        constructor: Callable[..., ExecutionContext],
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+        execution_options: _ExecuteOptions,
+        *args: Any,
+        **kw: Any,
+    ) -> CursorResult[Any]:
+        """Create an :class:`.ExecutionContext` and execute, returning
+        a :class:`_engine.CursorResult`."""
+    
+        if execution_options:
+            yp = execution_options.get("yield_per", None)
+            if yp:
+                execution_options = execution_options.union(
+                    {"stream_results": True, "max_row_buffer": yp}
+                )
+        try:
+            conn = self._dbapi_connection
+            if conn is None:
+                conn = self._revalidate_connection()
+    
+>           context = constructor(
+                dialect, self, conn, execution_options, *args, **kw
+            )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '65045387-a917-4314-8f2d-8bedcfa5804b'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           AttributeError: 'str' object has no attribute 'hex'
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'created_platform_product' for <Coroutine test_push_price_record_success>>
+kwargs = {'created_platform': {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}, 'created_...'\u0110i\u1ec7n tho\u1ea1i', 'id': '65045387-a917-4314-8f2d-8bedcfa5804b', 'main_image_url': 'https://example.com/iphone15.jpg', ...}}
+event_loop_fixture_id = 'event_loop'
+setup = <function _wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup at 0x0000028D9E748720>
+context = <_contextvars.Context object at 0x0000028DA1949700>
+setup_task = <Task finished name='Task-606' coro=<_wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup() done, define...ytest_asyncio\plugin.py:369> exception=StatementError("(builtins.AttributeError) 'str' object has no attribute 'hex'")>
+
+    @functools.wraps(fixture)
+    def _async_fixture_wrapper(request: FixtureRequest, **kwargs: Any):
+        func = _perhaps_rebind_fixture_func(fixture, request.instance)
+        event_loop_fixture_id = _get_event_loop_fixture_id_for_async_fixture(
+            request, func
+        )
+        event_loop = request.getfixturevalue(event_loop_fixture_id)
+        kwargs.pop(event_loop_fixture_id, None)
+    
+        async def setup():
+            res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+            return res
+    
+        context = contextvars.copy_context()
+        setup_task = _create_task_in_context(event_loop, setup(), context)
+>       result = event_loop.run_until_complete(setup_task)
+
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:370: in setup
+    res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+conftest.py:180: in created_platform_product
+    await session.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1821: in _execute_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: in _execute_context
+    context = constructor(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '65045387-a917-4314-8f2d-8bedcfa5804b'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           sqlalchemy.exc.StatementError: (builtins.AttributeError) 'str' object has no attribute 'hex'
+E           [SQL: INSERT INTO platform_products (id, product_id, platform_id, raw_name, original_item_id, url, affiliate_url, current_price, original_price, rating, reviews_count, in_stock, last_crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E           [parameters: [{'id': UUID('cccccc3f-e7f0-4085-877a-e6f755eb8da4'), 'original_item_id': 'shopee_ip15_001', 'url': 'https://shopee.vn/iphone-15-pro-max', 'in_stock':  ... (129 characters truncated) ... hopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'original_price': 34990000, 'platform_id': 1, 'last_crawled_at': None, 'rating': None}]]
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: StatementError
+_____________ ERROR at setup of test_push_price_record_flash_sale _____________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028D9E873CE0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite'>>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>
+parameters = [{'affiliate_url': 'https://shopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'id': UUID('850e7978-30d4-479e-a4da-e0f2e00c0549'), 'in_stock': True, ...}]
+execution_options = immutabledict({'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x0000028D9E8646D0>})
+args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>, [{'affiliate_url': 'https://shopee.vn/...8-30d4-479e-a4da-e0f2e00c0549'), 'in_stock': True, ...}], <sqlalchemy.sql.dml.Insert object at 0x0000028D9E872750>, [])
+kw = {'cache_hit': <CacheStats.CACHE_HIT: 0>}, yp = None
+conn = <sqlalchemy.pool.base._ConnectionFairy object at 0x0000028D9FF44470>
+
+    def _execute_context(
+        self,
+        dialect: Dialect,
+        constructor: Callable[..., ExecutionContext],
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+        execution_options: _ExecuteOptions,
+        *args: Any,
+        **kw: Any,
+    ) -> CursorResult[Any]:
+        """Create an :class:`.ExecutionContext` and execute, returning
+        a :class:`_engine.CursorResult`."""
+    
+        if execution_options:
+            yp = execution_options.get("yield_per", None)
+            if yp:
+                execution_options = execution_options.union(
+                    {"stream_results": True, "max_row_buffer": yp}
+                )
+        try:
+            conn = self._dbapi_connection
+            if conn is None:
+                conn = self._revalidate_connection()
+    
+>           context = constructor(
+                dialect, self, conn, execution_options, *args, **kw
+            )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = 'fb97ffe6-5386-4528-b75e-80061407fea3'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           AttributeError: 'str' object has no attribute 'hex'
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'created_platform_product' for <Coroutine test_push_price_record_flash_sale>>
+kwargs = {'created_platform': {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}, 'created_...'\u0110i\u1ec7n tho\u1ea1i', 'id': 'fb97ffe6-5386-4528-b75e-80061407fea3', 'main_image_url': 'https://example.com/iphone15.jpg', ...}}
+event_loop_fixture_id = 'event_loop'
+setup = <function _wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup at 0x0000028D9DEDC180>
+context = <_contextvars.Context object at 0x0000028DA0157C40>
+setup_task = <Task finished name='Task-618' coro=<_wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup() done, define...ytest_asyncio\plugin.py:369> exception=StatementError("(builtins.AttributeError) 'str' object has no attribute 'hex'")>
+
+    @functools.wraps(fixture)
+    def _async_fixture_wrapper(request: FixtureRequest, **kwargs: Any):
+        func = _perhaps_rebind_fixture_func(fixture, request.instance)
+        event_loop_fixture_id = _get_event_loop_fixture_id_for_async_fixture(
+            request, func
+        )
+        event_loop = request.getfixturevalue(event_loop_fixture_id)
+        kwargs.pop(event_loop_fixture_id, None)
+    
+        async def setup():
+            res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+            return res
+    
+        context = contextvars.copy_context()
+        setup_task = _create_task_in_context(event_loop, setup(), context)
+>       result = event_loop.run_until_complete(setup_task)
+
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:370: in setup
+    res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+conftest.py:180: in created_platform_product
+    await session.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1821: in _execute_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: in _execute_context
+    context = constructor(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = 'fb97ffe6-5386-4528-b75e-80061407fea3'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           sqlalchemy.exc.StatementError: (builtins.AttributeError) 'str' object has no attribute 'hex'
+E           [SQL: INSERT INTO platform_products (id, product_id, platform_id, raw_name, original_item_id, url, affiliate_url, current_price, original_price, rating, reviews_count, in_stock, last_crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E           [parameters: [{'id': UUID('850e7978-30d4-479e-a4da-e0f2e00c0549'), 'original_item_id': 'shopee_ip15_001', 'url': 'https://shopee.vn/iphone-15-pro-max', 'in_stock':  ... (129 characters truncated) ... hopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'original_price': 34990000, 'platform_id': 1, 'last_crawled_at': None, 'rating': None}]]
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: StatementError
+___________ ERROR at setup of test_push_price_record_with_timestamp ___________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028D9E903410>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite'>>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>
+parameters = [{'affiliate_url': 'https://shopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'id': UUID('c1ea2479-4f69-4174-b2bf-b451fc4a4f73'), 'in_stock': True, ...}]
+execution_options = immutabledict({'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x0000028D9E8646D0>})
+args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>, [{'affiliate_url': 'https://shopee.vn/...9-4f69-4174-b2bf-b451fc4a4f73'), 'in_stock': True, ...}], <sqlalchemy.sql.dml.Insert object at 0x0000028D9E968B90>, [])
+kw = {'cache_hit': <CacheStats.CACHE_HIT: 0>}, yp = None
+conn = <sqlalchemy.pool.base._ConnectionFairy object at 0x0000028DA0EE6F30>
+
+    def _execute_context(
+        self,
+        dialect: Dialect,
+        constructor: Callable[..., ExecutionContext],
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+        execution_options: _ExecuteOptions,
+        *args: Any,
+        **kw: Any,
+    ) -> CursorResult[Any]:
+        """Create an :class:`.ExecutionContext` and execute, returning
+        a :class:`_engine.CursorResult`."""
+    
+        if execution_options:
+            yp = execution_options.get("yield_per", None)
+            if yp:
+                execution_options = execution_options.union(
+                    {"stream_results": True, "max_row_buffer": yp}
+                )
+        try:
+            conn = self._dbapi_connection
+            if conn is None:
+                conn = self._revalidate_connection()
+    
+>           context = constructor(
+                dialect, self, conn, execution_options, *args, **kw
+            )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '21428706-c1d2-47c4-ab3b-cda536782ef6'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           AttributeError: 'str' object has no attribute 'hex'
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'created_platform_product' for <Coroutine test_push_price_record_with_timestamp>>
+kwargs = {'created_platform': {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}, 'created_...'\u0110i\u1ec7n tho\u1ea1i', 'id': '21428706-c1d2-47c4-ab3b-cda536782ef6', 'main_image_url': 'https://example.com/iphone15.jpg', ...}}
+event_loop_fixture_id = 'event_loop'
+setup = <function _wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup at 0x0000028D9E94B7E0>
+context = <_contextvars.Context object at 0x0000028DA0154780>
+setup_task = <Task finished name='Task-640' coro=<_wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup() done, define...ytest_asyncio\plugin.py:369> exception=StatementError("(builtins.AttributeError) 'str' object has no attribute 'hex'")>
+
+    @functools.wraps(fixture)
+    def _async_fixture_wrapper(request: FixtureRequest, **kwargs: Any):
+        func = _perhaps_rebind_fixture_func(fixture, request.instance)
+        event_loop_fixture_id = _get_event_loop_fixture_id_for_async_fixture(
+            request, func
+        )
+        event_loop = request.getfixturevalue(event_loop_fixture_id)
+        kwargs.pop(event_loop_fixture_id, None)
+    
+        async def setup():
+            res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+            return res
+    
+        context = contextvars.copy_context()
+        setup_task = _create_task_in_context(event_loop, setup(), context)
+>       result = event_loop.run_until_complete(setup_task)
+
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:370: in setup
+    res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+conftest.py:180: in created_platform_product
+    await session.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1821: in _execute_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: in _execute_context
+    context = constructor(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '21428706-c1d2-47c4-ab3b-cda536782ef6'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           sqlalchemy.exc.StatementError: (builtins.AttributeError) 'str' object has no attribute 'hex'
+E           [SQL: INSERT INTO platform_products (id, product_id, platform_id, raw_name, original_item_id, url, affiliate_url, current_price, original_price, rating, reviews_count, in_stock, last_crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E           [parameters: [{'id': UUID('c1ea2479-4f69-4174-b2bf-b451fc4a4f73'), 'original_item_id': 'shopee_ip15_001', 'url': 'https://shopee.vn/iphone-15-pro-max', 'in_stock':  ... (129 characters truncated) ... hopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'original_price': 34990000, 'platform_id': 1, 'last_crawled_at': None, 'rating': None}]]
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: StatementError
+__________________ ERROR at setup of test_push_batch_success __________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028DA01144A0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite'>>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>
+parameters = [{'affiliate_url': 'https://shopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'id': UUID('7cae1193-b002-4d9e-a93c-e6244b409955'), 'in_stock': True, ...}]
+execution_options = immutabledict({'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x0000028D9E8646D0>})
+args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>, [{'affiliate_url': 'https://shopee.vn/...3-b002-4d9e-a93c-e6244b409955'), 'in_stock': True, ...}], <sqlalchemy.sql.dml.Insert object at 0x0000028DA01156A0>, [])
+kw = {'cache_hit': <CacheStats.CACHE_HIT: 0>}, yp = None
+conn = <sqlalchemy.pool.base._ConnectionFairy object at 0x0000028D9EA19AF0>
+
+    def _execute_context(
+        self,
+        dialect: Dialect,
+        constructor: Callable[..., ExecutionContext],
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+        execution_options: _ExecuteOptions,
+        *args: Any,
+        **kw: Any,
+    ) -> CursorResult[Any]:
+        """Create an :class:`.ExecutionContext` and execute, returning
+        a :class:`_engine.CursorResult`."""
+    
+        if execution_options:
+            yp = execution_options.get("yield_per", None)
+            if yp:
+                execution_options = execution_options.union(
+                    {"stream_results": True, "max_row_buffer": yp}
+                )
+        try:
+            conn = self._dbapi_connection
+            if conn is None:
+                conn = self._revalidate_connection()
+    
+>           context = constructor(
+                dialect, self, conn, execution_options, *args, **kw
+            )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '67edd566-dc4b-4cb7-b3a6-7c8150946ce4'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           AttributeError: 'str' object has no attribute 'hex'
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'created_platform_product' for <Coroutine test_push_batch_success>>
+kwargs = {'created_platform': {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}, 'created_...'\u0110i\u1ec7n tho\u1ea1i', 'id': '67edd566-dc4b-4cb7-b3a6-7c8150946ce4', 'main_image_url': 'https://example.com/iphone15.jpg', ...}}
+event_loop_fixture_id = 'event_loop'
+setup = <function _wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup at 0x0000028D9E82A480>
+context = <_contextvars.Context object at 0x0000028DA0157A40>
+setup_task = <Task finished name='Task-660' coro=<_wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup() done, define...ytest_asyncio\plugin.py:369> exception=StatementError("(builtins.AttributeError) 'str' object has no attribute 'hex'")>
+
+    @functools.wraps(fixture)
+    def _async_fixture_wrapper(request: FixtureRequest, **kwargs: Any):
+        func = _perhaps_rebind_fixture_func(fixture, request.instance)
+        event_loop_fixture_id = _get_event_loop_fixture_id_for_async_fixture(
+            request, func
+        )
+        event_loop = request.getfixturevalue(event_loop_fixture_id)
+        kwargs.pop(event_loop_fixture_id, None)
+    
+        async def setup():
+            res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+            return res
+    
+        context = contextvars.copy_context()
+        setup_task = _create_task_in_context(event_loop, setup(), context)
+>       result = event_loop.run_until_complete(setup_task)
+
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:370: in setup
+    res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+conftest.py:180: in created_platform_product
+    await session.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1821: in _execute_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: in _execute_context
+    context = constructor(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '67edd566-dc4b-4cb7-b3a6-7c8150946ce4'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           sqlalchemy.exc.StatementError: (builtins.AttributeError) 'str' object has no attribute 'hex'
+E           [SQL: INSERT INTO platform_products (id, product_id, platform_id, raw_name, original_item_id, url, affiliate_url, current_price, original_price, rating, reviews_count, in_stock, last_crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E           [parameters: [{'id': UUID('7cae1193-b002-4d9e-a93c-e6244b409955'), 'original_item_id': 'shopee_ip15_001', 'url': 'https://shopee.vn/iphone-15-pro-max', 'in_stock':  ... (129 characters truncated) ... hopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'original_price': 34990000, 'platform_id': 1, 'last_crawled_at': None, 'rating': None}]]
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: StatementError
+_____________ ERROR at setup of test_get_price_records_after_push _____________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028DA011D730>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite'>>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>
+parameters = [{'affiliate_url': 'https://shopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'id': UUID('355727fe-b672-4960-abc4-6d33587186a7'), 'in_stock': True, ...}]
+execution_options = immutabledict({'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x0000028D9E8646D0>})
+args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>, [{'affiliate_url': 'https://shopee.vn/...e-b672-4960-abc4-6d33587186a7'), 'in_stock': True, ...}], <sqlalchemy.sql.dml.Insert object at 0x0000028DA011CC50>, [])
+kw = {'cache_hit': <CacheStats.CACHE_HIT: 0>}, yp = None
+conn = <sqlalchemy.pool.base._ConnectionFairy object at 0x0000028D9EA18C50>
+
+    def _execute_context(
+        self,
+        dialect: Dialect,
+        constructor: Callable[..., ExecutionContext],
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+        execution_options: _ExecuteOptions,
+        *args: Any,
+        **kw: Any,
+    ) -> CursorResult[Any]:
+        """Create an :class:`.ExecutionContext` and execute, returning
+        a :class:`_engine.CursorResult`."""
+    
+        if execution_options:
+            yp = execution_options.get("yield_per", None)
+            if yp:
+                execution_options = execution_options.union(
+                    {"stream_results": True, "max_row_buffer": yp}
+                )
+        try:
+            conn = self._dbapi_connection
+            if conn is None:
+                conn = self._revalidate_connection()
+    
+>           context = constructor(
+                dialect, self, conn, execution_options, *args, **kw
+            )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = 'd7d06674-7cf9-45f6-8b89-2134ea8e59ee'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           AttributeError: 'str' object has no attribute 'hex'
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'created_platform_product' for <Coroutine test_get_price_records_after_push>>
+kwargs = {'created_platform': {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}, 'created_...'\u0110i\u1ec7n tho\u1ea1i', 'id': 'd7d06674-7cf9-45f6-8b89-2134ea8e59ee', 'main_image_url': 'https://example.com/iphone15.jpg', ...}}
+event_loop_fixture_id = 'event_loop'
+setup = <function _wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup at 0x0000028D9E90AA20>
+context = <_contextvars.Context object at 0x0000028DA01556C0>
+setup_task = <Task finished name='Task-680' coro=<_wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup() done, define...ytest_asyncio\plugin.py:369> exception=StatementError("(builtins.AttributeError) 'str' object has no attribute 'hex'")>
+
+    @functools.wraps(fixture)
+    def _async_fixture_wrapper(request: FixtureRequest, **kwargs: Any):
+        func = _perhaps_rebind_fixture_func(fixture, request.instance)
+        event_loop_fixture_id = _get_event_loop_fixture_id_for_async_fixture(
+            request, func
+        )
+        event_loop = request.getfixturevalue(event_loop_fixture_id)
+        kwargs.pop(event_loop_fixture_id, None)
+    
+        async def setup():
+            res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+            return res
+    
+        context = contextvars.copy_context()
+        setup_task = _create_task_in_context(event_loop, setup(), context)
+>       result = event_loop.run_until_complete(setup_task)
+
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:370: in setup
+    res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+conftest.py:180: in created_platform_product
+    await session.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1821: in _execute_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: in _execute_context
+    context = constructor(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = 'd7d06674-7cf9-45f6-8b89-2134ea8e59ee'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           sqlalchemy.exc.StatementError: (builtins.AttributeError) 'str' object has no attribute 'hex'
+E           [SQL: INSERT INTO platform_products (id, product_id, platform_id, raw_name, original_item_id, url, affiliate_url, current_price, original_price, rating, reviews_count, in_stock, last_crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E           [parameters: [{'id': UUID('355727fe-b672-4960-abc4-6d33587186a7'), 'original_item_id': 'shopee_ip15_001', 'url': 'https://shopee.vn/iphone-15-pro-max', 'in_stock':  ... (129 characters truncated) ... hopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'original_price': 34990000, 'platform_id': 1, 'last_crawled_at': None, 'rating': None}]]
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: StatementError
+_______________ ERROR at setup of test_price_analysis_endpoint ________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028DA011F770>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite'>>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>
+parameters = [{'affiliate_url': 'https://shopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'id': UUID('dda15994-0ead-4683-b10d-551546e7219e'), 'in_stock': True, ...}]
+execution_options = immutabledict({'compiled_cache': <sqlalchemy.util._collections.LRUCache object at 0x0000028D9E8646D0>})
+args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E903860>, [{'affiliate_url': 'https://shopee.vn/...4-0ead-4683-b10d-551546e7219e'), 'in_stock': True, ...}], <sqlalchemy.sql.dml.Insert object at 0x0000028DA011F6E0>, [])
+kw = {'cache_hit': <CacheStats.CACHE_HIT: 0>}, yp = None
+conn = <sqlalchemy.pool.base._ConnectionFairy object at 0x0000028D9EA1BA70>
+
+    def _execute_context(
+        self,
+        dialect: Dialect,
+        constructor: Callable[..., ExecutionContext],
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+        execution_options: _ExecuteOptions,
+        *args: Any,
+        **kw: Any,
+    ) -> CursorResult[Any]:
+        """Create an :class:`.ExecutionContext` and execute, returning
+        a :class:`_engine.CursorResult`."""
+    
+        if execution_options:
+            yp = execution_options.get("yield_per", None)
+            if yp:
+                execution_options = execution_options.union(
+                    {"stream_results": True, "max_row_buffer": yp}
+                )
+        try:
+            conn = self._dbapi_connection
+            if conn is None:
+                conn = self._revalidate_connection()
+    
+>           context = constructor(
+                dialect, self, conn, execution_options, *args, **kw
+            )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '9dd967d3-bff9-43de-8cf9-84730c38404d'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           AttributeError: 'str' object has no attribute 'hex'
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+request = <SubRequest 'created_platform_product' for <Coroutine test_price_analysis_endpoint>>
+kwargs = {'created_platform': {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}, 'created_...'\u0110i\u1ec7n tho\u1ea1i', 'id': '9dd967d3-bff9-43de-8cf9-84730c38404d', 'main_image_url': 'https://example.com/iphone15.jpg', ...}}
+event_loop_fixture_id = 'event_loop'
+setup = <function _wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup at 0x0000028D9E909940>
+context = <_contextvars.Context object at 0x0000028DA195D600>
+setup_task = <Task finished name='Task-692' coro=<_wrap_async_fixture.<locals>._async_fixture_wrapper.<locals>.setup() done, define...ytest_asyncio\plugin.py:369> exception=StatementError("(builtins.AttributeError) 'str' object has no attribute 'hex'")>
+
+    @functools.wraps(fixture)
+    def _async_fixture_wrapper(request: FixtureRequest, **kwargs: Any):
+        func = _perhaps_rebind_fixture_func(fixture, request.instance)
+        event_loop_fixture_id = _get_event_loop_fixture_id_for_async_fixture(
+            request, func
+        )
+        event_loop = request.getfixturevalue(event_loop_fixture_id)
+        kwargs.pop(event_loop_fixture_id, None)
+    
+        async def setup():
+            res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+            return res
+    
+        context = contextvars.copy_context()
+        setup_task = _create_task_in_context(event_loop, setup(), context)
+>       result = event_loop.run_until_complete(setup_task)
+
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+..\venv\Lib\site-packages\pytest_asyncio\plugin.py:370: in setup
+    res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+conftest.py:180: in created_platform_product
+    await session.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1821: in _execute_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1815: in _execute_context
+    context = constructor(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:1476: in _init_compiled
+    flattened_processors[key](compiled_params[key])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '9dd967d3-bff9-43de-8cf9-84730c38404d'
+
+    def process(value):
+        if value is not None:
+>           value = value.hex
+E           sqlalchemy.exc.StatementError: (builtins.AttributeError) 'str' object has no attribute 'hex'
+E           [SQL: INSERT INTO platform_products (id, product_id, platform_id, raw_name, original_item_id, url, affiliate_url, current_price, original_price, rating, reviews_count, in_stock, last_crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E           [parameters: [{'id': UUID('dda15994-0ead-4683-b10d-551546e7219e'), 'original_item_id': 'shopee_ip15_001', 'url': 'https://shopee.vn/iphone-15-pro-max', 'in_stock':  ... (129 characters truncated) ... hopee.vn/iphone-15-pro-max?aff=123', 'current_price': 28990000, 'original_price': 34990000, 'platform_id': 1, 'last_crawled_at': None, 'rating': None}]]
+
+..\venv\Lib\site-packages\sqlalchemy\sql\sqltypes.py:3631: StatementError
+================================== FAILURES ===================================
+____________________ test_upload_platform_products_success ____________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000028D9E815A30>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000028D9DDAE390>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000028D9E871940>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000028D9E8717F0>
+parameters = [('3c66be2bb0934a7097aad46a2a3ca4bd', 5000000.0, 6000000.0, 0)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:941: in do_execute
+    cursor.execute(statement, parameters)
+..\venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:147: in execute
+    self._adapt_connection._handle_exception(error)
+..\venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:298: in _handle_exception
+    raise error
+..\venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:129: in execute
+    self.await_(_cursor.execute(operation, parameters))
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+..\venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+..\venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+..\venv\Lib\site-packages\aiosqlite\core.py:122: in _execute
+    return await future
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection(Thread-58, stopped daemon 12596)>
+
+    def run(self) -> None:
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            tx_item = self._tx.get()
+            if tx_item is _STOP_RUNNING_SENTINEL:
+                break
+    
+            future, function = tx_item
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+E               sqlite3.IntegrityError: NOT NULL constraint failed: price_records.id
+
+..\venv\Lib\site-packages\aiosqlite\core.py:105: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+ac = <httpx.AsyncClient object at 0x0000028D9E843BF0>
+created_platform = {'affiliate_config': None, 'base_url': 'https://shopee.vn', 'id': 1, 'name': 'Shopee'}
+created_product = {'brand': 'Apple', 'category': '\u0110i\u1ec7n tho\u1ea1i', 'id': '7e595277-252c-4515-b5c6-85f713ca0fd8', 'main_image_url': 'https://example.com/iphone15.jpg', ...}
+
+    @pytest.mark.asyncio
+    async def test_upload_platform_products_success(
+        ac: AsyncClient, created_platform: dict, created_product: dict
+    ):
+        """Upload bulk platform products th\xe0nh c\xf4ng \u2192 200 + list k\u1ebft qu\u1ea3."""
+        platform_id = created_platform["id"]
+        product_id = created_product["id"]
+    
+        payload = [
+            {
+                "product_id": product_id,
+                "platform_id": platform_id,
+                "original_item_id": "crawl_item_001",
+                "url": "https://shopee.vn/product-001",
+                "current_price": 5000000,
+                "original_price": 6000000,
+                "in_stock": True,
+            }
+        ]
+    
+>       response = await ac.post(
+            "/api/v1/crawler/platform-products",
+            json=payload,
+            headers=dev_api_headers(),
+        )
+
+test_crawler.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\httpx\_client.py:1859: in post
+    return await self.request(
+..\venv\Lib\site-packages\httpx\_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+..\venv\Lib\site-packages\httpx\_client.py:1629: in send
+    response = await self._send_handling_auth(
+..\venv\Lib\site-packages\httpx\_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+..\venv\Lib\site-packages\httpx\_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+..\venv\Lib\site-packages\httpx\_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+..\venv\Lib\site-packages\httpx\_transports\asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+..\venv\Lib\site-packages\fastapi\applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+..\venv\Lib\site-packages\starlette\applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+..\venv\Lib\site-packages\starlette\middleware\errors.py:187: in __call__
+    raise exc
+..\venv\Lib\site-packages\starlette\middleware\errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+..\venv\Lib\site-packages\starlette\middleware\cors.py:85: in __call__
+    await self.app(scope, receive, send)
+..\venv\Lib\site-packages\starlette\middleware\sessions.py:85: in __call__
+    await self.app(scope, receive, send_wrapper)
+..\venv\Lib\site-packages\starlette\middleware\exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+..\venv\Lib\site-packages\starlette\_exception_handler.py:62: in wrapped_app
+    raise exc
+..\venv\Lib\site-packages\starlette\_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+..\venv\Lib\site-packages\starlette\routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+..\venv\Lib\site-packages\starlette\routing.py:735: in app
+    await route.handle(scope, receive, send)
+..\venv\Lib\site-packages\starlette\routing.py:288: in handle
+    await self.app(scope, receive, send)
+..\venv\Lib\site-packages\starlette\routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+..\venv\Lib\site-packages\starlette\_exception_handler.py:62: in wrapped_app
+    raise exc
+..\venv\Lib\site-packages\starlette\_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+..\venv\Lib\site-packages\starlette\routing.py:73: in app
+    response = await f(request)
+..\venv\Lib\site-packages\fastapi\routing.py:301: in app
+    raw_response = await run_endpoint_function(
+..\venv\Lib\site-packages\fastapi\routing.py:212: in run_endpoint_function
+    return await dependant.call(**values)
+..\app\api\v1\crawler.py:87: in upload_platform_products_bulk
+    raise e
+..\app\api\v1\crawler.py:79: in upload_platform_products_bulk
+    await db.commit()
+..\venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:1009: in commit
+    await greenlet_spawn(self.sync_session.commit)
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:2028: in commit
+    trans.commit(_to_root=True)
+<string>:2: in commit
+    ???
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1313: in commit
+    self._prepare_impl()
+<string>:2: in _prepare_impl
+    ???
+..\venv\Lib\site-packages\sqlalchemy\orm\state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:1288: in _prepare_impl
+    self.session.flush()
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4352: in flush
+    self._flush(objects)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4487: in _flush
+    with util.safe_reraise():
+..\venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+..\venv\Lib\site-packages\sqlalchemy\orm\session.py:4448: in _flush
+    flush_context.execute()
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+..\venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+..\venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1418: in execute
+    return meth(
+..\venv\Lib\site-packages\sqlalchemy\sql\elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+..\venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+..\venv\Lib\site-packages\sqlalchemy\engine\default.py:941: in do_execute
+    cursor.execute(statement, parameters)
+..\venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:147: in execute
+    self._adapt_connection._handle_exception(error)
+..\venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:298: in _handle_exception
+    raise error
+..\venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:129: in execute
+    self.await_(_cursor.execute(operation, parameters))
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+..\venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+..\venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+..\venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+..\venv\Lib\site-packages\aiosqlite\core.py:122: in _execute
+    return await future
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection(Thread-58, stopped daemon 12596)>
+
+    def run(self) -> None:
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            tx_item = self._tx.get()
+            if tx_item is _STOP_RUNNING_SENTINEL:
+                break
+    
+            future, function = tx_item
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+E               sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) NOT NULL constraint failed: price_records.id
+E               [SQL: INSERT INTO price_records (platform_product_id, price, original_price, is_flash_sale) VALUES (?, ?, ?, ?) RETURNING id, recorded_at]
+E               [parameters: ('3c66be2bb0934a7097aad46a2a3ca4bd', 5000000.0, 6000000.0, 0)]
+E               (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+..\venv\Lib\site-packages\aiosqlite\core.py:105: IntegrityError
+_________________________ test_trigger_alert_success __________________________
+
+self = <fastapi_mail.connection.Connection object at 0x0000028D9EA03680>
+
+    async def _configure_connection(self) -> None:
+        try:
+            self.session = aiosmtplib.SMTP(
+                hostname=self.settings.MAIL_SERVER,
+                timeout=self.settings.TIMEOUT,
+                port=self.settings.MAIL_PORT,
+                use_tls=self.settings.MAIL_SSL_TLS,
+                start_tls=self.settings.MAIL_STARTTLS,
+                validate_certs=self.settings.VALIDATE_CERTS,
+                local_hostname=self.settings.LOCAL_HOSTNAME,
+                cert_bundle=self.settings.CERT_BUNDLE,
+            )
+    
+            if not self.settings.SUPPRESS_SEND:  # for test environ
+                await self.session.connect()
+    
+                if self.settings.USE_CREDENTIALS:
+>                   await self.session.login(
+                        self.settings.MAIL_USERNAME,
+                        self.settings.MAIL_PASSWORD.get_secret_value(),
+                    )
+
+..\venv\Lib\site-packages\fastapi_mail\connection.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\aiosmtplib\smtp.py:1132: in login
+    raise exception or SMTPException("No suitable authentication method found.")
+..\venv\Lib\site-packages\aiosmtplib\smtp.py:1124: in login
+    response = await auth_method(username, password, timeout=timeout)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <aiosmtplib.smtp.SMTP object at 0x0000028D9EA03020>
+username = 'your_email@gmail.com', password = 'abcd_efgh_ijkl_mnop'
+
+    async def auth_login(
+        self,
+        username: str | bytes,
+        password: str | bytes,
+        /,
+        *,
+        timeout: float | Literal[Default.token] | None = Default.token,
+    ) -> SMTPResponse:
+        """
+        LOGIN auth sends the Base64 encoded username and password in sequence.
+    
+        Example::
+    
+            250 AUTH LOGIN PLAIN CRAM-MD5
+            auth login avlsdkfj
+            334 UGFzc3dvcmQ6
+            avlsdkfj
+    
+        Note that there is an alternate version sends the username
+        as a separate command::
+    
+            250 AUTH LOGIN PLAIN CRAM-MD5
+            auth login
+            334 VXNlcm5hbWU6
+            avlsdkfj
+            334 UGFzc3dvcmQ6
+            avlsdkfj
+    
+        However, since most servers seem to support both, we send the username
+        with the initial request.
+        """
+        encoded_username, encoded_password = auth_login_encode(username, password)
+        initial_response = await self.execute_command(
+            b"AUTH", b"LOGIN", encoded_username, timeout=timeout
+        )
+    
+        if initial_response.code != SMTPStatus.auth_continue:
+            raise SMTPAuthenticationError(
+                initial_response.code, initial_response.message
+            )
+    
+        response = await self.execute_command(encoded_password, timeout=timeout)
+    
+        if response.code != SMTPStatus.auth_successful:
+>           raise SMTPAuthenticationError(response.code, response.message)
+E           aiosmtplib.errors.SMTPAuthenticationError: (535, '5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2b5faa32ad8sm67491025ad.31 - gsmtp')
+
+..\venv\Lib\site-packages\aiosmtplib\smtp.py:1248: SMTPAuthenticationError
+
+During handling of the above exception, another exception occurred:
+
+ac = <httpx.AsyncClient object at 0x0000028D9E963920>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MGYwYWVkYS0xYTVlLTQ1ZmEtYWQ4Yi01N2JmZWExM2NkZGEiLCJleHAiOjE3NzY1NzUzNTJ9.4m0Fkq7SyDu-FvJXxCz1nxFZK2XF3SIkPLYJow-8UDE'}
+created_product = {'brand': 'Apple', 'category': '\u0110i\u1ec7n tho\u1ea1i', 'id': 'a0e73e4a-7790-4d21-87d2-31e03eae84d7', 'main_image_url': 'https://example.com/iphone15.jpg', ...}
+
+    @pytest.mark.asyncio
+    async def test_trigger_alert_success(
+        ac: AsyncClient, auth_headers: dict, created_product: dict
+    ):
+        """Trigger price check \u2192 200."""
+        product_id = created_product["id"]
+    
+        # T\u1ea1o alert tr\u01b0\u1edbc
+        await ac.post("/api/v1/price_alerts/", json={
+            "product_id": product_id,
+            "target_price": 30000000,
+        }, headers=auth_headers)
+    
+        # Trigger
+>       response = await ac.post("/api/v1/price_alerts/trigger", json={
+            "product_id": product_id,
+            "current_lowest_price": 25000000,
+        }, headers=auth_headers)
+
+test_price_alert.py:213: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\venv\Lib\site-packages\httpx\_client.py:1859: in post
+    return await self.request(
+..\venv\Lib\site-packages\httpx\_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+..\venv\Lib\site-packages\httpx\_client.py:1629: in send
+    response = await self._send_handling_auth(
+..\venv\Lib\site-packages\httpx\_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+..\venv\Lib\site-packages\httpx\_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+..\venv\Lib\site-packages\httpx\_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+..\venv\Lib\site-packages\httpx\_transports\asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+..\venv\Lib\site-packages\fastapi\applications.py:1054: in __call__
+    await super().__call__(scope, receive, send)
+..\venv\Lib\site-packages\starlette\applications.py:113: in __call__
+    await self.middleware_stack(scope, receive, send)
+..\venv\Lib\site-packages\starlette\middleware\errors.py:187: in __call__
+    raise exc
+..\venv\Lib\site-packages\starlette\middleware\errors.py:165: in __call__
+    await self.app(scope, receive, _send)
+..\venv\Lib\site-packages\starlette\middleware\cors.py:85: in __call__
+    await self.app(scope, receive, send)
+..\venv\Lib\site-packages\starlette\middleware\sessions.py:85: in __call__
+    await self.app(scope, receive, send_wrapper)
+..\venv\Lib\site-packages\starlette\middleware\exceptions.py:62: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+..\venv\Lib\site-packages\starlette\_exception_handler.py:62: in wrapped_app
+    raise exc
+..\venv\Lib\site-packages\starlette\_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+..\venv\Lib\site-packages\starlette\routing.py:715: in __call__
+    await self.middleware_stack(scope, receive, send)
+..\venv\Lib\site-packages\starlette\routing.py:735: in app
+    await route.handle(scope, receive, send)
+..\venv\Lib\site-packages\starlette\routing.py:288: in handle
+    await self.app(scope, receive, send)
+..\venv\Lib\site-packages\starlette\routing.py:76: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+..\venv\Lib\site-packages\starlette\_exception_handler.py:62: in wrapped_app
+    raise exc
+..\venv\Lib\site-packages\starlette\_exception_handler.py:51: in wrapped_app
+    await app(scope, receive, sender)
+..\venv\Lib\site-packages\starlette\routing.py:74: in app
+    await response(scope, receive, send)
+..\venv\Lib\site-packages\starlette\responses.py:156: in __call__
+    await self.background()
+..\venv\Lib\site-packages\starlette\background.py:41: in __call__
+    await task()
+..\venv\Lib\site-packages\starlette\background.py:26: in __call__
+    await self.func(*self.args, **self.kwargs)
+..\app\services\email.py:35: in send_price_drop_email_async
+    await fm.send_message(message)
+..\venv\Lib\site-packages\fastapi_mail\fastmail.py:129: in send_message
+    await self.__send_prepared_messages(prepared_messages)
+..\venv\Lib\site-packages\fastapi_mail\fastmail.py:204: in __send_prepared_messages
+    async with Connection(self.config) as session:
+..\venv\Lib\site-packages\fastapi_mail\connection.py:23: in __aenter__
+    await self._configure_connection()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <fastapi_mail.connection.Connection object at 0x0000028D9EA03680>
+
+    async def _configure_connection(self) -> None:
+        try:
+            self.session = aiosmtplib.SMTP(
+                hostname=self.settings.MAIL_SERVER,
+                timeout=self.settings.TIMEOUT,
+                port=self.settings.MAIL_PORT,
+                use_tls=self.settings.MAIL_SSL_TLS,
+                start_tls=self.settings.MAIL_STARTTLS,
+                validate_certs=self.settings.VALIDATE_CERTS,
+                local_hostname=self.settings.LOCAL_HOSTNAME,
+                cert_bundle=self.settings.CERT_BUNDLE,
+            )
+    
+            if not self.settings.SUPPRESS_SEND:  # for test environ
+                await self.session.connect()
+    
+                if self.settings.USE_CREDENTIALS:
+                    await self.session.login(
+                        self.settings.MAIL_USERNAME,
+                        self.settings.MAIL_PASSWORD.get_secret_value(),
+                    )
+    
+        except Exception as error:
+>           raise ConnectionErrors(
+                f"Exception raised {error}, check your credentials or email service configuration"
+            )
+E           fastapi_mail.errors.ConnectionErrors: Exception raised (535, '5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2b5faa32ad8sm67491025ad.31 - gsmtp'), check your credentials or email service configuration
+
+..\venv\Lib\site-packages\fastapi_mail\connection.py:56: ConnectionErrors
+___________________ test_social_login_unsupported_provider ____________________
+
+ac = <httpx.AsyncClient object at 0x0000028DA0113530>
+
+    @pytest.mark.asyncio
+    async def test_social_login_unsupported_provider(ac: AsyncClient):
+        """Provider kh\xf4ng h\u1ed7 tr\u1ee3 \u2192 400."""
+        response = await ac.get("/api/v1/auth/social/facebook/login")
+>       assert response.status_code == 400
+E       assert 404 == 400
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+test_social_auth.py:18: AssertionError
+__________________ test_social_callback_unsupported_provider __________________
+
+ac = <httpx.AsyncClient object at 0x0000028DA0112C00>
+
+    @pytest.mark.asyncio
+    async def test_social_callback_unsupported_provider(ac: AsyncClient):
+        """Provider kh\xf4ng h\u1ed7 tr\u1ee3 trong callback \u2192 400."""
+        response = await ac.get("/api/v1/auth/social/twitter/callback")
+>       assert response.status_code == 400
+E       assert 404 == 400
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+test_social_auth.py:37: AssertionError
+============================== warnings summary ===============================
+..\venv\Lib\site-packages\starlette\formparsers.py:12
+  D:\Khang's_Project\ProductHunter\server\venv\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+..\app\schemas\price_record.py:7
+  D:\Khang's_Project\ProductHunter\server\app\schemas\price_record.py:7: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PriceRecordResponse(BaseModel):
+
+..\app\schemas\platform.py:8
+  D:\Khang's_Project\ProductHunter\server\app\schemas\platform.py:8: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'example'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    name: str = Field(..., example="Shopee")
+
+..\app\schemas\platform.py:12
+  D:\Khang's_Project\ProductHunter\server\app\schemas\platform.py:12: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PlatformResponse(BaseModel):
+
+..\app\schemas\product.py:17
+  D:\Khang's_Project\ProductHunter\server\app\schemas\product.py:17: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProductPriceResponse(ProductPriceBase):
+
+..\app\schemas\trending_deal.py:9
+  D:\Khang's_Project\ProductHunter\server\app\schemas\trending_deal.py:9: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TrendingDealResponse(BaseModel):
+
+..\app\schemas\price_alert.py:9
+  D:\Khang's_Project\ProductHunter\server\app\schemas\price_alert.py:9: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PriceAlertResponse(BaseModel):
+
+..\app\schemas\user.py:11
+  D:\Khang's_Project\ProductHunter\server\app\schemas\user.py:11: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserResponse(BaseModel):
+
+..\app\schemas\wish_list.py:9
+  D:\Khang's_Project\ProductHunter\server\app\schemas\wish_list.py:9: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WishListItem(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED test_crawler.py::test_upload_platform_products_success - sqlalchemy.ex...
+FAILED test_price_alert.py::test_trigger_alert_success - fastapi_mail.errors....
+FAILED test_social_auth.py::test_social_login_unsupported_provider - assert 4...
+FAILED test_social_auth.py::test_social_callback_unsupported_provider - asser...
+ERROR test_price_record.py::test_push_price_record_success - sqlalchemy.exc.S...
+ERROR test_price_record.py::test_push_price_record_flash_sale - sqlalchemy.ex...
+ERROR test_price_record.py::test_push_price_record_with_timestamp - sqlalchem...
+ERROR test_price_record.py::test_push_batch_success - sqlalchemy.exc.Statemen...
+ERROR test_price_record.py::test_get_price_records_after_push - sqlalchemy.ex...
+ERROR test_price_record.py::test_price_analysis_endpoint - sqlalchemy.exc.Sta...
+============= 4 failed, 95 passed, 9 warnings, 6 errors in 26.70s =============

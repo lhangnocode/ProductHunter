@@ -5,7 +5,7 @@ from app.db.session import Base
 class PriceRecord(Base):
     __tablename__ = "price_records"
 
-    id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True, index=True)
     
     platform_product_id = Column(
         UUID(as_uuid=True), 
