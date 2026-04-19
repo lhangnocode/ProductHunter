@@ -37,6 +37,9 @@ class RawProduct:
     price : Decimal | None
         Current selling price in VND. None if not shown or unparseable.
 
+    original_price : Decimal | None
+        Original / list price before any discount in VND. None if not shown.
+
     category : str | None
         The platform's own category slug (e.g. "may-tinh-xach-tay", "c/laptop").
         Optional — if absent, the pipeline LLM normalizer will infer it from
@@ -52,7 +55,8 @@ class RawProduct:
     platform_id:    int
     raw_name:       str
     url:            str
-    price:          Optional[Decimal]
+    current_price:  Optional[Decimal]
+    original_price: Optional[Decimal]
     category:       Optional[str]
     main_image_url: Optional[str]
     crawled_at:     datetime = field(
@@ -80,7 +84,8 @@ class RawProduct:
             "platform_id",
             "raw_name",
             "url",
-            "price",
+            "current_price",
+            "original_price",
             "category",
             "main_image_url",
             "crawled_at",
@@ -92,7 +97,8 @@ class RawProduct:
             str(self.platform_id),
             self.raw_name,
             self.url,
-            str(self.price) if self.price is not None else "",
+            str(self.current_price) if self.current_price is not None else "",
+            str(self.original_price) if self.original_price is not None else "",
             self.category or "",
             self.main_image_url or "",
             self.crawled_at.isoformat(),
@@ -122,7 +128,8 @@ class RawProduct:
             platform_id=int(row["platform_id"]),
             raw_name=row["raw_name"],
             url=row["url"],
-            price=_decimal(row.get("price", "")),
+            current_price=_decimal(row.get("current_price", "")),
+            original_price=_decimal(row.get("original_price", "")),
             category=_optional_str(row.get("category", "")),
             main_image_url=_optional_str(row.get("main_image_url", "")),
             crawled_at=_dt(row["crawled_at"]),
