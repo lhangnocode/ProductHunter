@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional
 
 try:
     import requests
@@ -12,7 +12,6 @@ except Exception:  # pragma: no cover - optional dependency
 DEFAULT_COLLECTION_SCHEMA = {
     "name": "products",
     "fields": [
-        {"name": "id", "type": "string"},
         {"name": "normalized_name", "type": "string", "infix": True},
         {"name": "product_name", "type": "string", "infix": True},
     ],
