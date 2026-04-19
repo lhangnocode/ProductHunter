@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 TYPESENSE_COLLECTION_SCHEMA: dict[str, Any] = {
     "name": "products",
     "fields": [
-        {"name": "id", "type": "string"},
         {"name": "normalized_name", "type": "string", "infix": True},
         {"name": "product_name", "type": "string", "infix": True},
     ],
@@ -115,7 +114,6 @@ async def upsert_product(
     client = typesense_client or _build_typesense_client()
     await asyncio.to_thread(_ensure_typesense_collection, client)
     document = {
-        "id": str(product.id),
         "normalized_name": product.normalized_name,
         "product_name": product.product_name,
     }
@@ -148,7 +146,7 @@ async def search_product(
             search_params: dict[str, Any] = {
                 "q": query_value,
                 "query_by": "normalized_name,product_name",
-                "query_by_weights": "2,8",
+                "query_by_weights": "2,4",
                 "num_typos": 2,
                 "min_len_1typo": 4,
                 "min_len_2typo": 7,
@@ -172,29 +170,23 @@ async def search_product(
             total_results = search_result.get("found", 0)
             logger.debug("Typesense search completed. found=%s, hits_count=%s", total_results, len(hits))
 
-            product_ids: List[UUID] = []
+            product_ids: List[str] = []
             for hit in hits:
                 doc = cast(dict[str, Any], hit.get("document", {}))
-                raw_id = doc.get("id")
+                raw_id = doc.get("normalized_name")  # Assuming normalized_name is unique and can be used to fetch the product
                 if not isinstance(raw_id, str) or not raw_id:
                     continue
-                try:
-                    product_ids.append(UUID(cast(str, raw_id)))
-                except ValueError:
-                    continue
-
-            if not product_ids:
-                return [], 0
+                product_ids.append(raw_id)
 
             ordering = case(
                 {product_id: index for index, product_id in enumerate(product_ids)},
-                value=Product.id,
+                value=Product.normalized_name,
             )
 
             stmt = (
                 select(Product)
                 .options(selectinload(Product.platform_products).selectinload(PlatformProduct.platform))
-                .where(Product.id.in_(product_ids))
+                .where(Product.normalized_name.in_(product_ids))
                 .order_by(ordering)
             )
             result = await db.execute(stmt)
