@@ -94,7 +94,7 @@ async def get_all_platform_products(
 )
 async def get_trending_platform_products(
     db: AsyncSession = Depends(get_db),
-    limit: int = Query(default=20, ge=1, le=50)
+    limit: int = Query(default=20, ge=1, le=100)
 ):
     """
     Lấy danh sách Trending Deals (Ưu tiên: Rẻ kỷ lục -> Giá tốt)
