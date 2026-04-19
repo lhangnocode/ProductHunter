@@ -56,5 +56,5 @@ dist/
 .tsbuildinfo
 
 #tests
-tests/test_runner.db
-tests/test_log.txt
+server/tests/test_runner.db
+server/tests/test_log.txt
