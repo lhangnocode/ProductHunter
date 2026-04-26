@@ -28,31 +28,31 @@ CATEGORY_MAP: dict[str, str] = {
     "smart-home":           "smart_home",
     "may-in":               "peripheral",
     "tivi":                 "tv",
-    "dieu-hoa":             "appliance",
-    "tu-lanh":              "appliance",
-    "tu-dong":              "appliance",
-    "may-giat":             "appliance",
-    "may-say-quan-ao":      "appliance",
-    "robot-hut-bui":        "houseware",
-    "may-hut-bui":          "houseware",
-    "may-loc-khong-khi":    "houseware",
-    "may-hut-am":           "houseware",
-    "quat":                 "houseware",
-    "may-loc-nuoc":         "houseware",
-    "cay-nuoc-nong-lanh":   "houseware",
-    "may-massage":          "houseware",
-    "may-say-toc":          "houseware",
-    "noi-chien-khong-dau":  "houseware",
-    "lo-vi-song":           "houseware",
-    "lo-nuong":             "houseware",
-    "bep-nuong-dien":       "houseware",
-    "may-rua-bat":          "houseware",
-    "may-hut-mui":          "houseware",
-    "noi-com-dien":         "houseware",
-    "am-sieu-toc":          "houseware",
-    "may-xay-sinh-to":      "houseware",
-    "bep-dien-tu":          "houseware",
-    "noi-ap-suat":          "houseware",
+    # "dieu-hoa":             "appliance",
+    # "tu-lanh":              "appliance",
+    # "tu-dong":              "appliance",
+    # "may-giat":             "appliance",
+    # "may-say-quan-ao":      "appliance",
+    # "robot-hut-bui":        "houseware",
+    # "may-hut-bui":          "houseware",
+    # "may-loc-khong-khi":    "houseware",
+    # "may-hut-am":           "houseware",
+    # "quat":                 "houseware",
+    # "may-loc-nuoc":         "houseware",
+    # "cay-nuoc-nong-lanh":   "houseware",
+    # "may-massage":          "houseware",
+    # "may-say-toc":          "houseware",
+    # "noi-chien-khong-dau":  "houseware",
+    # "lo-vi-song":           "houseware",
+    # "lo-nuong":             "houseware",
+    # "bep-nuong-dien":       "houseware",
+    # "may-rua-bat":          "houseware",
+    # "may-hut-mui":          "houseware",
+    # "noi-com-dien":         "houseware",
+    # "am-sieu-toc":          "houseware",
+    # "may-xay-sinh-to":      "houseware",
+    # "bep-dien-tu":          "houseware",
+    # "noi-ap-suat":          "houseware",
 }
 
 
@@ -70,7 +70,7 @@ class FPTShopCrawler:
         
     def crawl(self) -> None:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=False, args=["--no-sandbox", "--disable-setuid-sandbox"])
             context = browser.new_context()
             page = context.new_page()
             Stealth().apply_stealth_sync(page)
@@ -80,7 +80,7 @@ class FPTShopCrawler:
                 print(f"Crawling category: {category_name} ({category_slug})")
                 category_url = f"{self.base_url}/{category_slug}"
                 page.goto(category_url, timeout=60000)
-                time.sleep(3)  # Wait for initial load
+                time.sleep(1)  # Wait for initial load
                 
                 # Click "Xem thêm" until it disappears
                 while True:
@@ -123,11 +123,15 @@ class FPTShopCrawler:
             
             price_elem = elem.query_selector("p.text-textOnWhitePrimary.transition-all.duration-300.b1-semibold")
             price_text = price_elem.inner_text().strip() if price_elem else "0"
-            price = self._parse_price(price_text)
-            
-            if price == 0 or price is None:
+            current_price = self._parse_price(price_text)
+
+            if current_price == 0 or current_price is None:
                 print(f"Skipping product with invalid price: {name} - {price_text}")
                 return None
+
+            original_price_elem = elem.query_selector("span.text-textOnWhiteSecondary.line-through.f1-regular")
+            original_price_text = original_price_elem.inner_text().strip() if original_price_elem else None
+            original_price = self._parse_price(original_price_text) if original_price_text else None
             
             image_elem = elem.query_selector("img")
             image_url = image_elem.get_attribute("srcset") if image_elem else None
@@ -138,7 +142,8 @@ class FPTShopCrawler:
                 platform_id=self.platform_id,
                 raw_name=name,
                 url=url,
-                price=price,
+                current_price=current_price,
+                original_price=original_price,
                 category=category_name,
                 main_image_url=image_url,
                 crawled_at=datetime.now(timezone.utc)
@@ -158,10 +163,12 @@ class FPTShopCrawler:
     def _save_to_csv(self, products: List[RawProduct]) -> None:
         if not products:
             return
-        output_file = self.output_dir / f"fptshop_products.csv"
+        output_file = self.output_dir / "fptshop_products.csv"
+        write_header = not output_file.exists()
         with output_file.open('a', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(RawProduct.csv_headers())
+            if write_header:
+                writer.writerow(RawProduct.csv_headers())
             for product in products:
                 writer.writerow(product.to_csv_row())
         print(f"Saved {len(products)} products to {output_file}")

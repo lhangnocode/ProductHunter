@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -23,6 +25,10 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+logger = logging.getLogger(__name__)
+
+# Enable debug logging for the server
+logger.setLevel(logging.DEBUG)
 
 @app.get("/")
 async def root():

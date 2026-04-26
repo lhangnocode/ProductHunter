@@ -36,7 +36,8 @@ class StagingRecord:
     platform_id: int
     raw_name: str
     url: str | None
-    price: Decimal | None
+    current_price: Decimal | None
+    original_price: Decimal | None
     category: str | None
     main_image_url: str | None
     crawled_at: str | None
@@ -76,7 +77,8 @@ def _fetch_staging_records(staging_conn) -> list[StagingRecord]:
                 rp.platform_id,
                 rp.raw_name,
                 rp.url,
-                rp.price,
+                rp.current_price,
+                rp.original_price,
                 rp.category,
                 rp.main_image_url,
                 rp.crawled_at,
@@ -101,7 +103,8 @@ def _fetch_staging_records(staging_conn) -> list[StagingRecord]:
             platform_id,
             raw_name,
             url,
-            price,
+            current_price,
+            original_price,
             category,
             main_image_url,
             crawled_at,
@@ -118,7 +121,8 @@ def _fetch_staging_records(staging_conn) -> list[StagingRecord]:
                 platform_id=int(platform_id),
                 raw_name=str(raw_name),
                 url=str(url) if url else None,
-                price=Decimal(str(price)) if price is not None else None,
+                current_price=Decimal(str(current_price)) if current_price is not None else None,
+                original_price=Decimal(str(original_price)) if original_price is not None else None,
                 category=str(category) if category else None,
                 main_image_url=str(main_image_url) if main_image_url else None,
                 crawled_at=str(crawled_at) if crawled_at else None,
@@ -216,10 +220,10 @@ def _upsert_platform_products(
             r.raw_name,
             original_item_id,
             r.url,
-            None,
-            r.price,
-            None,
-            True if r.price is not None else None,
+            None,               # affiliate_url
+            r.current_price,
+            r.original_price,
+            True if r.current_price is not None else None,
             r.crawled_at,
         )
 
@@ -250,7 +254,7 @@ def _insert_price_records(server_conn, platform_product_info: list[tuple[str, De
     rows = [
         (info[0], info[1], info[2], False, "now()")
         for info in platform_product_info
-        if info[1] is not None
+        if info[1] is not None  # only save if current_price exists
     ]
     if not rows:
         return
@@ -280,7 +284,6 @@ def _sync_typesense(records: Iterable[StagingRecord], product_ids: dict[str, str
         if not product_id:
             continue
         documents.append({
-            "id": product_id,
             "normalized_name": r.normalized_name,
             "product_name": r.product_name,
         })
@@ -289,6 +292,7 @@ def _sync_typesense(records: Iterable[StagingRecord], product_ids: dict[str, str
         return
     try:
         typesense.import_documents("products", documents)
+        print(f"[typesense] Synced {len(documents)} documents.")
     except Exception as exc:
         print(f"[typesense] Import failed: {exc}")
 
