@@ -1,5 +1,6 @@
 # app/api/v1/auth.py
 import uuid
+import logging
 from datetime import timedelta
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -29,6 +30,7 @@ from app.core.config import settings
 from app.models.user import User
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=UserResponse)
@@ -128,20 +130,35 @@ async def forgot_password(
     payload: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    logger.info("Forgot password requested for email=%s", payload.email)
     user = await user_service.get_user_by_email(db, email=payload.email)
-    if user:
-        token = create_password_reset_token(payload.email)
-        frontend_url = settings.FRONTEND_URL.rstrip("/") if settings.FRONTEND_URL else ""
-        reset_link = f"{frontend_url}/reset-password?token={token}" if frontend_url else f"token:{token}"
-        try:
-            await send_password_reset_email_async(payload.email, reset_link)
-        except Exception:
-            # Don't leak internals; endpoint remains idempotent for the client.
-            pass
+    if not user:
+        logger.info("Forgot password lookup: email not found for email=%s", payload.email)
+        raise HTTPException(status_code=404, detail="Email is not registered")
 
-    return {
-        "message": "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu."
-    }
+    logger.info("Forgot password lookup: email found for email=%s", payload.email)
+    token = create_password_reset_token(payload.email)
+    logger.info("Reset token generated for email=%s", payload.email)
+
+    frontend_url = settings.FRONTEND_URL.rstrip("/") if settings.FRONTEND_URL else ""
+    reset_link = f"{frontend_url}/reset-password?token={token}" if frontend_url else f"token:{token}"
+
+    logger.info(
+        "SMTP config loaded: MAIL_USERNAME=%s MAIL_FROM=%s MAIL_SERVER=%s MAIL_PORT=%s",
+        settings.MAIL_USERNAME,
+        settings.MAIL_FROM,
+        settings.MAIL_SERVER,
+        settings.MAIL_PORT,
+    )
+    logger.info("Attempting reset password email send for email=%s", payload.email)
+    try:
+        await send_password_reset_email_async(payload.email, reset_link)
+        logger.info("Reset password email sent successfully for email=%s", payload.email)
+    except Exception:
+        logger.exception("Failed to send reset password email for email=%s", payload.email)
+        raise HTTPException(status_code=500, detail="Failed to send reset password email")
+
+    return {"message": "Reset password email sent successfully"}
 
 
 @router.post("/reset-password")
