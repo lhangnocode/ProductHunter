@@ -176,12 +176,55 @@ async def test_refresh_token_invalid(ac: AsyncClient):
 # FORGOT / RESET PASSWORD
 # ============================================================
 @pytest.mark.asyncio
-async def test_forgot_password_returns_generic_message(ac: AsyncClient):
+async def test_forgot_password_email_not_registered(ac: AsyncClient):
     response = await ac.post("/api/v1/auth/forgot-password", json={
         "email": "unknown@example.com",
     })
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Email is not registered"
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_success(ac: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+    email = "forgotok@example.com"
+    await ac.post("/api/v1/auth/register", json={
+        "email": email,
+        "password": "Forgot@1234",
+    })
+
+    async def _fake_send_password_reset_email_async(to_email: str, reset_link: str):
+        assert to_email == email
+        assert "token=" in reset_link or reset_link.startswith("token:")
+
+    monkeypatch.setattr(
+        "app.api.v1.auth.send_password_reset_email_async",
+        _fake_send_password_reset_email_async
+    )
+
+    response = await ac.post("/api/v1/auth/forgot-password", json={"email": email})
     assert response.status_code == 200
-    assert "gửi hướng dẫn" in response.json()["message"]
+    assert response.json()["message"] == "Reset password email sent successfully"
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_send_email_failure(ac: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+    email = "forgotfail@example.com"
+    await ac.post("/api/v1/auth/register", json={
+        "email": email,
+        "password": "Forgot@1234",
+    })
+
+    async def _fake_send_password_reset_email_async(_to_email: str, _reset_link: str):
+        raise RuntimeError("SMTP boom")
+
+    monkeypatch.setattr(
+        "app.api.v1.auth.send_password_reset_email_async",
+        _fake_send_password_reset_email_async
+    )
+
+    response = await ac.post("/api/v1/auth/forgot-password", json={"email": email})
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to send reset password email"
 
 
 @pytest.mark.asyncio
