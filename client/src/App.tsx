@@ -6,6 +6,7 @@ import { LandingPage } from "./components/LandingPage";
 import { AuthModal } from "./components/AuthModal";
 import { ToastProvider, useToast } from "./components/Toast";
 import { TrendingDeals } from "./components/TrendingDeals";
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
 
 import { UserProvider, useUser } from "./context/UserContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -49,6 +50,11 @@ type Tab = "search" | "trending" | "wishlist" | "alerts";
 type SortOption = "trending" | "price-asc" | "price-desc" | "rating";
 
 function AppContent() {
+  const isResetPasswordPath = window.location.pathname === "/reset-password";
+  if (isResetPasswordPath) {
+    return <ResetPasswordPage />;
+  }
+
   // Restore isAppStarted & activeTab from localStorage khi F5
   const [isAppStarted, setIsAppStarted] = useState<boolean>(() => {
     return localStorage.getItem("app_started") === "true";
