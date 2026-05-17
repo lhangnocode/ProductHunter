@@ -4,6 +4,7 @@ Bao gồm: register, login, get me, refresh token, premium feature.
 """
 import pytest
 from httpx import AsyncClient
+from app.core.security import create_password_reset_token
 
 
 # ============================================================
@@ -169,6 +170,58 @@ async def test_refresh_token_invalid(ac: AsyncClient):
         "refresh_token": "invalid.fake.token",
     })
     assert response.status_code == 401
+
+
+# ============================================================
+# FORGOT / RESET PASSWORD
+# ============================================================
+@pytest.mark.asyncio
+async def test_forgot_password_returns_generic_message(ac: AsyncClient):
+    response = await ac.post("/api/v1/auth/forgot-password", json={
+        "email": "unknown@example.com",
+    })
+    assert response.status_code == 200
+    assert "gửi hướng dẫn" in response.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_reset_password_success(ac: AsyncClient):
+    email = "resetok@example.com"
+    old_password = "OldPass@1234"
+    new_password = "NewPass@1234"
+
+    await ac.post("/api/v1/auth/register", json={
+        "email": email,
+        "password": old_password,
+    })
+
+    token = create_password_reset_token(email)
+    reset_resp = await ac.post("/api/v1/auth/reset-password", json={
+        "token": token,
+        "new_password": new_password,
+    })
+    assert reset_resp.status_code == 200
+
+    old_login = await ac.post("/api/v1/auth/login", data={
+        "username": email,
+        "password": old_password,
+    })
+    assert old_login.status_code == 400
+
+    new_login = await ac.post("/api/v1/auth/login", data={
+        "username": email,
+        "password": new_password,
+    })
+    assert new_login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_reset_password_invalid_token(ac: AsyncClient):
+    response = await ac.post("/api/v1/auth/reset-password", json={
+        "token": "invalid.token.value",
+        "new_password": "AnyPass@1234",
+    })
+    assert response.status_code == 400
 
 
 # ============================================================
