@@ -137,7 +137,7 @@ export interface PriceAnalysis {
   deal_status: 'extreme' | 'fake' | 'good' | 'slight' | 'stable';
   deal_label: string;
   lowest_ever_price: number;
-  avg_price_30d: number;
+  avg_price_60d: number;
   current_price: number;
 }
 

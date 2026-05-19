@@ -189,7 +189,7 @@ async def get_trending_deals(db: AsyncSession, limit: int = 1000):
         # 2. Subquery: Avg Price 30 days
         subq_avg = (
             select(PriceRecord.platform_product_id, func.avg(PriceRecord.price).label("avg_price"))
-            .where(PriceRecord.recorded_at >= (func.now() - timedelta(days=30)))
+            .where(PriceRecord.recorded_at >= (func.now() - timedelta(days=180)))
             .group_by(PriceRecord.platform_product_id).subquery()
         )
 
