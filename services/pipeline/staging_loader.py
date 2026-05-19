@@ -32,6 +32,24 @@ def _empty_to_none(value: Any) -> Any:
     return s
 
 
+def _to_numeric(value: Any) -> Any:
+    """Return value only if it parses as a number, else None.
+    Prevents header-repeat rows from passing a column name as a numeric value."""
+    v = _empty_to_none(value)
+    if v is None:
+        return None
+    try:
+        float(v)
+        return v
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_header_row(row: dict[str, str]) -> bool:
+    """Return True if this row is a repeated CSV header (raw_name == 'raw_name')."""
+    return (row.get("raw_name") or "").strip().lower() == "raw_name"
+
+
 def _read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     """Read a CSV file into rows plus header fieldnames."""
     rows: list[dict[str, str]] = []
@@ -58,11 +76,15 @@ def load_csvs_to_staging(staging_conn) -> None:
         rows = []
 
         platform_rows, platform_fields = _read_csv(platform_csv)
-        is_raw_crawler_csv = "original_item_id" not in platform_fields and "price" in platform_fields
+        is_raw_crawler_csv = "current_price" in platform_fields
 
         for row in platform_rows:
             raw_name = (row.get("raw_name") or "").strip()
             if not raw_name:
+                continue
+
+            # Skip repeated header rows written by crawlers on each save
+            if _is_header_row(row):
                 continue
 
             if is_raw_crawler_csv:
@@ -70,18 +92,21 @@ def load_csvs_to_staging(staging_conn) -> None:
                     "platform_id": platform_id,
                     "raw_name": raw_name,
                     "url": _empty_to_none(row.get("url")),
-                    "price": _empty_to_none(row.get("price")),
+                    "current_price": _to_numeric(row.get("current_price")),
+                    "original_price": _to_numeric(row.get("original_price")),
                     "category": _empty_to_none(row.get("category")),
                     "main_image_url": _empty_to_none(row.get("main_image_url")),
                     "crawled_at": _empty_to_none(row.get("crawled_at")),
                 })
                 continue
 
+            # Legacy CSV format fallback
             rows.append({
                 "platform_id": platform_id,
                 "raw_name": raw_name,
                 "url": _empty_to_none(row.get("url")),
-                "price": _empty_to_none(row.get("current_price")),
+                "current_price": _to_numeric(row.get("current_price")),
+                "original_price": _to_numeric(row.get("original_price")),
                 "category": _empty_to_none(row.get("category")),
                 "main_image_url": _empty_to_none(row.get("main_image_url")),
                 "crawled_at": _empty_to_none(row.get("last_crawled_at")),
@@ -93,7 +118,8 @@ def load_csvs_to_staging(staging_conn) -> None:
 
         insert_sql = """
             INSERT INTO staging.raw_product (
-                platform_id, raw_name, url, price, category, main_image_url, crawled_at
+                platform_id, raw_name, url, current_price, original_price,
+                category, main_image_url, crawled_at
             ) VALUES %s
         """
 
@@ -108,7 +134,8 @@ def load_csvs_to_staging(staging_conn) -> None:
                         row["platform_id"],
                         row["raw_name"],
                         row["url"],
-                        row["price"],
+                        row["current_price"],
+                        row["original_price"],
                         row["category"],
                         row["main_image_url"],
                         row["crawled_at"],

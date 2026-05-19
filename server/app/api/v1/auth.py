@@ -1,4 +1,6 @@
 # app/api/v1/auth.py
+import uuid
+import logging
 from datetime import timedelta
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -8,13 +10,27 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_premium_user
-from app.schemas.user import UserCreate, UserResponse, Token
+from app.schemas.user import (
+    UserCreate,
+    UserResponse,
+    Token,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
 from app.services import user as user_service
-from app.core.security import verify_password, create_access_token, create_refresh_token
+from app.services.email import send_password_reset_email_async
+from app.core.security import (
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    create_password_reset_token,
+    get_password_hash,
+)
 from app.core.config import settings
 from app.models.user import User
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=UserResponse)
@@ -89,7 +105,7 @@ async def refresh_access_token(
         if user_id is None or token_type != "refresh":
             raise credentials_exception
             
-        stmt = select(User).where(User.id == user_id)
+        stmt = select(User).where(User.id == uuid.UUID(user_id))
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
         
@@ -107,3 +123,64 @@ async def refresh_access_token(
         "refresh_token": refresh_token, 
         "token_type": "bearer"
     }
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    logger.info("Forgot password requested for email=%s", payload.email)
+    user = await user_service.get_user_by_email(db, email=payload.email)
+    if not user:
+        logger.info("Forgot password lookup: email not found for email=%s", payload.email)
+        raise HTTPException(status_code=404, detail="Email is not registered")
+
+    logger.info("Forgot password lookup: email found for email=%s", payload.email)
+    token = create_password_reset_token(payload.email)
+    logger.info("Reset token generated for email=%s", payload.email)
+
+    frontend_url = settings.FRONTEND_URL.rstrip("/") if settings.FRONTEND_URL else ""
+    reset_link = f"{frontend_url}/reset-password?token={token}" if frontend_url else f"token:{token}"
+
+    logger.info(
+        "SMTP config loaded: MAIL_USERNAME=%s MAIL_FROM=%s MAIL_SERVER=%s MAIL_PORT=%s",
+        settings.MAIL_USERNAME,
+        settings.MAIL_FROM,
+        settings.MAIL_SERVER,
+        settings.MAIL_PORT,
+    )
+    logger.info("Attempting reset password email send for email=%s", payload.email)
+    try:
+        await send_password_reset_email_async(payload.email, reset_link)
+        logger.info("Reset password email sent successfully for email=%s", payload.email)
+    except Exception:
+        logger.exception("Failed to send reset password email for email=%s", payload.email)
+        raise HTTPException(status_code=500, detail="Failed to send reset password email")
+
+    return {"message": "Reset password email sent successfully"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    invalid_token_error = HTTPException(status_code=400, detail="Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.")
+    try:
+        decoded = jwt.decode(payload.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        token_type = decoded.get("type")
+        email = decoded.get("sub")
+        if token_type != "password_reset" or not email:
+            raise invalid_token_error
+    except JWTError:
+        raise invalid_token_error
+
+    user = await user_service.get_user_by_email(db, email=email)
+    if not user:
+        raise invalid_token_error
+
+    user.password_hash = get_password_hash(payload.new_password)
+    await db.commit()
+
+    return {"message": "Đặt lại mật khẩu thành công."}

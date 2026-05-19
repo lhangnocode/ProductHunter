@@ -39,7 +39,8 @@ def ensure_staging_schema(conn) -> None:
         platform_id     INT,
         raw_name        TEXT,
         url             TEXT,
-        price           NUMERIC,
+        current_price   NUMERIC,
+        original_price  NUMERIC,
         category        TEXT,
         main_image_url  TEXT,
         crawled_at      TIMESTAMPTZ,
@@ -54,6 +55,7 @@ def ensure_staging_schema(conn) -> None:
         brand                TEXT,
         model                TEXT,
         manufacture_model_id TEXT,
+        mapping_name         TEXT,
         category             TEXT,
         specs                JSONB,
         normalized_at        TIMESTAMPTZ DEFAULT now()
@@ -63,8 +65,14 @@ def ensure_staging_schema(conn) -> None:
     migrations = [
         "ALTER TABLE staging.raw_product ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ DEFAULT now()",
         "ALTER TABLE staging.raw_product ADD COLUMN IF NOT EXISTS llm_status TEXT NOT NULL DEFAULT 'pending'",
+        # price → current_price + original_price
+        "ALTER TABLE staging.raw_product ADD COLUMN IF NOT EXISTS current_price NUMERIC",
+        "ALTER TABLE staging.raw_product ADD COLUMN IF NOT EXISTS original_price NUMERIC",
+        "ALTER TABLE staging.raw_product DROP COLUMN IF EXISTS price",
+        # normalized_product additions
         "ALTER TABLE staging.normalized_product ADD COLUMN IF NOT EXISTS product_name TEXT",
-        "ALTER TABLE staging.normalized_product DROP COLUMN IF EXISTS mapping_name",
+        "ALTER TABLE staging.normalized_product ADD COLUMN IF NOT EXISTS mapping_name TEXT",
+        "ALTER TABLE staging.normalized_product ADD COLUMN IF NOT EXISTS manufacture_model_id TEXT",
     ]
 
     with conn.cursor() as cur:

@@ -78,4 +78,5 @@ CRAWLER_OUTPUT_DIR: Path = Path(__file__).resolve().parents[1] / "crawler" / "ou
 CSV_FILES: list[tuple[Path, int]] = [
     (CRAWLER_OUTPUT_DIR / "fptshop_products.csv", 7),
     (CRAWLER_OUTPUT_DIR / "phongvu_products.csv", 8),
+    (CRAWLER_OUTPUT_DIR / "cellphones_products.csv", 9),
 ]

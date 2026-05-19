@@ -54,3 +54,9 @@ dist/
 
 # typescript
 .tsbuildinfo
+
+#tests
+server/tests/test_runner.db
+server/tests/test_log.txt
+
+AGENTS.md
