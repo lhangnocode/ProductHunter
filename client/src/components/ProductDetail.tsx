@@ -366,9 +366,9 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Trung bình 30 ngày</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Trung bình 60 ngày</span>
                     <span className="font-mono text-xl font-black text-white/90">
-                      {analysis ? formatPrice(analysis.avg_price_30d) : formatPrice(currentPrice)}
+                      {analysis ? formatPrice(analysis.avg_price_60d) : formatPrice(currentPrice)}
                     </span>
                   </div>
                   <div className="pt-2">
