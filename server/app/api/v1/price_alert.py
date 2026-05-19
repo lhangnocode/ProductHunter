@@ -14,8 +14,7 @@ router = APIRouter()
 
 # Schema dùng riêng cho API Trigger
 class TriggerAlertInput(BaseModel):
-    product_id: UUID
-    current_lowest_price: float
+    product_id: UUID | None = None
 
 
 # 1. API Tạo/Cập nhật cảnh báo (Cũ - Giữ nguyên)
@@ -77,15 +76,15 @@ async def trigger_price_check(
     Kích hoạt hệ thống kiểm tra và gửi email cảnh báo giá.
     (Giả lập việc Crawler vừa cào được giá mới và gọi API này).
     """
-    await price_alert_service.check_and_trigger_alerts(
+    result = await price_alert_service.check_and_trigger_user_alerts(
         db=db,
+        user_id=current_user.id,
+        bg_tasks=bg_tasks,
         product_id=trigger_in.product_id,
-        current_lowest_price=trigger_in.current_lowest_price,
-        bg_tasks=bg_tasks
     )
     
     return {
         "status": "success",
-        "message": f"Đã chạy tiến trình kiểm tra giá cho product_id: {trigger_in.product_id}",
-        "current_lowest_price": trigger_in.current_lowest_price
+        "message": "Đã chạy tiến trình kiểm tra giá cho danh sách cảnh báo.",
+        **result,
     }

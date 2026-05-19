@@ -102,10 +102,12 @@ function AppContent() {
     removeAlert,
     setAlert,
     clearAlerts,
+    triggerPriceCheck,
   } = useUser();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
+  const [isTriggeringAlerts, setIsTriggeringAlerts] = useState(false);
 
   // Tự động khởi động app nếu đã có user (chỉ check 1 lần sau khi restore session xong)
   useEffect(() => {
@@ -117,6 +119,21 @@ function AppContent() {
   const handleProductClick = (product: any) => {
     setSelectedPlatformProduct(product);
     setCurrentPlatformId(product.id);
+  };
+
+  const handleTriggerPriceCheck = async () => {
+    setIsTriggeringAlerts(true);
+    try {
+      await triggerPriceCheck();
+      showToast(t("priceAlertTriggerSuccess"), "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : t("priceAlertTriggerFailed"),
+        "error",
+      );
+    } finally {
+      setIsTriggeringAlerts(false);
+    }
   };
 
   const categories = [
@@ -815,18 +832,30 @@ function AppContent() {
               </div>
 
               {alerts.length > 0 && (
-                <button
-                  onClick={async () => {
-                    if (window.confirm(t("confirmClearAlerts"))) {
-                      await clearAlerts();
-                      showToast("Đã xóa toàn bộ cảnh báo giá", "success");
-                    }
-                  }}
-                  className="flex items-center gap-2.5 rounded-xl bg-white dark:bg-slate-900 px-6 py-3 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:ring-rose-200 dark:hover:ring-rose-800 shadow-sm uppercase tracking-wider"
-                >
-                  <Trash2 size={16} />
-                  {t("clearAll")}
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={handleTriggerPriceCheck}
+                    disabled={isTriggeringAlerts}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-brand-accent px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-brand-accent/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-accent/30 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0"
+                  >
+                    <Zap size={16} />
+                    {isTriggeringAlerts
+                      ? t("checkingPriceAlert")
+                      : t("runPriceCheck")}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm(t("confirmClearAlerts"))) {
+                        await clearAlerts();
+                        showToast("Đã xóa toàn bộ cảnh báo giá", "success");
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-white dark:bg-slate-900 px-6 py-3 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:ring-rose-200 dark:hover:ring-rose-800 shadow-sm uppercase tracking-wider"
+                  >
+                    <Trash2 size={16} />
+                    {t("clearAll")}
+                  </button>
+                </div>
               )}
             </div>
 
