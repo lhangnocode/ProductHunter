@@ -68,7 +68,7 @@ Chức năng tự động thông báo giá theo yêu cầu từ User.
 | `/price_alerts/` | `POST` | Cài đặt thông báo tự động (báo giá/mục tiêu) cho người dùng. | `create_or_update_alert` |
 | `/price_alerts/` | `GET` | Lấy danh sách những thông báo giá mà người dùng hiện tại đang cài đặt. | `get_my_alerts` |
 | `/price_alerts/{product_id}` | `DELETE` | Hủy bỏ thông báo giá đã cài đặt theo mã Sản phẩm. | `delete_price_alert` |
-| `/price_alerts/trigger` | `POST` | Kích hoạt bộ kiểm tra ngầm, lọc lại giá và thông báo nếu có alert thoả mãn điều kiện. | `trigger_price_check` |
+| `/price_alerts/trigger` | `POST` | Kích hoạt kiểm tra toàn bộ alert đang active của user hiện tại; server tự lấy giá thấp nhất hiện tại từ `platform_products` còn hàng rồi gửi thông báo nếu có alert thoả mãn điều kiện. Body: `{}`. | `trigger_price_check` |
 
 ## 8. Wish Lists (`/wish_lists`)
 Quản lý danh mục Sản phẩm Yêu thích.

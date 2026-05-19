@@ -67,6 +67,34 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
    - **Insert/update platform product** in PostgreSQL with the resolved `product_id`.
 6. **Persist CSV snapshots** to `services/crawler/output` for recovery/debug.
 
+## Planned Price Alert Trigger Integration
+This section documents the intended post-crawl alert flow. It is not implemented yet.
+
+After a crawler run completes and updated `platform_products.current_price` values have been persisted, the crawler/server should trigger the existing API once. The API checks the active price-alert list and computes the current lowest in-stock price on the server:
+
+```http
+POST /api/v1/price_alerts/trigger
+```
+
+```json
+{}
+```
+
+Planned flow:
+
+1. Finish persisting updated crawl prices to `platform_products`.
+2. Call `POST /api/v1/price_alerts/trigger` once.
+3. Let the backend iterate through active price alerts and compute `MIN(current_price)` from in-stock platform products for each product.
+4. Let the backend price-alert service evaluate active alerts where `target_price >= current_lowest_price`.
+5. Let the backend queue price-drop emails and mark matched alerts as triggered.
+
+Open implementation decisions:
+
+- Authentication should use a server-to-server credential or API key rather than a normal user token.
+- The trigger should run once per affected product, not once per platform product row, to avoid duplicate alert checks.
+- The crawler should treat alert-trigger failures as non-fatal after DB persistence, but should log enough context to retry later.
+- A future implementation should add tests that verify the post-crawl trigger call and duplicate-prevention behavior.
+
 ## Scheduling
 - Shell wrapper: `services/crawler/run_crawler.sh` runs `python -m services.crawler.main` from the repo root.
 - Cron template: `services/crawler/crawler.cron` schedules daily runs at 1 AM (edit paths before installing).

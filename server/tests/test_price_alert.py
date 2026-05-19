@@ -41,7 +41,6 @@ async def test_trigger_alert_unauthenticated(ac: AsyncClient):
     """Không gửi token → 401."""
     response = await ac.post("/api/v1/price_alerts/trigger", json={
         "product_id": str(uuid.uuid4()),
-        "current_lowest_price": 5000000,
     })
     assert response.status_code == 401
 
@@ -198,10 +197,22 @@ async def test_delete_alert_twice(
 # ============================================================
 @pytest.mark.asyncio
 async def test_trigger_alert_success(
-    ac: AsyncClient, auth_headers: dict, created_product: dict
+    ac: AsyncClient,
+    auth_headers: dict,
+    created_product: dict,
+    created_platform_product: dict,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Trigger price check → 200."""
     product_id = created_product["id"]
+
+    async def _fake_send_price_drop_email_async(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.services.price_alert.send_price_drop_email_async",
+        _fake_send_price_drop_email_async,
+    )
 
     # Tạo alert trước
     await ac.post("/api/v1/price_alerts/", json={
@@ -209,21 +220,21 @@ async def test_trigger_alert_success(
         "target_price": 30000000,
     }, headers=auth_headers)
 
-    # Trigger
-    response = await ac.post("/api/v1/price_alerts/trigger", json={
-        "product_id": product_id,
-        "current_lowest_price": 25000000,
-    }, headers=auth_headers)
+    # Trigger toàn bộ danh sách alert của user hiện tại
+    response = await ac.post("/api/v1/price_alerts/trigger", json={}, headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
+    assert data["checked_products"] == 1
+    assert data["triggered_alerts"] == 1
+    assert data["skipped_without_price"] == 0
 
 
 @pytest.mark.asyncio
-async def test_trigger_alert_missing_fields(ac: AsyncClient, auth_headers: dict):
-    """Thiếu trường bắt buộc → 422."""
-    response = await ac.post("/api/v1/price_alerts/trigger", json={
-        "product_id": str(uuid.uuid4()),
-        # thiếu current_lowest_price
-    }, headers=auth_headers)
-    assert response.status_code == 422
+async def test_trigger_alert_empty_list(ac: AsyncClient, auth_headers: dict):
+    """User chưa có alert → trigger thành công nhưng không kiểm tra sản phẩm nào."""
+    response = await ac.post("/api/v1/price_alerts/trigger", json={}, headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["checked_products"] == 0
+    assert data["triggered_alerts"] == 0

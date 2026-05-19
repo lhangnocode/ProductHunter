@@ -1,12 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from uuid import UUID
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import selectinload
 from app.models.price_alert import PriceAlert
-from app.models.product import Product
-from app.models.user import User
+from app.models.platform_product import PlatformProduct
 from app.schemas.price_alert import PriceAlertCreate
 from app.services.email import send_price_drop_email_async 
 
@@ -83,55 +82,124 @@ async def get_user_alerts(db: AsyncSession, user_id: UUID):
         
     return alerts
 
+async def _get_current_lowest_price(db: AsyncSession, product_id: UUID):
+    stmt_lowest_price = select(func.min(PlatformProduct.current_price)).where(
+        PlatformProduct.product_id == product_id,
+        PlatformProduct.in_stock.is_(True),
+        PlatformProduct.current_price.is_not(None),
+    )
+    result_lowest_price = await db.execute(stmt_lowest_price)
+    return result_lowest_price.scalar_one_or_none()
+
+
+async def check_and_trigger_user_alerts(
+    db: AsyncSession,
+    user_id: UUID,
+    bg_tasks: BackgroundTasks,
+    product_id: UUID | None = None,
+):
+    stmt_alerts = (
+        select(PriceAlert)
+        .options(
+            selectinload(PriceAlert.product),
+            selectinload(PriceAlert.user),
+        )
+        .where(
+            PriceAlert.user_id == user_id,
+            PriceAlert.status == 0,
+        )
+    )
+
+    if product_id is not None:
+        stmt_alerts = stmt_alerts.where(PriceAlert.product_id == product_id)
+
+    result_alerts = await db.execute(stmt_alerts)
+    active_alerts = result_alerts.scalars().all()
+
+    checked_products = 0
+    triggered_alerts = 0
+    skipped_without_price = 0
+
+    for alert in active_alerts:
+        current_lowest_price = await _get_current_lowest_price(db, alert.product_id)
+        if current_lowest_price is None:
+            skipped_without_price += 1
+            continue
+
+        checked_products += 1
+        if alert.target_price < current_lowest_price:
+            continue
+
+        if alert.user and alert.product:
+            bg_tasks.add_task(
+                send_price_drop_email_async,
+                to_email=alert.user.email,
+                product_name=alert.product.normalized_name,
+                current_price=current_lowest_price,
+                target_price=alert.target_price,
+            )
+
+        alert.status = 1
+        triggered_alerts += 1
+
+    await db.commit()
+    return {
+        "checked_products": checked_products,
+        "triggered_alerts": triggered_alerts,
+        "skipped_without_price": skipped_without_price,
+    }
+
 # ==========================================
 #! 2. HÀM DÀNH CHO HỆ THỐNG (Crawler gọi để check)
 # ==========================================
 async def check_and_trigger_alerts(
-    db: AsyncSession, 
-    product_id: UUID, 
-    current_lowest_price: float, 
+    db: AsyncSession,
+    product_id: UUID,
     bg_tasks: BackgroundTasks
 ):
-    # 1. Tìm alerts thỏa mãn (Dùng 문 pháp Async của SQLAlchemy 2.0)
-    stmt_alert = select(PriceAlert).where(
-        PriceAlert.product_id == product_id,
-        PriceAlert.status == 0, # Đang Active
-        PriceAlert.target_price >= current_lowest_price
+    current_lowest_price = await _get_current_lowest_price(db, product_id)
+
+    if current_lowest_price is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy giá hiện tại còn hàng cho sản phẩm này.",
+        )
+
+    stmt_alert = (
+        select(PriceAlert)
+        .options(
+            selectinload(PriceAlert.product),
+            selectinload(PriceAlert.user),
+        )
+        .where(
+            PriceAlert.product_id == product_id,
+            PriceAlert.status == 0, # Đang Active
+            PriceAlert.target_price >= current_lowest_price
+        )
     )
     result_alert = await db.execute(stmt_alert)
     triggered_alerts = result_alert.scalars().all()
 
     if not triggered_alerts:
-        return
-
-    # 2. Lấy thông tin Product
-    stmt_product = select(Product).where(Product.id == product_id)
-    result_product = await db.execute(stmt_product)
-    product = result_product.scalar_one_or_none()
-
-    if not product: return
+        return float(current_lowest_price)
 
     for alert in triggered_alerts:
-        # Lấy thông tin User để lấy email
-        stmt_user = select(User).where(User.id == alert.user_id)
-        result_user = await db.execute(stmt_user)
-        user = result_user.scalar_one_or_none()
-
-        if user:
+        if alert.user and alert.product:
             # 3. Add tác vụ gửi mail vào Background
             bg_tasks.add_task(
                 send_price_drop_email_async,
-                to_email=user.email,
-                product_name=product.normalized_name,
+                to_email=alert.user.email,
+                product_name=alert.product.normalized_name,
                 current_price=current_lowest_price,
                 target_price=alert.target_price
             )
             
-            # 4. Cập nhật trạng thái alert
-            alert.status = 1
+        # 4. Cập nhật trạng thái alert
+        alert.status = 1
     
     # 5. Commit lưu thay đổi status
     await db.commit()
+    return float(current_lowest_price)
 
 async def remove_price_alert(db: AsyncSession, user_id: UUID, product_id: UUID) -> None:
     """
