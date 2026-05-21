@@ -152,7 +152,7 @@ async def push_price_records_batch(
 
 @router.get("/price-analysis/{platform_product_id}")
 async def get_price_analysis(
-    platform_product_id: str, 
+    platform_product_id: UUID,
     current_price: float, 
     original_price: float, 
     db: AsyncSession = Depends(get_db)

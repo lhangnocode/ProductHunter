@@ -166,7 +166,7 @@ async def created_platform_product(created_platform: dict, created_product: dict
         from app.models.platform_product import PlatformProduct
         pp = PlatformProduct(
             id=pp_id,
-            product_id=created_product["id"],
+            product_id=uuid.UUID(created_product["id"]),
             platform_id=created_platform["id"],
             raw_name="iPhone 15 Pro Max - Shopee",
             original_item_id="shopee_ip15_001",
