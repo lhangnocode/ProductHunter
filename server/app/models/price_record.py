@@ -1,11 +1,16 @@
-from sqlalchemy import Column, BigInteger, Numeric, Boolean, TIMESTAMP, ForeignKey, func
+from sqlalchemy import Column, BigInteger, Integer, Numeric, Boolean, TIMESTAMP, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.session import Base
 
 class PriceRecord(Base):
     __tablename__ = "price_records"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True, index=True)
+    id = Column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+        index=True,
+    )
     
     platform_product_id = Column(
         UUID(as_uuid=True), 

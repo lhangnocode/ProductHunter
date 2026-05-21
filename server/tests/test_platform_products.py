@@ -139,5 +139,5 @@ async def test_get_trending_with_limit(mock_trending, ac: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_trending_invalid_limit(ac: AsyncClient):
     """Limit vượt quá max → 422."""
-    response = await ac.get("/api/v1/platform_products/platform-products/trending?limit=100")
+    response = await ac.get("/api/v1/platform_products/platform-products/trending?limit=101")
     assert response.status_code == 422
