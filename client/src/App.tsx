@@ -591,33 +591,7 @@ function AppContent() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="relative group">
-                      <select
-                        value={sortBy}
-                        onChange={(e) =>
-                          setSortBy(e.target.value as SortOption)
-                        }
-                        className="appearance-none rounded-xl bg-white dark:bg-slate-900 px-5 py-2.5 pr-10 text-[11px] font-black text-slate-700 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary shadow-sm uppercase tracking-wider"
-                      >
-                        <option value="trending">{t("trending")}</option>
-                        <option value="price-asc">{t("priceLowToHigh")}</option>
-                        <option value="price-desc">
-                          {t("priceHighToLow")}
-                        </option>
-                        <option value="rating">{t("rating")}</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 group-hover:text-brand-primary transition-colors" />
-                    </div>
-
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 transition-all border border-transparent hover:border-rose-200"
-                      title={t("clearSearch")}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
+                  
                 </div>
 
                 <motion.div
