@@ -45,6 +45,7 @@ import {
   searchProducts,
   fetchCompareGroups,
 } from "./services/price_record_api";
+import { Pagination } from './components/Pagination';
 
 type Tab = "search" | "trending" | "wishlist" | "alerts";
 type SortOption = "trending" | "price-asc" | "price-desc" | "rating";
@@ -150,32 +151,76 @@ function AppContent() {
   >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPlatformId, setCurrentPlatformId] = useState<string>("");
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  // fixed page size per user request
+  const [pageSize] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [totalElements, setTotalElements] = useState<number>(0);
 
   useEffect(() => {
     let ignore = false;
+    
     const fetchSearchData = async () => {
       const query = searchQuery.trim();
       if (!query || query.length < 2) {
-        if (!ignore) setPlatformProducts([]);
+        if (!ignore) {
+          setPlatformProducts([]);
+          setTotalElements(0);
+          setTotalPages(0);
+        }
         return;
       }
+      
       try {
         if (!ignore) setIsLoading(true);
-        const data = await searchProducts(query);
-        if (!ignore) {
-          setPlatformProducts(data); // Lưu vào platformProducts
-        }
+        
+        // Gọi API 1 lần duy nhất
+        const data = await searchProducts(query, currentPage, pageSize);
+        if (ignore) return;
+
+        const items = Array.isArray(data.items) ? data.items : [];
+        
+        // TÌM VÀ GÁN TRỰC TIẾP TỪ METADATA CỦA BACKEND
+        // Giả sử backend trả về trường total_pages hoặc total_elements
+        const fetchedTotalElements = Number(data.total_elements || 0);
+        
+        // Nếu API có trả total_pages thì dùng, không thì tự chia (total_elements / pageSize)
+        const fetchedTotalPages = Number(data.total_pages || Math.ceil(fetchedTotalElements / pageSize) || 1);
+
+        console.debug('[App] API Response:', { currentPage, fetchedTotalPages, fetchedTotalElements });
+
+        setPlatformProducts(items);
+        setCurrentPage(Number(data.page || currentPage));
+        setTotalElements(fetchedTotalElements);
+        setTotalPages(fetchedTotalPages); // Gán thẳng số trang Backend báo về
+
       } catch (error) {
         if (!ignore) console.error("Lỗi truy vấn DB:", error);
       } finally {
         if (!ignore) setIsLoading(false);
       }
     };
+
     const timer = setTimeout(fetchSearchData, 500);
     return () => {
       ignore = true;
       clearTimeout(timer);
     };
+  }, [searchQuery, currentPage, pageSize]);
+
+  // Auto-reset to page 1 if current page returns empty items (no data for that page)
+  useEffect(() => {
+    if (currentPage > 1 && platformProducts.length === 0 && !isLoading) {
+      console.debug('[App] page', currentPage, 'is empty - resetting to page 1');
+      showToast('Không còn dữ liệu ở trang này. Quay về trang 1.', 'info');
+      setCurrentPage(1);
+    }
+  }, [platformProducts.length, currentPage, isLoading]);
+
+  // When user types a new query, reset to page 1
+  useEffect(() => {
+    setCurrentPage(1);
   }, [searchQuery]);
 
   // 3. Cập nhật useMemo
@@ -587,13 +632,11 @@ function AppContent() {
                       </span>
                     </h2>
                     <p className="mt-0.5 text-[11px] font-bold text-slate-400">
-                      {searchResults.length} {t("products")} {t("found")}
+                      {totalElements} {t("products")} {t("found")} • Showing {platformProducts.length}
                     </p>
                   </div>
-
-                  
+                
                 </div>
-
                 <motion.div
                   variants={containerVariants}
                   initial="hidden"
@@ -625,6 +668,13 @@ function AppContent() {
                     </motion.div>
                   ))}
                 </motion.div>
+
+                {/* Pagination */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(p) => setCurrentPage(p)}
+                />
 
                 {searchResults.length === 0 && (
                   <motion.div

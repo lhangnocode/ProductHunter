@@ -68,7 +68,7 @@ async def get_all_platform_products(
     try:
         stmt = (
             select(PlatformProduct)
-            .order_by(PlatformProduct.id.desc())
+            .order_by(PlatformProduct.original_price.asc(), PlatformProduct.id.desc())
             .limit(limit)
             .offset(offset)
         )

@@ -43,36 +43,58 @@ export async function searchPlatformProducts(productId: string): Promise<any[]> 
   }));
 }
 
-export async function searchProducts(name: string): Promise<any[]> {
+export interface SearchResponse {
+  items: any[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export async function searchProducts(
+  name: string,
+  page = 1,
+  size = 24,
+): Promise<SearchResponse> {
   try {
-    const url = `${CONFIG.API_URL}/products/search?q=${encodeURIComponent(name)}`;
-    console.debug('[searchProducts] requesting', url);
+    const url = `${CONFIG.API_URL}/products/search?q=${encodeURIComponent(
+      name,
+    )}&page=${page}&size=${size}`;
+    console.debug("[searchProducts] requesting", url);
     const response = await fetch(url);
-    console.debug('[searchProducts] status', response.status);
+    console.debug("[searchProducts] status", response.status);
     if (!response.ok) {
       console.error(`Search API failed with status: ${response.status}`);
-      return []; 
+      return { items: [], page, size, total_elements: 0, total_pages: 0 };
     }
 
     const result = await response.json();
-    console.debug('[searchProducts] response body', result);
+    console.debug("[searchProducts] response body", result);
 
-    if (Array.isArray(result)) {
-      return result;
-    }
+    // Backend may return a paged envelope: { page, size, total_elements, total_pages, data: [...] }
+    const items = Array.isArray(result)
+      ? result
+      : Array.isArray(result.data)
+      ? result.data
+      : Array.isArray(result.items)
+      ? result.items
+      : [];
 
-    if (result && Array.isArray(result.data)) {
-      return result.data;
-    }
+    const pageNum = Number(result.page ?? result.page_number ?? page) || page;
+    const pageSize = Number(result.size ?? result.page_size ?? size) || size;
+    const totalElements = Number(result.total_elements ?? result.total ?? 0) || 0;
+    const totalPages = Number(result.total_pages ?? result.totalPages ?? Math.ceil(totalElements / pageSize)) || 0;
 
-    if (result && Array.isArray(result.items)) {
-      return result.items;
-    }
-    console.warn("API search trả về định dạng lạ:", result);
-    return [];
+    return {
+      items,
+      page: pageNum,
+      size: pageSize,
+      total_elements: totalElements,
+      total_pages: totalPages,
+    };
   } catch (error) {
-    console.error('Lỗi khi gọi searchPlatformProducts:', error);
-    return []; 
+    console.error("Lỗi khi gọi searchProducts:", error);
+    return { items: [], page, size, total_elements: 0, total_pages: 0 };
   }
 }
 
