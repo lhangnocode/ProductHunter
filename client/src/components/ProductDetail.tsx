@@ -495,8 +495,15 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                       <span className="text-lg font-black text-slate-950 dark:text-white font-display block">{platformName}</span>
                       <p className="text-[11px] font-bold text-slate-400">Giá: {formatPrice(currentPrice)}</p>
                     </div>
-                  </div>
-                  <ChevronDown size={20} className={`text-slate-500 transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`} />
+                  </div>        
+                   {/* Current Platform Info */}
+                  {!platformsLoading && allPlatformProducts.length > 0 && (
+                    <div className="p-6 ">
+                      <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
+                        {t('goToSeller')}
+                      </a>
+                    </div>
+              )}
                 </div>
 
                 {/* Platform Options Dropdown */}
@@ -579,15 +586,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                 </div>
               )}
 
-              {/* Current Platform Info */}
-              {!platformsLoading && allPlatformProducts.length > 0 && (
-              <div className="p-6 ">
-                
-                <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
-                  {t('goToSeller')}
-                </a>
-              </div>
-              )}
+            
             </section>
 
             <section>
