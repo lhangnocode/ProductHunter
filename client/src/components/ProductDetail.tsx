@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { formatDisplayName } from '../lib/utils';
 import { createPortal } from 'react-dom';
 import { PriceChart } from './PriceChart';
@@ -8,7 +8,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext'; // Thêm useUser
 import { useToast } from './Toast'; // Thêm useToast
-import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProductsByProductId, PlatformProduct } from '../services/price_record_api';
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchCompareGroups, PlatformProduct } from '../services/price_record_api';
+import { Pagination } from './Pagination';
 
 interface ProductDetailProps {
   product: any; 
@@ -29,6 +30,11 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   const [allPlatformProducts, setAllPlatformProducts] = useState<PlatformProduct[]>([]);
   const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<PlatformProduct | null>(null);
   const [platformsLoading, setPlatformsLoading] = useState(true);
+  // Pagination for compare platforms
+  const [comparePage, setComparePage] = useState<number>(1);
+  // fixed compare page size per user request
+  const [comparePageSize] = useState<number>(5);
+  const [compareTotalPages, setCompareTotalPages] = useState<number>(0);
 
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
@@ -98,28 +104,94 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   // When it's a PlatformProduct: platformProduct.product_id = product_id
 
   useEffect(() => {
-    async function loadPlatformProducts() {
-      setPlatformsLoading(true);
-      try {
-        const productId = platformProduct?.product_id || platformProduct?.id;
-        if (!productId || !isValidUUID(String(productId))) {
-          console.warn('ID không hợp lệ, bỏ qua API:', productId);
-          return;
-        }
-        const platforms = await fetchPlatformProductsByProductId(productId);
-        setAllPlatformProducts(platforms);
-        if (platforms.length > 0) {
-          const matching = platforms.find(p => p.id === initialPlatformId);
-          setSelectedPlatformProduct(matching || platforms[0]);
-        }
-      } catch (err) {
-        console.error('Lỗi khi fetch platform products:', err);
-      } finally {
-        setPlatformsLoading(false);
+  async function loadPlatformProducts() {
+    setPlatformsLoading(true);
+    try {
+      // 1. Lấy query an toàn
+      const query =
+        product?.normalized_name ||
+        product?.product_name ||
+        platformProduct?.raw_name ||
+        platformProduct?.normalized_name ||
+        platformProduct?.slug ||
+        '';
+
+      if (!query || String(query).trim().length < 2) {
+        console.warn('Không có query hợp lệ để gọi API compare:', query);
+        return; // finally vẫn sẽ chạy để tắt loading
       }
+
+      const groups = await fetchCompareGroups(String(query));
+      let matchingGroup: any = null;
+
+      if (Array.isArray(groups) && groups.length > 0) {
+        matchingGroup = groups.find((g: any) => String(g.id) === String(product?.id)) || groups[0];
+      }
+
+      const platformsRaw = matchingGroup && Array.isArray(matchingGroup.platforms) ? matchingGroup.platforms : [];
+      
+      const platforms: PlatformProduct[] = platformsRaw.map((pp: any, idx: number) => ({
+        id: `${String(product?.id || 'p')}-${String(pp.platform_id ?? 'x')}-${idx}`,
+        product_id: product?.id || platformProduct?.product_id || null,
+        platform_id: pp.platform_id ?? null,
+        raw_name: pp.raw_name ?? pp.product_name ?? product?.product_name ?? product?.normalized_name ?? '',
+        current_price: pp.current_price != null ? parseFloat(String(pp.current_price)) : null,
+        original_price: pp.original_price != null ? parseFloat(String(pp.original_price)) : null,
+        url: pp.url ?? pp.affiliate_url ?? null,
+        affiliate_url: pp.affiliate_url ?? null,
+        in_stock: pp.in_stock ?? null,
+        main_image_url: pp.main_image_url ?? matchingGroup?.main_image_url ?? product?.main_image_url ?? null,
+        last_crawled_at: pp.last_crawled_at ?? null,
+      }));
+
+      // 2. Cập nhật State
+      setAllPlatformProducts(platforms);
+      
+      // Reset về trang 1 mỗi khi fetch data mới
+      setComparePage(1);
+      
+      // Đề phòng comparePageSize = 0 gây lỗi chia cho 0 (NaN/Infinity)
+      const safePageSize = comparePageSize > 0 ? comparePageSize : 10;
+      setCompareTotalPages(Math.ceil(platforms.length / safePageSize) || 0);
+
+      if (platforms.length > 0) {
+        const matching = platforms.find(
+          (p: any) => p.id === initialPlatformId || String(p.product_id) === String(platformProduct?.product_id)
+        );
+        setSelectedPlatformProduct(matching || platforms[0]);
+      }
+    } catch (err) {
+      console.error('Lỗi khi fetch platform products:', err);
+    } finally {
+      setPlatformsLoading(false);
     }
-    loadPlatformProducts();
-  }, [platformProduct?.product_id || platformProduct?.id, initialPlatformId]);
+  }
+
+  loadPlatformProducts();
+  
+  // 3. Đã sửa lại Dependency Array, bỏ dấu || và thêm các biến phụ thuộc
+}, [
+  product?.id, 
+  product?.normalized_name, 
+  product?.product_name,
+  platformProduct?.id,
+  platformProduct?.product_id, 
+  platformProduct?.raw_name,
+  platformProduct?.normalized_name,
+  platformProduct?.slug,
+  initialPlatformId,
+  comparePageSize // Thêm comparePageSize vì nó ảnh hưởng đến logic setCompareTotalPages
+]);
+
+  // Recompute total pages whenever the list length or page size changes
+  useEffect(() => {
+    const pages = Math.max(1, Math.ceil(allPlatformProducts.length / comparePageSize));
+    console.debug('[ProductDetail] recompute pages', { total: allPlatformProducts.length, comparePageSize, pages, comparePage });
+    setCompareTotalPages(pages);
+  }, [allPlatformProducts.length, comparePageSize]);
+
+  // Auto-reset to page 1 if current page is empty (no more platforms)
+  // NOTE: effect referencing `pagedPlatforms` will be declared after `pagedPlatforms` is defined.
 
   // HÀM XỬ LÝ LƯU CẢNH BÁO GIÁ
   const handleSaveAlert = async () => {
@@ -225,6 +297,12 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
     setShowPlatformSelector(false);
   };
 
+  // derive paged platforms for display
+  const pagedPlatforms = useMemo(() => {
+    if (!allPlatformProducts || allPlatformProducts.length === 0) return [];
+    const start = (comparePage - 1) * comparePageSize;
+    return allPlatformProducts.slice(start, start + comparePageSize);
+  }, [allPlatformProducts, comparePage, comparePageSize]);
   
 
   return (
@@ -405,8 +483,8 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
               {/* Platform Selector - chỉ show khi đã load xong */}
               {!platformsLoading && allPlatformProducts.length > 0 && (
               <div className="relative mb-6">
-                <button
-                  onClick={() => setShowPlatformSelector(!showPlatformSelector)}
+                <div
+                
                   className="w-full p-6 rounded-3xl bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between hover:border-brand-primary/40 transition-colors"
                 >
                   <div className="flex items-center gap-5">
@@ -419,7 +497,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                     </div>
                   </div>
                   <ChevronDown size={20} className={`text-slate-500 transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`} />
-                </button>
+                </div>
 
                 {/* Platform Options Dropdown */}
                 {showPlatformSelector && allPlatformProducts.length > 0 && (
@@ -455,6 +533,50 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                   </motion.div>
                 )}
               </div>
+              )}
+
+              {/* Paginated platform cards */}
+              {!platformsLoading && allPlatformProducts.length > 0 && (
+                <div className="mt-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {pagedPlatforms.map((p) => (
+                      <div key={p.id} className="relative flex items-center justify-between rounded-2xl border p-4 bg-white dark:bg-slate-900 hover:shadow-lg transition-shadow">
+                        {/* floating choose badge */}
+                        <button
+                          onClick={() => handleSelectPlatform(p)}
+                          aria-label={`Chọn nền tảng ${getPlatformName(p.platform_id)}`}
+                          className="absolute -top-3 right-3 z-10 rounded-full bg-amber-500 text-white px-3 py-1 text-xs font-black shadow-lg hover:scale-105 transition-transform"
+                        >
+                          Chọn
+                        </button>
+
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className={`flex h-14 w-14 items-center justify-center rounded-lg text-white font-bold text-lg bg-gradient-to-br ${p.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : p.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                            {getPlatformName(p.platform_id).charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            {/* platform and seller text removed per UI request */}
+                            {/* product name removed as per UI request */}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="text-right">
+                            <div className="text-xl font-black text-emerald-600 tracking-tight">{formatPrice(Number(p.current_price) || 0)}</div>
+                            {/* original price removed from UI */}
+                          </div>
+                          <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-slate-500 hover:underline">Mua ngay</a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Pagination
+                    currentPage={comparePage}
+                    totalPages={compareTotalPages}
+                    onPageChange={(p) => setComparePage(p)}
+                  />
+                </div>
               )}
 
               {/* Current Platform Info */}
