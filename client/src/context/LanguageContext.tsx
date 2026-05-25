@@ -192,7 +192,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>(() => {
     const saved = localStorage.getItem('language');
     if (saved === 'vi' || saved === 'en') return saved;
-    return 'vi';
+    return 'en';
   });
 
   useEffect(() => {
