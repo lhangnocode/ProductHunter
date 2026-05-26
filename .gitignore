@@ -60,3 +60,9 @@ server/tests/test_runner.db
 server/tests/test_log.txt
 
 AGENTS.md
+
+#db
+server/test_runner.db
+*.db
+*.sqlite
+*.sqlite3
