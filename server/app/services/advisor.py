@@ -35,6 +35,10 @@ class AdvisorProviderError(RuntimeError):
     pass
 
 
+class AdvisorRetrievalError(RuntimeError):
+    pass
+
+
 @dataclass
 class OfferContext:
     platform: str
@@ -75,7 +79,9 @@ def _compact_query(message: str) -> str:
         "toi", "tôi", "can", "cần", "muon", "muốn", "mua", "nen", "nên",
         "chon", "chọn", "recommend", "recommendation", "advise", "advice",
         "under", "duoi", "dưới", "vnd", "dong", "đồng", "cho", "minh",
-        "please", "product", "san", "sản", "pham", "phẩm",
+        "please", "product", "san", "sản", "pham", "phẩm", "de", "đề",
+        "xuat", "xuất", "co", "có", "gia", "giá", "tu", "từ", "trong",
+        "khoang", "khoảng",
     }
     useful = [word for word in words if word.lower() not in stop_words]
     return " ".join(useful[:8]) or message.strip()
@@ -110,12 +116,16 @@ async def _retrieve_products(request: AdvisorChatRequest, db: AsyncSession) -> l
     else:
         query = _compact_query(request.message)
 
-    products, _ = await search_product(
-        query=query,
-        db=db,
-        limit=max(1, settings.ADVISOR_MAX_CONTEXT_PRODUCTS),
-        page=1,
-    )
+    try:
+        products, _ = await search_product(
+            query=query,
+            db=db,
+            limit=max(1, settings.ADVISOR_MAX_CONTEXT_PRODUCTS),
+            page=1,
+        )
+    except Exception as exc:
+        logger.exception("Advisor product retrieval failed. query=%s", query)
+        raise AdvisorRetrievalError("Advisor product retrieval failed") from exc
     return products[: settings.ADVISOR_MAX_CONTEXT_PRODUCTS]
 
 
@@ -306,6 +316,9 @@ async def call_qwen(request: AdvisorChatRequest, contexts: list[ProductContext])
     except httpx.HTTPError as exc:
         logger.exception("Qwen advisor request failed")
         raise AdvisorProviderError("Qwen advisor request failed") from exc
+    except ValueError as exc:
+        logger.exception("Qwen advisor returned a non-JSON response")
+        raise AdvisorProviderError("Qwen advisor returned a non-JSON response") from exc
 
     try:
         content = data["choices"][0]["message"]["content"]
@@ -354,7 +367,14 @@ def _sources(contexts: list[ProductContext]) -> list[AdvisorSource]:
 async def answer_advisor_chat(request: AdvisorChatRequest, db: AsyncSession) -> AdvisorChatResponse:
     contexts = await build_advisor_context(request, db)
     if contexts:
-        answer = await call_qwen(request, contexts)
+        try:
+            answer = await call_qwen(request, contexts)
+        except AdvisorConfigurationError:
+            logger.warning("Qwen advisor key is not configured; returning deterministic advisor fallback")
+            answer = _fallback_answer(request, contexts)
+        except AdvisorProviderError:
+            logger.exception("Qwen advisor failed; returning deterministic advisor fallback")
+            answer = _fallback_answer(request, contexts)
     else:
         answer = _fallback_answer(request, contexts)
 
