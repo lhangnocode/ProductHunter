@@ -88,7 +88,7 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[70]">
+    <div className="fixed bottom-5 right-5 z-[70] selection:bg-slate-900 selection:text-white dark:selection:bg-white dark:selection:text-slate-950">
       <AnimatePresence>
         {isOpen && (
           <motion.div
