@@ -6,7 +6,6 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-import httpx
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,6 +22,11 @@ from app.schemas.advisor import (
     AdvisorRecommendation,
     AdvisorSource,
 )
+from app.services.qwen_client import (
+    AdvisorCircuitOpenError,
+    AdvisorProviderError as _QwenProviderError,
+    call_qwen_with_resilience,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +35,8 @@ class AdvisorConfigurationError(RuntimeError):
     pass
 
 
-class AdvisorProviderError(RuntimeError):
-    pass
+# Re-export so call-sites keep using the same name
+AdvisorProviderError = _QwenProviderError
 
 
 class AdvisorRetrievalError(RuntimeError):
@@ -498,6 +502,12 @@ def _fallback_answer(request: AdvisorChatRequest, contexts: list[ProductContext]
 
 
 async def call_qwen(request: AdvisorChatRequest, contexts: list[ProductContext]) -> str:
+    """
+    Gọi Qwen API với Retry (exponential backoff + jitter), Fallback Model
+    (qwen-plus → qwen-flash) và Circuit Breaker.
+
+    Delegates toàn bộ logic resilience sang ``qwen_client.call_qwen_with_resilience``.
+    """
     if not settings.DASHSCOPE_API_KEY:
         raise AdvisorConfigurationError("DASHSCOPE_API_KEY is not configured")
 
@@ -518,41 +528,21 @@ async def call_qwen(request: AdvisorChatRequest, contexts: list[ProductContext])
     )
     messages.append({"role": "user", "content": request.message})
 
+    # Payload KHÔNG chứa "model" — qwen_client sẽ inject model phù hợp
+    # theo từng attempt (qwen-plus hoặc qwen-flash).
     payload = {
-        "model": settings.QWEN_MODEL,
         "messages": messages,
         "temperature": 0.2,
         "max_tokens": 900,
     }
     url = settings.QWEN_BASE_URL.rstrip("/") + "/chat/completions"
 
-    try:
-        async with httpx.AsyncClient(timeout=settings.QWEN_TIMEOUT_SECONDS) as client:
-            response = await client.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {settings.DASHSCOPE_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            response.raise_for_status()
-            data = response.json()
-    except httpx.HTTPError as exc:
-        logger.exception("Qwen advisor request failed")
-        raise AdvisorProviderError("Qwen advisor request failed") from exc
-    except ValueError as exc:
-        logger.exception("Qwen advisor returned a non-JSON response")
-        raise AdvisorProviderError("Qwen advisor returned a non-JSON response") from exc
-
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise AdvisorProviderError("Qwen advisor returned an invalid response") from exc
-
-    if not isinstance(content, str) or not content.strip():
-        raise AdvisorProviderError("Qwen advisor returned an empty response")
-    return content.strip()
+    return await call_qwen_with_resilience(
+        url=url,
+        api_key=settings.DASHSCOPE_API_KEY,
+        payload=payload,
+        timeout=float(settings.QWEN_TIMEOUT_SECONDS),
+    )
 
 
 def _recommendations(contexts: list[ProductContext]) -> list[AdvisorRecommendation]:
@@ -597,8 +587,12 @@ async def answer_advisor_chat(request: AdvisorChatRequest, db: AsyncSession) -> 
         except AdvisorConfigurationError:
             logger.warning("Qwen advisor key is not configured; returning deterministic advisor fallback")
             answer = _fallback_answer(request, contexts)
+        except AdvisorCircuitOpenError:
+            # Circuit Breaker đang mở — fail nhanh, không log stack trace
+            logger.warning("Qwen Circuit Breaker OPEN; returning deterministic advisor fallback")
+            answer = _fallback_answer(request, contexts)
         except AdvisorProviderError:
-            logger.exception("Qwen advisor failed; returning deterministic advisor fallback")
+            logger.exception("Qwen advisor failed after all retries; returning deterministic advisor fallback")
             answer = _fallback_answer(request, contexts)
     else:
         answer = _fallback_answer(request, contexts)
