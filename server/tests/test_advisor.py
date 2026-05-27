@@ -4,6 +4,43 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.services.advisor import _offer_matches_price, _parse_intent, OfferContext
+
+
+def test_advisor_intent_parses_brand_category_and_price_range():
+    intent = _parse_intent("Recommend Samsung phones priced from 10 to 12 million VND")
+
+    assert intent.brand == "Samsung"
+    assert "mobile" in intent.category_keywords
+    assert intent.min_price == 10000000.0
+    assert intent.max_price == 12000000.0
+
+
+def test_advisor_offer_price_filter_matches_requested_budget():
+    intent = _parse_intent("đề xuất điện thoại Samsung giá từ 10-12 triệu")
+
+    assert _offer_matches_price(
+        OfferContext(
+            platform="Test",
+            price=11000000.0,
+            original_price=None,
+            url=None,
+            in_stock=True,
+            last_crawled_at=None,
+        ),
+        intent,
+    )
+    assert not _offer_matches_price(
+        OfferContext(
+            platform="Test",
+            price=309000.0,
+            original_price=None,
+            url=None,
+            in_stock=True,
+            last_crawled_at=None,
+        ),
+        intent,
+    )
 
 
 @pytest.mark.asyncio

@@ -62,6 +62,45 @@ class ProductContext:
     offers: list[OfferContext]
 
 
+@dataclass
+class AdvisorIntent:
+    query: str
+    brand: str | None
+    category_keywords: list[str]
+    min_price: float | None
+    max_price: float | None
+
+
+BRAND_ALIASES = {
+    "samsung": "Samsung",
+    "apple": "Apple",
+    "iphone": "Apple",
+    "xiaomi": "Xiaomi",
+    "redmi": "Xiaomi",
+    "poco": "Xiaomi",
+    "oppo": "OPPO",
+    "vivo": "Vivo",
+    "realme": "Realme",
+    "nokia": "Nokia",
+    "nubia": "Nubia",
+    "lenovo": "Lenovo",
+    "asus": "Asus",
+    "acer": "Acer",
+    "dell": "Dell",
+    "hp": "HP",
+    "msi": "MSI",
+    "prolink": "ProLink",
+}
+
+PHONE_KEYWORDS = ["phone", "phones", "mobile", "smartphone", "điện", "thoại", "dien", "thoai"]
+CATEGORY_KEYWORD_MAP = {
+    "phone": [
+        "phone", "mobile", "smartphone", "điện thoại", "dien thoai",
+        "galaxy", "iphone", "redmi", "poco", "oppo", "vivo", "realme",
+    ],
+}
+
+
 def _to_float(value: Any) -> float | None:
     if value is None:
         return None
@@ -87,6 +126,71 @@ def _compact_query(message: str) -> str:
     return " ".join(useful[:8]) or message.strip()
 
 
+def _parse_price_token(raw_value: str, unit: str | None) -> float:
+    value = float(raw_value.replace(",", "."))
+    unit_value = (unit or "").lower()
+    if unit_value in {"tr", "triệu", "trieu", "million", "m"}:
+        return value * 1_000_000
+    if unit_value in {"k", "nghìn", "nghin", "thousand"}:
+        return value * 1_000
+    return value
+
+
+def _parse_price_range(message: str) -> tuple[float | None, float | None]:
+    normalized = message.lower()
+    range_match = re.search(
+        r"(\d+(?:[.,]\d+)?)\s*(?:-|–|to|đến|den|tới|toi)\s*(\d+(?:[.,]\d+)?)\s*(tr|triệu|trieu|million|m|k|nghìn|nghin)?",
+        normalized,
+    )
+    if range_match:
+        unit = range_match.group(3)
+        return (
+            _parse_price_token(range_match.group(1), unit),
+            _parse_price_token(range_match.group(2), unit),
+        )
+
+    under_match = re.search(
+        r"(?:under|below|dưới|duoi|<=?)\s*(\d+(?:[.,]\d+)?)\s*(tr|triệu|trieu|million|m|k|nghìn|nghin)?",
+        normalized,
+    )
+    if under_match:
+        return None, _parse_price_token(under_match.group(1), under_match.group(2))
+
+    over_match = re.search(
+        r"(?:over|above|trên|tren|từ|tu|>=?)\s*(\d+(?:[.,]\d+)?)\s*(tr|triệu|trieu|million|m|k|nghìn|nghin)?",
+        normalized,
+    )
+    if over_match:
+        return _parse_price_token(over_match.group(1), over_match.group(2)), None
+
+    return None, None
+
+
+def _parse_intent(message: str, context_query: str | None = None) -> AdvisorIntent:
+    combined = f"{message} {context_query or ''}".lower()
+    brand = None
+    for alias, canonical in BRAND_ALIASES.items():
+        if re.search(rf"(^|[^\wÀ-ỹ]){re.escape(alias)}([^\wÀ-ỹ]|$)", combined, flags=re.UNICODE):
+            brand = canonical
+            break
+
+    category_keywords: list[str] = []
+    if any(keyword in combined for keyword in PHONE_KEYWORDS):
+        category_keywords = CATEGORY_KEYWORD_MAP["phone"]
+
+    min_price, max_price = _parse_price_range(combined)
+    query = context_query.strip() if context_query and context_query.strip() else _compact_query(message)
+    if brand and brand.lower() not in query.lower():
+        query = f"{brand} {query}"
+    return AdvisorIntent(
+        query=query,
+        brand=brand,
+        category_keywords=category_keywords,
+        min_price=min_price,
+        max_price=max_price,
+    )
+
+
 async def _products_by_ids(product_ids: list[UUID], db: AsyncSession) -> list[Product]:
     if not product_ids:
         return []
@@ -103,76 +207,137 @@ async def _products_by_ids(product_ids: list[UUID], db: AsyncSession) -> list[Pr
     return list(result.scalars().unique().all())
 
 
-async def _postgres_product_search(query: str, db: AsyncSession, limit: int) -> list[Product]:
-    query_value = query.strip()
+async def _postgres_product_search(intent: AdvisorIntent, db: AsyncSession, limit: int) -> list[Product]:
+    query_value = intent.query.strip()
     if not query_value:
         return []
 
-    conditions = [
-        Product.normalized_name.ilike(f"%{query_value}%"),
-        Product.product_name.ilike(f"%{query_value}%"),
-        Product.brand.ilike(f"%{query_value}%"),
-        Product.category.ilike(f"%{query_value}%"),
-    ]
+    text_conditions = []
+
+    if intent.brand:
+        text_conditions.extend(
+            [
+                Product.brand.ilike(f"%{intent.brand}%"),
+                Product.normalized_name.ilike(f"%{intent.brand}%"),
+                Product.product_name.ilike(f"%{intent.brand}%"),
+            ]
+        )
 
     tokens = [token for token in re.findall(r"[\wÀ-ỹ]+", query_value, flags=re.UNICODE) if len(token) >= 2]
     for token in tokens[:6]:
-        conditions.extend(
-            [
+        token_lower = token.lower()
+        if token_lower in {
+            "recommend", "priced", "price", "from", "million", "triệu", "trieu",
+            "đề", "xuat", "xuất", "cho", "toi", "tôi", "vnd", "dong", "đồng",
+        }:
+            continue
+        text_conditions.append(
+            or_(
                 Product.normalized_name.ilike(f"%{token}%"),
                 Product.product_name.ilike(f"%{token}%"),
                 Product.brand.ilike(f"%{token}%"),
                 Product.category.ilike(f"%{token}%"),
-            ]
+            )
         )
+
+    if intent.category_keywords:
+        category_conditions = []
+        for keyword in intent.category_keywords:
+            category_conditions.extend(
+                [
+                    Product.normalized_name.ilike(f"%{keyword}%"),
+                    Product.product_name.ilike(f"%{keyword}%"),
+                    Product.category.ilike(f"%{keyword}%"),
+                ]
+            )
+        text_conditions.append(or_(*category_conditions))
+
+    if not text_conditions:
+        text_conditions = [
+            Product.normalized_name.ilike(f"%{query_value}%"),
+            Product.product_name.ilike(f"%{query_value}%"),
+        ]
 
     result = await db.execute(
         select(Product)
         .options(selectinload(Product.platform_products).selectinload(PlatformProduct.platform))
-        .where(or_(*conditions))
-        .limit(limit)
+        .where(or_(*text_conditions))
+        .limit(max(limit * 8, 40))
     )
     return list(result.scalars().unique().all())
 
 
+def _product_matches_intent(product: Product, intent: AdvisorIntent) -> bool:
+    product_text = " ".join(
+        str(value or "").lower()
+        for value in [
+            product.normalized_name,
+            product.product_name,
+            product.brand,
+            product.category,
+        ]
+    )
+    if intent.brand and intent.brand.lower() not in product_text:
+        return False
+    if intent.category_keywords and not any(keyword.lower() in product_text for keyword in intent.category_keywords):
+        return False
+    return True
+
+
+def _offer_matches_price(offer: OfferContext, intent: AdvisorIntent) -> bool:
+    if offer.price is None:
+        return False
+    if intent.min_price is not None and offer.price < intent.min_price:
+        return False
+    if intent.max_price is not None and offer.price > intent.max_price:
+        return False
+    return True
+
+
 async def _retrieve_products(request: AdvisorChatRequest, db: AsyncSession) -> list[Product]:
     context = request.context
+    context_query = context.search_query if context and context.search_query else None
+    intent = _parse_intent(request.message, context_query)
     if context and context.product_id:
         try:
             products = await _products_by_ids([context.product_id], db)
+            products = [product for product in products if _product_matches_intent(product, intent)]
             if products:
                 return products
         except Exception:
             logger.exception("Advisor product lookup by id failed. product_id=%s", context.product_id)
             await db.rollback()
 
-    query = ""
-    if context and context.search_query and context.search_query.strip():
-        query = context.search_query.strip()
-    else:
-        query = _compact_query(request.message)
-
+    products: list[Product] = []
     try:
         products, _ = await search_product(
-            query=query,
+            query=intent.query,
             db=db,
-            limit=max(1, settings.ADVISOR_MAX_CONTEXT_PRODUCTS),
+            limit=max(10, settings.ADVISOR_MAX_CONTEXT_PRODUCTS * 4),
             page=1,
         )
+        products = [product for product in products if _product_matches_intent(product, intent)]
     except Exception as exc:
-        logger.exception("Advisor primary product retrieval failed; trying postgres fallback. query=%s", query)
+        logger.exception("Advisor primary product retrieval failed; trying postgres fallback. query=%s", intent.query)
         await db.rollback()
+
+    if len(products) < settings.ADVISOR_MAX_CONTEXT_PRODUCTS:
         try:
-            products = await _postgres_product_search(
-                query=query,
+            fallback_products = await _postgres_product_search(
+                intent=intent,
                 db=db,
                 limit=max(1, settings.ADVISOR_MAX_CONTEXT_PRODUCTS),
             )
+            seen_ids = {product.id for product in products}
+            products.extend(
+                product
+                for product in fallback_products
+                if product.id not in seen_ids and _product_matches_intent(product, intent)
+            )
         except Exception:
-            logger.exception("Advisor postgres fallback retrieval failed. query=%s", query)
+            logger.exception("Advisor postgres fallback retrieval failed. query=%s", intent.query)
             await db.rollback()
-            return []
-    return products[: settings.ADVISOR_MAX_CONTEXT_PRODUCTS]
+    return products[: max(settings.ADVISOR_MAX_CONTEXT_PRODUCTS * 4, 20)]
 
 
 async def _price_history_summary(platform_product_ids: list[UUID], db: AsyncSession) -> dict[UUID, dict[str, float | None]]:
@@ -198,6 +363,8 @@ async def _price_history_summary(platform_product_ids: list[UUID], db: AsyncSess
 
 
 async def build_advisor_context(request: AdvisorChatRequest, db: AsyncSession) -> list[ProductContext]:
+    context_query = request.context.search_query if request.context and request.context.search_query else None
+    intent = _parse_intent(request.message, context_query)
     products = await _retrieve_products(request, db)
     platform_product_ids = [
         platform_product.id
@@ -244,6 +411,9 @@ async def build_advisor_context(request: AdvisorChatRequest, db: AsyncSession) -
                 )
             )
 
+        if intent.min_price is not None or intent.max_price is not None:
+            offers = [offer for offer in offers if _offer_matches_price(offer, intent)]
+
         offers.sort(
             key=lambda offer: (
                 not offer.in_stock,
@@ -253,6 +423,9 @@ async def build_advisor_context(request: AdvisorChatRequest, db: AsyncSession) -
         valid_offer_prices = [
             offer.price for offer in offers if offer.in_stock and offer.price is not None
         ]
+        if (intent.min_price is not None or intent.max_price is not None) and not valid_offer_prices:
+            continue
+
         product_name = product.product_name or product.normalized_name or str(product.id)
         contexts.append(
             ProductContext(
@@ -272,7 +445,8 @@ async def build_advisor_context(request: AdvisorChatRequest, db: AsyncSession) -
             )
         )
 
-    return contexts
+    contexts.sort(key=lambda product: product.lowest_price if product.lowest_price is not None else float("inf"))
+    return contexts[: settings.ADVISOR_MAX_CONTEXT_PRODUCTS]
 
 
 def _context_for_prompt(contexts: list[ProductContext]) -> str:
