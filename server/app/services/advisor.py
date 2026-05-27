@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -103,6 +103,38 @@ async def _products_by_ids(product_ids: list[UUID], db: AsyncSession) -> list[Pr
     return list(result.scalars().unique().all())
 
 
+async def _postgres_product_search(query: str, db: AsyncSession, limit: int) -> list[Product]:
+    query_value = query.strip()
+    if not query_value:
+        return []
+
+    conditions = [
+        Product.normalized_name.ilike(f"%{query_value}%"),
+        Product.product_name.ilike(f"%{query_value}%"),
+        Product.brand.ilike(f"%{query_value}%"),
+        Product.category.ilike(f"%{query_value}%"),
+    ]
+
+    tokens = [token for token in re.findall(r"[\wÀ-ỹ]+", query_value, flags=re.UNICODE) if len(token) >= 2]
+    for token in tokens[:6]:
+        conditions.extend(
+            [
+                Product.normalized_name.ilike(f"%{token}%"),
+                Product.product_name.ilike(f"%{token}%"),
+                Product.brand.ilike(f"%{token}%"),
+                Product.category.ilike(f"%{token}%"),
+            ]
+        )
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.platform_products).selectinload(PlatformProduct.platform))
+        .where(or_(*conditions))
+        .limit(limit)
+    )
+    return list(result.scalars().unique().all())
+
+
 async def _retrieve_products(request: AdvisorChatRequest, db: AsyncSession) -> list[Product]:
     context = request.context
     if context and context.product_id:
@@ -124,8 +156,16 @@ async def _retrieve_products(request: AdvisorChatRequest, db: AsyncSession) -> l
             page=1,
         )
     except Exception as exc:
-        logger.exception("Advisor product retrieval failed. query=%s", query)
-        raise AdvisorRetrievalError("Advisor product retrieval failed") from exc
+        logger.exception("Advisor primary product retrieval failed; trying postgres fallback. query=%s", query)
+        try:
+            products = await _postgres_product_search(
+                query=query,
+                db=db,
+                limit=max(1, settings.ADVISOR_MAX_CONTEXT_PRODUCTS),
+            )
+        except Exception as fallback_exc:
+            logger.exception("Advisor postgres fallback retrieval failed. query=%s", query)
+            raise AdvisorRetrievalError("Advisor product retrieval failed") from fallback_exc
     return products[: settings.ADVISOR_MAX_CONTEXT_PRODUCTS]
 
 
@@ -159,7 +199,11 @@ async def build_advisor_context(request: AdvisorChatRequest, db: AsyncSession) -
         for platform_product in getattr(product, "platform_products", []) or []
         if platform_product.id
     ]
-    price_summaries = await _price_history_summary(platform_product_ids, db)
+    try:
+        price_summaries = await _price_history_summary(platform_product_ids, db)
+    except Exception:
+        logger.exception("Advisor price history enrichment failed; continuing without price history")
+        price_summaries = {}
 
     contexts: list[ProductContext] = []
     for product in products:
