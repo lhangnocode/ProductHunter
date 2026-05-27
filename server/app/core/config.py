@@ -1,6 +1,9 @@
 from pathlib import Path
+import json
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from pydantic_settings import NoDecode
+from pydantic import field_validator
+from typing import Annotated, Any, List
 from urllib.parse import quote_plus
 
 
@@ -66,6 +69,33 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    ALLOWED_ORIGINS: List[str] = ["*"]
+    ALLOWED_ORIGINS: Annotated[List[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://product-hunter-xi.vercel.app",
+    ]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, value: Any) -> List[str]:
+        if value is None or value == "":
+            return []
+        if isinstance(value, list):
+            return [str(origin).strip() for origin in value if str(origin).strip()]
+        if isinstance(value, str):
+            raw_value = value.strip()
+            if not raw_value:
+                return []
+            if raw_value.startswith("["):
+                parsed = json.loads(raw_value)
+                if not isinstance(parsed, list):
+                    raise ValueError("ALLOWED_ORIGINS JSON value must be a list")
+                return [str(origin).strip() for origin in parsed if str(origin).strip()]
+            return [
+                origin.strip()
+                for origin in raw_value.split(",")
+                if origin.strip()
+            ]
+        raise ValueError("ALLOWED_ORIGINS must be a list or comma-separated string")
 
 settings = Settings()
