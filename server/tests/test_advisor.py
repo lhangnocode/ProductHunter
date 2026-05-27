@@ -53,6 +53,29 @@ async def test_advisor_chat_no_data_uses_fallback_without_qwen(
 
 
 @pytest.mark.asyncio
+@patch("app.services.advisor.search_product", new_callable=AsyncMock)
+@patch("app.services.advisor.call_qwen", new_callable=AsyncMock)
+async def test_advisor_chat_falls_back_to_postgres_when_primary_search_fails(
+    mock_call_qwen: AsyncMock,
+    mock_search_product: AsyncMock,
+    ac: AsyncClient,
+    created_platform_product: dict,
+):
+    mock_search_product.side_effect = RuntimeError("primary search failed")
+    mock_call_qwen.return_value = "iPhone recommendation from fallback search."
+
+    response = await ac.post(
+        "/api/v1/advisor/chat",
+        json={"message": "đề xuất cho tôi iphone có giá tốt"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"] == "iPhone recommendation from fallback search."
+    assert data["recommendations"][0]["product_id"] == created_platform_product["product_id"]
+
+
+@pytest.mark.asyncio
 async def test_advisor_chat_missing_qwen_key_returns_fallback_recommendation(
     monkeypatch: pytest.MonkeyPatch,
     ac: AsyncClient,
