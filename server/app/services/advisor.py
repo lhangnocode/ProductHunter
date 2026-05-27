@@ -138,9 +138,13 @@ async def _postgres_product_search(query: str, db: AsyncSession, limit: int) -> 
 async def _retrieve_products(request: AdvisorChatRequest, db: AsyncSession) -> list[Product]:
     context = request.context
     if context and context.product_id:
-        products = await _products_by_ids([context.product_id], db)
-        if products:
-            return products
+        try:
+            products = await _products_by_ids([context.product_id], db)
+            if products:
+                return products
+        except Exception:
+            logger.exception("Advisor product lookup by id failed. product_id=%s", context.product_id)
+            await db.rollback()
 
     query = ""
     if context and context.search_query and context.search_query.strip():
@@ -157,15 +161,17 @@ async def _retrieve_products(request: AdvisorChatRequest, db: AsyncSession) -> l
         )
     except Exception as exc:
         logger.exception("Advisor primary product retrieval failed; trying postgres fallback. query=%s", query)
+        await db.rollback()
         try:
             products = await _postgres_product_search(
                 query=query,
                 db=db,
                 limit=max(1, settings.ADVISOR_MAX_CONTEXT_PRODUCTS),
             )
-        except Exception as fallback_exc:
+        except Exception:
             logger.exception("Advisor postgres fallback retrieval failed. query=%s", query)
-            raise AdvisorRetrievalError("Advisor product retrieval failed") from fallback_exc
+            await db.rollback()
+            return []
     return products[: settings.ADVISOR_MAX_CONTEXT_PRODUCTS]
 
 
@@ -203,6 +209,7 @@ async def build_advisor_context(request: AdvisorChatRequest, db: AsyncSession) -
         price_summaries = await _price_history_summary(platform_product_ids, db)
     except Exception:
         logger.exception("Advisor price history enrichment failed; continuing without price history")
+        await db.rollback()
         price_summaries = {}
 
     contexts: list[ProductContext] = []
