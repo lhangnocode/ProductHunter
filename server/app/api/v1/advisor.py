@@ -6,8 +6,12 @@ from app.schemas.advisor import AdvisorChatRequest, AdvisorChatResponse
 from app.services.advisor import (
     AdvisorConfigurationError,
     AdvisorProviderError,
+    AdvisorRetrievalError,
     answer_advisor_chat,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -28,4 +32,15 @@ async def advisor_chat(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
+        ) from exc
+    except AdvisorRetrievalError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unhandled advisor chat failure")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Advisor chat failed unexpectedly",
         ) from exc

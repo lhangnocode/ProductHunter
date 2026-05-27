@@ -53,7 +53,7 @@ async def test_advisor_chat_no_data_uses_fallback_without_qwen(
 
 
 @pytest.mark.asyncio
-async def test_advisor_chat_missing_qwen_key_returns_controlled_error(
+async def test_advisor_chat_missing_qwen_key_returns_fallback_recommendation(
     monkeypatch: pytest.MonkeyPatch,
     ac: AsyncClient,
     created_platform_product: dict,
@@ -68,8 +68,10 @@ async def test_advisor_chat_missing_qwen_key_returns_controlled_error(
         },
     )
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "DASHSCOPE_API_KEY is not configured"
+    assert response.status_code == 200
+    data = response.json()
+    assert "Based on ProductHunter data" in data["answer"]
+    assert data["recommendations"][0]["product_id"] == created_platform_product["product_id"]
 
 
 @pytest.mark.asyncio
