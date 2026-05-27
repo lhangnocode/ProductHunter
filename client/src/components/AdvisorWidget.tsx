@@ -22,6 +22,7 @@ interface AdvisorWidgetProps {
   activeTab: string;
   searchQuery: string;
   productId?: string | null;
+  userId?: string | null;
 }
 
 interface AdvisorThreadMessage extends AdvisorChatMessage {
@@ -71,12 +72,19 @@ function loadSessions(): { sessions: AdvisorSession[]; activeSessionId: string }
   }
 }
 
+function resetStoredSessions(): { sessions: AdvisorSession[]; activeSessionId: string } {
+  localStorage.removeItem(SESSIONS_STORAGE_KEY);
+  localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+  const session = createSession();
+  return { sessions: [session], activeSessionId: session.id };
+}
+
 function formatPrice(price: number | null): string {
   if (price === null || price === undefined) return "Price unavailable";
   return `${new Intl.NumberFormat("vi-VN").format(price)} VND`;
 }
 
-export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidgetProps) {
+export function AdvisorWidget({ activeTab, searchQuery, productId, userId }: AdvisorWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [sessions, setSessions] = useState<AdvisorSession[]>(() => loadSessions().sessions);
@@ -87,6 +95,7 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) || sessions[0];
   const messages = activeSession?.messages || [];
+  const previousUserIdRef = useRef<string | null | undefined>(userId);
 
   const context: AdvisorChatContext = useMemo(
     () => ({
@@ -101,6 +110,18 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
     localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions.slice(0, 12)));
     localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, activeSessionId);
   }, [activeSessionId, sessions]);
+
+  useEffect(() => {
+    if (previousUserIdRef.current && !userId) {
+      const reset = resetStoredSessions();
+      setSessions(reset.sessions);
+      setActiveSessionId(reset.activeSessionId);
+      setInput("");
+      setError(null);
+      setIsOpen(false);
+    }
+    previousUserIdRef.current = userId;
+  }, [userId]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

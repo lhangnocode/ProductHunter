@@ -1276,6 +1276,7 @@ function AppContent() {
       <AdvisorWidget
         activeTab={selectedPlatformProduct ? "product_detail" : activeTab}
         searchQuery={searchQuery}
+        userId={user?.id || null}
         productId={
           selectedPlatformProduct?.product_id ||
           selectedProduct?.id ||
