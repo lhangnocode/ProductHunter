@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, ExternalLink, Loader2, MessageCircle, Send, X } from "lucide-react";
+import {
+  Bot,
+  ExternalLink,
+  Loader2,
+  MessageCircle,
+  Plus,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import {
@@ -19,7 +28,48 @@ interface AdvisorThreadMessage extends AdvisorChatMessage {
   recommendations?: AdvisorRecommendation[];
 }
 
-const STORAGE_KEY = "producthunter_advisor_thread";
+interface AdvisorSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: AdvisorThreadMessage[];
+}
+
+const SESSIONS_STORAGE_KEY = "producthunter_advisor_sessions";
+const ACTIVE_SESSION_STORAGE_KEY = "producthunter_advisor_active_session";
+
+function createSession(title = "New chat"): AdvisorSession {
+  const now = Date.now();
+  return {
+    id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    createdAt: now,
+    updatedAt: now,
+    messages: [],
+  };
+}
+
+function sessionTitleFromMessage(message: string): string {
+  const trimmed = message.trim().replace(/\s+/g, " ");
+  return trimmed.length > 34 ? `${trimmed.slice(0, 34)}...` : trimmed || "New chat";
+}
+
+function loadSessions(): { sessions: AdvisorSession[]; activeSessionId: string } {
+  try {
+    const savedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
+    const parsed = savedSessions ? JSON.parse(savedSessions) : null;
+    const sessions = Array.isArray(parsed) && parsed.length > 0 ? parsed : [createSession()];
+    const savedActiveId = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+    const activeSessionId = sessions.some((session) => session.id === savedActiveId)
+      ? String(savedActiveId)
+      : sessions[0].id;
+    return { sessions, activeSessionId };
+  } catch {
+    const fallback = createSession();
+    return { sessions: [fallback], activeSessionId: fallback.id };
+  }
+}
 
 function formatPrice(price: number | null): string {
   if (price === null || price === undefined) return "Price unavailable";
@@ -29,17 +79,14 @@ function formatPrice(price: number | null): string {
 export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<AdvisorThreadMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [sessions, setSessions] = useState<AdvisorSession[]>(() => loadSessions().sessions);
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => loadSessions().activeSessionId);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const activeSession = sessions.find((session) => session.id === activeSessionId) || sessions[0];
+  const messages = activeSession?.messages || [];
 
   const context: AdvisorChatContext = useMemo(
     () => ({
@@ -51,35 +98,73 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
   );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-12)));
-  }, [messages]);
+    localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions.slice(0, 12)));
+    localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, activeSessionId);
+  }, [activeSessionId, sessions]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [isOpen, messages, isLoading]);
 
+  const updateActiveSession = (
+    updater: (session: AdvisorSession) => AdvisorSession,
+  ) => {
+    setSessions((current) =>
+      current.map((session) =>
+        session.id === activeSessionId ? updater(session) : session,
+      ),
+    );
+  };
+
+  const startNewSession = () => {
+    const session = createSession();
+    setSessions((current) => [session, ...current].slice(0, 12));
+    setActiveSessionId(session.id);
+    setInput("");
+    setError(null);
+  };
+
+  const deleteSession = (sessionId: string) => {
+    setSessions((current) => {
+      const remaining = current.filter((session) => session.id !== sessionId);
+      const nextSessions = remaining.length > 0 ? remaining : [createSession()];
+      if (sessionId === activeSessionId) {
+        setActiveSessionId(nextSessions[0].id);
+      }
+      return nextSessions;
+    });
+    setError(null);
+  };
+
   const submitMessage = async (event?: React.FormEvent) => {
     event?.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed || isLoading || !activeSession) return;
 
     const userMessage: AdvisorThreadMessage = { role: "user", content: trimmed };
     const nextMessages = [...messages, userMessage].slice(-12);
-    setMessages(nextMessages);
+    updateActiveSession((session) => ({
+      ...session,
+      title: session.messages.length === 0 ? sessionTitleFromMessage(trimmed) : session.title,
+      updatedAt: Date.now(),
+      messages: nextMessages,
+    }));
     setInput("");
     setError(null);
     setIsLoading(true);
 
     try {
       const response = await sendAdvisorMessage(trimmed, messages.slice(-6), context);
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content: response.answer,
-          recommendations: response.recommendations,
-        },
-      ]);
+      const assistantMessage: AdvisorThreadMessage = {
+        role: "assistant",
+        content: response.answer,
+        recommendations: response.recommendations,
+      };
+      updateActiveSession((session) => ({
+        ...session,
+        updatedAt: Date.now(),
+        messages: [...session.messages, assistantMessage].slice(-12),
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể kết nối ProductHunter Advisor");
     } finally {
@@ -88,7 +173,7 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[70] selection:bg-slate-900 selection:text-white dark:selection:bg-white dark:selection:text-slate-950">
+    <div className="advisor-widget fixed bottom-5 right-5 z-[70]">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -96,7 +181,7 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="mb-3 flex h-[min(620px,calc(100vh-7rem))] w-[calc(100vw-2.5rem)] max-w-[420px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl shadow-slate-900/15 ring-1 ring-slate-200 dark:bg-slate-950 dark:shadow-black/40 dark:ring-slate-800"
+            className="mb-3 flex h-[min(680px,calc(100vh-7rem))] w-[calc(100vw-2.5rem)] max-w-[460px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl shadow-slate-900/15 ring-1 ring-slate-200 dark:bg-slate-950 dark:shadow-black/40 dark:ring-slate-800"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
               <div className="flex items-center gap-3">
@@ -112,14 +197,63 @@ export function AdvisorWidget({ activeTab, searchQuery, productId }: AdvisorWidg
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-white"
-                aria-label="Close advisor"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={startNewSession}
+                  className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-white"
+                  aria-label="New advisor chat"
+                  title="New chat"
+                >
+                  <Plus size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-white"
+                  aria-label="Close advisor"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`group flex max-w-[180px] shrink-0 items-center gap-1 rounded-lg ring-1 ${
+                    session.id === activeSessionId
+                      ? "bg-brand-primary text-white ring-brand-primary"
+                      : "bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSessionId(session.id);
+                      setError(null);
+                    }}
+                    className="min-w-0 flex-1 truncate px-3 py-2 text-left text-[11px] font-black uppercase tracking-wide"
+                    title={session.title}
+                  >
+                    {session.title}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteSession(session.id)}
+                    className={`mr-1 rounded-md p-1 transition-colors ${
+                      session.id === activeSessionId
+                        ? "text-white/80 hover:bg-white/15 hover:text-white"
+                        : "text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
+                    }`}
+                    aria-label={`Delete ${session.title}`}
+                    title="Delete chat"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
