@@ -7,6 +7,7 @@ import { AuthModal } from "./components/AuthModal";
 import { ToastProvider, useToast } from "./components/Toast";
 import { TrendingDeals } from "./components/TrendingDeals";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
+import { AdvisorWidget } from "./components/AdvisorWidget";
 
 import { UserProvider, useUser } from "./context/UserContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -1272,6 +1273,15 @@ function AppContent() {
           </AnimatePresence>
         </main>
       </div>
+      <AdvisorWidget
+        activeTab={selectedPlatformProduct ? "product_detail" : activeTab}
+        searchQuery={searchQuery}
+        productId={
+          selectedPlatformProduct?.product_id ||
+          selectedProduct?.id ||
+          null
+        }
+      />
     </div>
   );
 }
