@@ -8,12 +8,14 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext'; // Thêm useUser
 import { useToast } from './Toast'; // Thêm useToast
-import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchCompareGroups, PlatformProduct } from '../services/price_record_api';
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchCompareGroups, PlatformProduct, fetchPlatformProductsByProductId } from '../services/price_record_api';
 import { Pagination } from './Pagination';
 
 interface ProductDetailProps {
+
   product: any; 
   platformProduct: any;
+  platformProductId: string;
   initialPlatformId: string;
   onBack: () => void;
   onAddWishlist: (p: any) => void;
@@ -107,42 +109,57 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   async function loadPlatformProducts() {
     setPlatformsLoading(true);
     try {
-      // 1. Lấy query an toàn
-      const query =
-        product?.normalized_name ||
-        product?.product_name ||
-        platformProduct?.raw_name ||
-        platformProduct?.normalized_name ||
-        platformProduct?.slug ||
-        '';
+      const pId = product?.id || platformProduct?.product_id;
+      let platforms: PlatformProduct[] = [];
 
-      if (!query || String(query).trim().length < 2) {
-        console.warn('Không có query hợp lệ để gọi API compare:', query);
-        return; // finally vẫn sẽ chạy để tắt loading
+      if (pId && isValidUUID(String(pId))) {
+        // Lấy chính xác danh sách platform products bằng product_id
+        const rawPlatforms = await fetchPlatformProductsByProductId(String(pId));
+        platforms = rawPlatforms.map((pp: any) => ({
+          ...pp,
+          current_price: pp.current_price != null ? parseFloat(String(pp.current_price)) : null,
+          original_price: pp.original_price != null ? parseFloat(String(pp.original_price)) : null,
+        }));
       }
 
-      const groups = await fetchCompareGroups(String(query));
-      let matchingGroup: any = null;
+      if (platforms.length === 0) {
+        // Fallback: Lấy qua query
+        const query =
+          product?.normalized_name ||
+          product?.product_name ||
+          platformProduct?.raw_name ||
+          platformProduct?.normalized_name ||
+          platformProduct?.slug ||
+          '';
 
-      if (Array.isArray(groups) && groups.length > 0) {
-        matchingGroup = groups.find((g: any) => String(g.id) === String(product?.id)) || groups[0];
+        if (!query || String(query).trim().length < 2) {
+          console.warn('Không có query hợp lệ để gọi API compare:', query);
+          return;
+        }
+
+        const groups = await fetchCompareGroups(String(query));
+        let matchingGroup: any = null;
+
+        if (Array.isArray(groups) && groups.length > 0) {
+          matchingGroup = groups.find((g: any) => String(g.id) === String(pId)) || groups[0];
+        }
+
+        const platformsRaw = matchingGroup && Array.isArray(matchingGroup.platforms) ? matchingGroup.platforms : [];
+        
+        platforms = platformsRaw.map((pp: any, idx: number) => ({
+          id: pp.id || `${String(pId || 'p')}-${String(pp.platform_id ?? 'x')}-${idx}`,
+          product_id: pId || null,
+          platform_id: pp.platform_id ?? null,
+          raw_name: pp.raw_name ?? pp.product_name ?? product?.product_name ?? product?.normalized_name ?? '',
+          current_price: pp.current_price != null ? parseFloat(String(pp.current_price)) : null,
+          original_price: pp.original_price != null ? parseFloat(String(pp.original_price)) : null,
+          url: pp.url ?? pp.affiliate_url ?? null,
+          affiliate_url: pp.affiliate_url ?? null,
+          in_stock: pp.in_stock ?? null,
+          main_image_url: pp.main_image_url ?? matchingGroup?.main_image_url ?? product?.main_image_url ?? null,
+          last_crawled_at: pp.last_crawled_at ?? null,
+        }));
       }
-
-      const platformsRaw = matchingGroup && Array.isArray(matchingGroup.platforms) ? matchingGroup.platforms : [];
-      
-      const platforms: PlatformProduct[] = platformsRaw.map((pp: any, idx: number) => ({
-        id: `${String(product?.id || 'p')}-${String(pp.platform_id ?? 'x')}-${idx}`,
-        product_id: product?.id || platformProduct?.product_id || null,
-        platform_id: pp.platform_id ?? null,
-        raw_name: pp.raw_name ?? pp.product_name ?? product?.product_name ?? product?.normalized_name ?? '',
-        current_price: pp.current_price != null ? parseFloat(String(pp.current_price)) : null,
-        original_price: pp.original_price != null ? parseFloat(String(pp.original_price)) : null,
-        url: pp.url ?? pp.affiliate_url ?? null,
-        affiliate_url: pp.affiliate_url ?? null,
-        in_stock: pp.in_stock ?? null,
-        main_image_url: pp.main_image_url ?? matchingGroup?.main_image_url ?? product?.main_image_url ?? null,
-        last_crawled_at: pp.last_crawled_at ?? null,
-      }));
 
       // 2. Cập nhật State
       setAllPlatformProducts(platforms);
@@ -156,7 +173,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
       if (platforms.length > 0) {
         const matching = platforms.find(
-          (p: any) => p.id === initialPlatformId || String(p.product_id) === String(platformProduct?.product_id)
+          (p: any) => p.id === initialPlatformId || String(p.product_id) === String(platformProduct?.product_id) || p.platform_id === currentPlatformData?.platform_id
         );
         setSelectedPlatformProduct(matching || platforms[0]);
       }
@@ -547,18 +564,23 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                 <div className="mt-6">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {pagedPlatforms.map((p) => (
-                      <div key={p.id} className="relative flex items-center justify-between rounded-2xl border p-4 bg-white dark:bg-slate-900 hover:shadow-lg transition-shadow">
-                        {/* floating choose badge */}
-                        <button
-                          onClick={() => handleSelectPlatform(p)}
-                          aria-label={`Chọn nền tảng ${getPlatformName(p.platform_id)}`}
-                          className="absolute -top-3 right-3 z-10 rounded-full bg-amber-500 text-white px-3 py-1 text-xs font-black shadow-lg hover:scale-105 transition-transform"
-                        >
-                          Chọn
-                        </button>
+                      <div 
+                        key={p.id} 
+                        onClick={() => handleSelectPlatform(p)}
+                        className={`relative flex items-center justify-between rounded-2xl border p-4 cursor-pointer transition-all duration-300 group ${
+                          selectedPlatformProduct?.id === p.id 
+                            ? 'bg-brand-primary/5 border-brand-primary/50 shadow-md ring-1 ring-brand-primary/50' 
+                            : 'bg-white dark:bg-slate-900 hover:shadow-xl hover:-translate-y-1 hover:border-brand-primary/30 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {selectedPlatformProduct?.id === p.id && (
+                          <div className="absolute -top-2 -right-2 bg-brand-primary text-white rounded-full p-1 shadow-md">
+                            <CheckCircle2 size={14} />
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-4 min-w-0">
-                          <div className={`flex h-14 w-14 items-center justify-center rounded-lg text-white font-bold text-lg bg-gradient-to-br ${p.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : p.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                          <div className={`flex h-14 w-14 items-center justify-center rounded-lg text-white font-bold text-lg bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 ${p.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : p.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
                             {getPlatformName(p.platform_id).charAt(0)}
                           </div>
                           <div className="min-w-0">
@@ -569,10 +591,20 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
                         <div className="flex flex-col items-end gap-2">
                           <div className="text-right">
-                            <div className="text-xl font-black text-emerald-600 tracking-tight">{formatPrice(Number(p.current_price) || 0)}</div>
-                            {/* original price removed from UI */}
+                            <div className={`text-xl font-black tracking-tight transition-colors ${selectedPlatformProduct?.id === p.id ? 'text-brand-primary' : 'text-emerald-600'}`}>
+                              {formatPrice(Number(p.current_price) || 0)}
+                            </div>
                           </div>
-                          <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-slate-500 hover:underline">Mua ngay</a>
+                          <a 
+                            href={p.url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            title={p.raw_name || 'Đến nơi bán'} 
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-brand-primary hover:underline font-bold z-10 relative uppercase tracking-wider max-w-[140px] sm:max-w-[180px]"
+                          >
+                            <span className="truncate">{p.raw_name || t('goToSeller')}</span> <ExternalLink size={12} className="flex-shrink-0" />
+                          </a>
                         </div>
                       </div>
                     ))}
