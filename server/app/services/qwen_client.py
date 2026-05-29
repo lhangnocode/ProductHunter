@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from app.services.advisor import AdvisorConfigurationError
+
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,9 @@ async def _single_attempt(
 
 # Public API
 async def call_qwen_with_resilience(
+        
+    
+    
     *,
     url: str,
     api_key: str | None = None,
@@ -177,6 +180,8 @@ async def call_qwen_with_resilience(
     AdvisorCircuitOpenError  : nếu CB đang OPEN và không phục hồi được.
     AdvisorProviderError     : nếu đã hết số lần thử.
     """
+
+    from app.services.advisor import AdvisorConfigurationError
     resolved_key = api_key or os.getenv("DASHSCOPE_API_KEY")
     if not resolved_key:
         raise AdvisorConfigurationError("DASHSCOPE_API_KEY is missing")
