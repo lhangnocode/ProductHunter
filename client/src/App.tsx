@@ -391,24 +391,19 @@ function AppContent() {
   //     );
   //   }
 
-  const renderContent = () => {
-    // 1. Kiểm tra state mới: selectedPlatformProduct
-    if (selectedPlatformProduct) {
-      return (
-        <ProductDetail
-          // 2. Truyền prop đúng tên: platformProduct
-          product={selectedProduct}
-          platformProduct={selectedPlatformProduct}
-          // 3. QUAN TRỌNG: Phải truyền thêm ID để lấy lịch sử giá
-          initialPlatformId={currentPlatformId}
-          onBack={() => setSelectedPlatformProduct(null)}
-          onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
-          onSetAlert={() => showToast(t("priceAlertSet"), "success")}
-          // 4. Kiểm tra wishlist dựa trên ID của platformProduct
-          isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))}
-        />
-      );
-    }
+    const renderContent = () => {
+      if (selectedPlatformProduct) {
+        return (
+          <ProductDetail
+            product={selectedProduct}
+            platformProduct={selectedPlatformProduct}
+            platformProductId={currentPlatformId}
+            onBack={() => setSelectedPlatformProduct(null)}
+            onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
+            onSetAlert={() => showToast(t("priceAlertSet"), "success")}
+            isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))} initialPlatformId={""}      />
+        );
+      }
 
     switch (activeTab) {
       case "search":
