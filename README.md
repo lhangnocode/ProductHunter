@@ -1,6 +1,6 @@
 # ProductHunter
 
-ProductHunter is a tech-product price tracking and comparison system.
+ProductHunter is a tech-product price tracking and comparison system. 
 
 ## Repository Layout
 - `client/`: Vite + React + TypeScript frontend.
