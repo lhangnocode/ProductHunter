@@ -8,6 +8,7 @@ import { ToastProvider, useToast } from "./components/Toast";
 import { TrendingDeals } from "./components/TrendingDeals";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { AdvisorWidget } from "./components/AdvisorWidget";
+import { ExtensionGuideModal } from "./components/ExtensionGuideModal";
 
 import { UserProvider, useUser } from "./context/UserContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -84,6 +85,9 @@ function AppContent() {
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("trending");
+
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
   // Xóa recentlyViewed cũ (chứa ID mock như p1, p2) tránh crash API
   useEffect(() => {
     localStorage.removeItem("recentlyViewed");
@@ -1017,6 +1021,11 @@ function AppContent() {
         onClose={() => setIsAuthModalOpen(false)}
       />
 
+      <ExtensionGuideModal 
+        isOpen={isGuideOpen} 
+        onClose={() => setIsGuideOpen(false)} 
+      />
+
       {/* Background Decorative Elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-brand-primary/10 blur-[150px] animate-pulse" />
@@ -1228,7 +1237,9 @@ function AppContent() {
             {renderNavItem(Heart, t("wishlist"), "wishlist")}
             {renderNavItem(Bell, t("priceAlerts"), "alerts")}
 
-            <div className="mt-auto pt-8 pb-4">
+            <div className="mt-auto pt-8 pb-4 space-y-4"> {/* Thêm space-y-4 để tạo khoảng cách giữa 2 hộp */}
+              
+              {/* PHẦN 1: NÂNG CẤP PRO */}
               <div className="rounded-xl bg-gradient-to-br from-brand-primary/10 to-brand-accent/10 p-4 ring-1 ring-inset ring-brand-primary/10">
                 <p className="text-[10px] font-black text-brand-primary mb-1 font-display uppercase tracking-wider">
                   {t("sidebarPromoTitle")}
@@ -1240,6 +1251,23 @@ function AppContent() {
                   {t("upgradeNow")}
                 </button>
               </div>
+
+              {/* PHẦN 2: CÀI ĐẶT EXTENSION */}
+              <div className="rounded-xl bg-gradient-to-br from-brand-primary/10 to-brand-accent/10 p-4 ring-1 ring-inset ring-brand-primary/10">
+                <p className="text-[10px] font-black text-brand-primary mb-1 font-display uppercase tracking-wider">
+                  Săn Deal Tại Sàn
+                </p>
+                <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
+                  Cài đặt Extension để so sánh giá ngay trên Shopee, Lazada, Tiki...
+                </p>
+                <button 
+                  onClick={() => setIsGuideOpen(true)}
+                  className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display"
+                >
+                  Cài đặt ngay
+                </button>
+              </div>
+
             </div>
           </nav>
         </aside>
