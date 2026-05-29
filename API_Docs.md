@@ -119,3 +119,12 @@ Tat ca endpoint trong group nay yeu cau Bearer auth.
 | `/wish_lists/` | `POST` | JSON: `product_id` | `create_wishlist_item` |
 | `/wish_lists/` | `GET` | - | `get_my_wishlist` |
 | `/wish_lists/{product_id}` | `DELETE` | Path UUID `product_id` | `delete_wishlist_item` |
+
+## 10. Advisor (`/api/v1/advisor`)
+
+| Endpoint | Method | Input chinh | Auth | Ham xu ly |
+| :--- | :---: | :--- | :---: | :--- |
+| `/advisor/chat` | `POST` | JSON: `message`, optional `history`, optional `context` | No | `advisor_chat` |
+
+Advisor tra ve `answer`, danh sach `recommendations`, va `sources`. Service co the tra
+`503` neu thieu cau hinh provider, `502` neu provider loi, hoac `500` neu retrieval loi.
