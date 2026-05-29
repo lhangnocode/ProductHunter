@@ -1,0 +1,166 @@
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from httpx import AsyncClient
+
+from app.core.config import settings
+from app.services.advisor import _offer_matches_price, _parse_intent, OfferContext
+
+
+def test_advisor_intent_parses_brand_category_and_price_range():
+    intent = _parse_intent("Recommend Samsung phones priced from 10 to 12 million VND")
+
+    assert intent.brand == "Samsung"
+    assert "mobile" in intent.category_keywords
+    assert intent.min_price == 10000000.0
+    assert intent.max_price == 12000000.0
+
+
+def test_advisor_offer_price_filter_matches_requested_budget():
+    intent = _parse_intent("đề xuất điện thoại Samsung giá từ 10-12 triệu")
+
+    assert _offer_matches_price(
+        OfferContext(
+            platform="Test",
+            price=11000000.0,
+            original_price=None,
+            url=None,
+            in_stock=True,
+            last_crawled_at=None,
+        ),
+        intent,
+    )
+    assert not _offer_matches_price(
+        OfferContext(
+            platform="Test",
+            price=309000.0,
+            original_price=None,
+            url=None,
+            in_stock=True,
+            last_crawled_at=None,
+        ),
+        intent,
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.advisor.call_qwen", new_callable=AsyncMock)
+async def test_advisor_chat_returns_grounded_recommendations(
+    mock_call_qwen: AsyncMock,
+    ac: AsyncClient,
+    created_platform_product: dict,
+):
+    mock_call_qwen.return_value = "The iPhone option is the best match from ProductHunter data."
+
+    response = await ac.post(
+        "/api/v1/advisor/chat",
+        json={
+            "message": "Should I buy this phone?",
+            "context": {"product_id": created_platform_product["product_id"]},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"] == "The iPhone option is the best match from ProductHunter data."
+    assert data["recommendations"][0]["product_id"] == created_platform_product["product_id"]
+    assert data["recommendations"][0]["lowest_price"] == 28990000.0
+    assert data["recommendations"][0]["platforms"][0]["platform"] == "Shopee"
+    assert data["sources"][0]["type"] == "product"
+    mock_call_qwen.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch("app.services.advisor.call_qwen", new_callable=AsyncMock)
+async def test_advisor_chat_no_data_uses_fallback_without_qwen(
+    mock_call_qwen: AsyncMock,
+    ac: AsyncClient,
+):
+    response = await ac.post(
+        "/api/v1/advisor/chat",
+        json={"message": "Recommend a product that does not exist in this database"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "could not find matching products" in data["answer"]
+    assert data["recommendations"] == []
+    assert data["sources"] == []
+    mock_call_qwen.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch("app.services.advisor.search_product", new_callable=AsyncMock)
+@patch("app.services.advisor.call_qwen", new_callable=AsyncMock)
+async def test_advisor_chat_falls_back_to_postgres_when_primary_search_fails(
+    mock_call_qwen: AsyncMock,
+    mock_search_product: AsyncMock,
+    ac: AsyncClient,
+    created_platform_product: dict,
+):
+    mock_search_product.side_effect = RuntimeError("primary search failed")
+    mock_call_qwen.return_value = "iPhone recommendation from fallback search."
+
+    response = await ac.post(
+        "/api/v1/advisor/chat",
+        json={"message": "đề xuất cho tôi iphone có giá tốt"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"] == "iPhone recommendation from fallback search."
+    assert data["recommendations"][0]["product_id"] == created_platform_product["product_id"]
+
+
+@pytest.mark.asyncio
+@patch("app.services.advisor._postgres_product_search", new_callable=AsyncMock)
+@patch("app.services.advisor.search_product", new_callable=AsyncMock)
+@patch("app.services.advisor.call_qwen", new_callable=AsyncMock)
+async def test_advisor_chat_returns_no_data_fallback_when_all_retrieval_fails(
+    mock_call_qwen: AsyncMock,
+    mock_search_product: AsyncMock,
+    mock_postgres_product_search: AsyncMock,
+    ac: AsyncClient,
+):
+    mock_search_product.side_effect = RuntimeError("primary search failed")
+    mock_postgres_product_search.side_effect = RuntimeError("fallback search failed")
+
+    response = await ac.post(
+        "/api/v1/advisor/chat",
+        json={"message": "đề xuất cho tôi điện thoại samsung có giá từ 10-12 triệu"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "could not find matching products" in data["answer"]
+    assert data["recommendations"] == []
+    mock_call_qwen.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_advisor_chat_missing_qwen_key_returns_fallback_recommendation(
+    monkeypatch: pytest.MonkeyPatch,
+    ac: AsyncClient,
+    created_platform_product: dict,
+):
+    monkeypatch.setattr(settings, "DASHSCOPE_API_KEY", "")
+
+    response = await ac.post(
+        "/api/v1/advisor/chat",
+        json={
+            "message": "Should I buy this phone?",
+            "context": {"product_id": created_platform_product["product_id"]},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "Based on ProductHunter data" in data["answer"]
+    assert data["recommendations"][0]["product_id"] == created_platform_product["product_id"]
+
+
+@pytest.mark.asyncio
+async def test_advisor_chat_rejects_empty_message(ac: AsyncClient):
+    response = await ac.post("/api/v1/advisor/chat", json={"message": ""})
+
+    assert response.status_code == 422

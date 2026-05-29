@@ -9,6 +9,7 @@ from app.api.v1 import price_alert
 from app.api.v1 import auth
 from app.api.v1 import social_auth
 from app.api.v1 import wish_list
+from app.api.v1 import advisor
 
 api_router = APIRouter()
 api_router.include_router(products.router, prefix="/products", tags=["products"])
@@ -20,3 +21,4 @@ api_router.include_router(price_alert.router, prefix="/price_alerts", tags=["pri
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(social_auth.router, prefix="/auth", tags=["social_auth"])
 api_router.include_router(wish_list.router, prefix="/wish_lists", tags=["wish_lists"])
+api_router.include_router(advisor.router, prefix="/advisor", tags=["advisor"])

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { formatDisplayName } from '../lib/utils';
 import { createPortal } from 'react-dom';
 import { PriceChart } from './PriceChart';
@@ -8,11 +8,14 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext'; // Thêm useUser
 import { useToast } from './Toast'; // Thêm useToast
-import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchPlatformProductsByProductId, PlatformProduct } from '../services/price_record_api';
+import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchCompareGroups, PlatformProduct, fetchPlatformProductsByProductId } from '../services/price_record_api';
+import { Pagination } from './Pagination';
 
 interface ProductDetailProps {
+
   product: any; 
   platformProduct: any;
+  platformProductId: string;
   initialPlatformId: string;
   onBack: () => void;
   onAddWishlist: (p: any) => void;
@@ -29,6 +32,11 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   const [allPlatformProducts, setAllPlatformProducts] = useState<PlatformProduct[]>([]);
   const [selectedPlatformProduct, setSelectedPlatformProduct] = useState<PlatformProduct | null>(null);
   const [platformsLoading, setPlatformsLoading] = useState(true);
+  // Pagination for compare platforms
+  const [comparePage, setComparePage] = useState<number>(1);
+  // fixed compare page size per user request
+  const [comparePageSize] = useState<number>(5);
+  const [compareTotalPages, setCompareTotalPages] = useState<number>(0);
 
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
@@ -98,28 +106,109 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   // When it's a PlatformProduct: platformProduct.product_id = product_id
 
   useEffect(() => {
-    async function loadPlatformProducts() {
-      setPlatformsLoading(true);
-      try {
-        const productId = platformProduct?.product_id || platformProduct?.id;
-        if (!productId || !isValidUUID(String(productId))) {
-          console.warn('ID không hợp lệ, bỏ qua API:', productId);
+  async function loadPlatformProducts() {
+    setPlatformsLoading(true);
+    try {
+      const pId = product?.id || platformProduct?.product_id;
+      let platforms: PlatformProduct[] = [];
+
+      if (pId && isValidUUID(String(pId))) {
+        // Lấy chính xác danh sách platform products bằng product_id
+        const rawPlatforms = await fetchPlatformProductsByProductId(String(pId));
+        platforms = rawPlatforms.map((pp: any) => ({
+          ...pp,
+          current_price: pp.current_price != null ? parseFloat(String(pp.current_price)) : null,
+          original_price: pp.original_price != null ? parseFloat(String(pp.original_price)) : null,
+        }));
+      }
+
+      if (platforms.length === 0) {
+        // Fallback: Lấy qua query
+        const query =
+          product?.normalized_name ||
+          product?.product_name ||
+          platformProduct?.raw_name ||
+          platformProduct?.normalized_name ||
+          platformProduct?.slug ||
+          '';
+
+        if (!query || String(query).trim().length < 2) {
+          console.warn('Không có query hợp lệ để gọi API compare:', query);
           return;
         }
-        const platforms = await fetchPlatformProductsByProductId(productId);
-        setAllPlatformProducts(platforms);
-        if (platforms.length > 0) {
-          const matching = platforms.find(p => p.id === initialPlatformId);
-          setSelectedPlatformProduct(matching || platforms[0]);
+
+        const groups = await fetchCompareGroups(String(query));
+        let matchingGroup: any = null;
+
+        if (Array.isArray(groups) && groups.length > 0) {
+          matchingGroup = groups.find((g: any) => String(g.id) === String(pId)) || groups[0];
         }
-      } catch (err) {
-        console.error('Lỗi khi fetch platform products:', err);
-      } finally {
-        setPlatformsLoading(false);
+
+        const platformsRaw = matchingGroup && Array.isArray(matchingGroup.platforms) ? matchingGroup.platforms : [];
+        
+        platforms = platformsRaw.map((pp: any, idx: number) => ({
+          id: pp.id || `${String(pId || 'p')}-${String(pp.platform_id ?? 'x')}-${idx}`,
+          product_id: pId || null,
+          platform_id: pp.platform_id ?? null,
+          raw_name: pp.raw_name ?? pp.product_name ?? product?.product_name ?? product?.normalized_name ?? '',
+          current_price: pp.current_price != null ? parseFloat(String(pp.current_price)) : null,
+          original_price: pp.original_price != null ? parseFloat(String(pp.original_price)) : null,
+          url: pp.url ?? pp.affiliate_url ?? null,
+          affiliate_url: pp.affiliate_url ?? null,
+          in_stock: pp.in_stock ?? null,
+          main_image_url: pp.main_image_url ?? matchingGroup?.main_image_url ?? product?.main_image_url ?? null,
+          last_crawled_at: pp.last_crawled_at ?? null,
+        }));
       }
+
+      // 2. Cập nhật State
+      setAllPlatformProducts(platforms);
+      
+      // Reset về trang 1 mỗi khi fetch data mới
+      setComparePage(1);
+      
+      // Đề phòng comparePageSize = 0 gây lỗi chia cho 0 (NaN/Infinity)
+      const safePageSize = comparePageSize > 0 ? comparePageSize : 10;
+      setCompareTotalPages(Math.ceil(platforms.length / safePageSize) || 0);
+
+      if (platforms.length > 0) {
+        const matching = platforms.find(
+          (p: any) => p.id === initialPlatformId || String(p.product_id) === String(platformProduct?.product_id) || p.platform_id === currentPlatformData?.platform_id
+        );
+        setSelectedPlatformProduct(matching || platforms[0]);
+      }
+    } catch (err) {
+      console.error('Lỗi khi fetch platform products:', err);
+    } finally {
+      setPlatformsLoading(false);
     }
-    loadPlatformProducts();
-  }, [platformProduct?.product_id || platformProduct?.id, initialPlatformId]);
+  }
+
+  loadPlatformProducts();
+  
+  // 3. Đã sửa lại Dependency Array, bỏ dấu || và thêm các biến phụ thuộc
+}, [
+  product?.id, 
+  product?.normalized_name, 
+  product?.product_name,
+  platformProduct?.id,
+  platformProduct?.product_id, 
+  platformProduct?.raw_name,
+  platformProduct?.normalized_name,
+  platformProduct?.slug,
+  initialPlatformId,
+  comparePageSize // Thêm comparePageSize vì nó ảnh hưởng đến logic setCompareTotalPages
+]);
+
+  // Recompute total pages whenever the list length or page size changes
+  useEffect(() => {
+    const pages = Math.max(1, Math.ceil(allPlatformProducts.length / comparePageSize));
+    console.debug('[ProductDetail] recompute pages', { total: allPlatformProducts.length, comparePageSize, pages, comparePage });
+    setCompareTotalPages(pages);
+  }, [allPlatformProducts.length, comparePageSize]);
+
+  // Auto-reset to page 1 if current page is empty (no more platforms)
+  // NOTE: effect referencing `pagedPlatforms` will be declared after `pagedPlatforms` is defined.
 
   // HÀM XỬ LÝ LƯU CẢNH BÁO GIÁ
   const handleSaveAlert = async () => {
@@ -225,6 +314,12 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
     setShowPlatformSelector(false);
   };
 
+  // derive paged platforms for display
+  const pagedPlatforms = useMemo(() => {
+    if (!allPlatformProducts || allPlatformProducts.length === 0) return [];
+    const start = (comparePage - 1) * comparePageSize;
+    return allPlatformProducts.slice(start, start + comparePageSize);
+  }, [allPlatformProducts, comparePage, comparePageSize]);
   
 
   return (
@@ -405,8 +500,8 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
               {/* Platform Selector - chỉ show khi đã load xong */}
               {!platformsLoading && allPlatformProducts.length > 0 && (
               <div className="relative mb-6">
-                <button
-                  onClick={() => setShowPlatformSelector(!showPlatformSelector)}
+                <div
+                
                   className="w-full p-6 rounded-3xl bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between hover:border-brand-primary/40 transition-colors"
                 >
                   <div className="flex items-center gap-5">
@@ -417,9 +512,16 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                       <span className="text-lg font-black text-slate-950 dark:text-white font-display block">{platformName}</span>
                       <p className="text-[11px] font-bold text-slate-400">Giá: {formatPrice(currentPrice)}</p>
                     </div>
-                  </div>
-                  <ChevronDown size={20} className={`text-slate-500 transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`} />
-                </button>
+                  </div>        
+                   {/* Current Platform Info */}
+                  {!platformsLoading && allPlatformProducts.length > 0 && (
+                    <div className="p-6 ">
+                      <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
+                        {t('goToSeller')}
+                      </a>
+                    </div>
+              )}
+                </div>
 
                 {/* Platform Options Dropdown */}
                 {showPlatformSelector && allPlatformProducts.length > 0 && (
@@ -457,15 +559,66 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
               </div>
               )}
 
-              {/* Current Platform Info */}
+              {/* Paginated platform cards */}
               {!platformsLoading && allPlatformProducts.length > 0 && (
-              <div className="p-6 ">
-                
-                <a href={currentPlatformData.url} target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase text-center transition-opacity hover:opacity-90 flex-shrink-0">
-                  {t('goToSeller')}
-                </a>
-              </div>
+                <div className="mt-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {pagedPlatforms.map((p) => (
+                      <div 
+                        key={p.id} 
+                        onClick={() => handleSelectPlatform(p)}
+                        className={`relative flex items-center justify-between rounded-2xl border p-4 cursor-pointer transition-all duration-300 group ${
+                          selectedPlatformProduct?.id === p.id 
+                            ? 'bg-brand-primary/5 border-brand-primary/50 shadow-md ring-1 ring-brand-primary/50' 
+                            : 'bg-white dark:bg-slate-900 hover:shadow-xl hover:-translate-y-1 hover:border-brand-primary/30 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {selectedPlatformProduct?.id === p.id && (
+                          <div className="absolute -top-2 -right-2 bg-brand-primary text-white rounded-full p-1 shadow-md">
+                            <CheckCircle2 size={14} />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className={`flex h-14 w-14 items-center justify-center rounded-lg text-white font-bold text-lg bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 ${p.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : p.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                            {getPlatformName(p.platform_id).charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            {/* platform and seller text removed per UI request */}
+                            {/* product name removed as per UI request */}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="text-right">
+                            <div className={`text-xl font-black tracking-tight transition-colors ${selectedPlatformProduct?.id === p.id ? 'text-brand-primary' : 'text-emerald-600'}`}>
+                              {formatPrice(Number(p.current_price) || 0)}
+                            </div>
+                          </div>
+                          <a 
+                            href={p.url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            title={p.raw_name || 'Đến nơi bán'} 
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-brand-primary hover:underline font-bold z-10 relative uppercase tracking-wider max-w-[140px] sm:max-w-[180px]"
+                          >
+                            <span className="truncate">{p.raw_name || t('goToSeller')}</span> <ExternalLink size={12} className="flex-shrink-0" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Pagination
+                    currentPage={comparePage}
+                    totalPages={compareTotalPages}
+                    onPageChange={(p) => setComparePage(p)}
+                  />
+                </div>
               )}
+
+            
             </section>
 
             <section>

@@ -24,10 +24,11 @@
 │                                                                │
 │  Platform Registry                                             │
 │       │                                                        │
-│       ├─ FptCrawler                                            │
+│       ├─ FPTShopCrawler                                        │
+│       ├─ CellphonesCrawler                                     │
 │       └─ PhongVuCrawler                                        │
 │             │                                                  │
-│        CrawlerRunner (orchestrates, dedupes, writes CSV)       │
+│        services/crawler/main.py (runs selected crawlers)        │
 │             │                                                  │
 │        services/crawler/output/                                │
 │             *.products.csv  /  *.platform_products.csv         │
@@ -53,22 +54,12 @@
 
 ```
 services/crawler/
-├── main.py                     Entry point — parses CLI args, runs CrawlerRunner
-├── runner.py                   CrawlerRunner — iterates platforms, handles top-level errors
-├── registry.py                 Platform registry — maps platform ID → crawler class + config
-├── config.py                   Loads .env, exposes all crawler constants
+├── main.py                     Entry point — imports platform crawlers and runs selected jobs
 │
-├── base/
-│   ├── crawler.py              Abstract BaseCrawler(platform_id, output_dir)
-│   │                           • crawl() → List[RawProduct]   ← abstract
-│   │                           • save(products)               ← concrete (CSV writer)
-│   ├── browser.py              BrowserSession — Playwright lifecycle wrapper
-│   │                           • launch / close / new_page
-│   │                           • scroll_to_bottom()
-│   │                           • click_load_more(selector)
-│   │                           • wait_for_count_increase(selector, before, timeout)
-│   └── parser.py               Abstract BaseParser
-│                               • parse(soup, category) → List[RawProduct]   ← abstract
+├── core/
+│   ├── crawler.py              Abstract BaseCrawler interface
+│   ├── define/platform_type.py Platform IDs used by crawler code
+│   └── storage/                DB and Typesense helpers used by crawler scripts
 │
 ├── models/
 │   └── raw_product.py          RawProduct dataclass (pure data, no methods)
@@ -85,17 +76,17 @@ services/crawler/
 │
 └── impl/
     ├── fpt/
-    │   ├── crawler.py          FptCrawler(BaseCrawler)
-    │   │                       • Categories list (from config)
-    │   │                       • crawl() → uses BrowserSession + FptParser
-    │   └── parser.py           FptParser(BaseParser)
-    │                           • parse(soup, category) — cardDefault block parsing
+    │   └── crawler_fptshop.py  FPTShopCrawler
+    ├── cellphones/
+    │   └── crawler_cellphones.py CellphonesCrawler
     └── phongvu/
-        ├── crawler.py          PhongVuCrawler(BaseCrawler)
-        │                       • crawl() → uses BrowserSession + PhongVuParser
-        └── parser.py           PhongVuParser(BaseParser)
-                                • parse(soup, category) — ₫-anchor algorithm
+        └── crawler_phongvu.py  PhongVuCrawler
 ```
+
+Current implementation note: this file describes the target crawler/pipeline split, but
+the checked-in crawler code still uses per-platform crawler classes directly from
+`services/crawler/main.py`; `runner.py`, `registry.py`, `config.py`, shared browser
+wrappers, and parser classes are not currently present.
 
 ### 3.2 Data model: `RawProduct`
 
@@ -130,32 +121,34 @@ CSV is written atomically per category — append-then-dedup-on-finish. If the p
 - Returns `BeautifulSoup` object when page is fully expanded
 - **No parsing logic** — pure browser automation
 
-### 3.5 `registry.py` — Platform Registry
+### 3.5 Platform IDs and supported crawlers
 
 ```python
-PLATFORMS = {
-    7: PlatformConfig(
-        id=7,
-        name="FPT Shop",
-        base_url="https://fptshop.com.vn",
-        crawler_class=FptCrawler,
-        categories=[...],          # from config
-    ),
-    8: PlatformConfig(
-        id=8,
-        name="Phong Vũ",
-        base_url="https://phongvu.vn",
-        crawler_class=PhongVuCrawler,
-        categories=[...],
-    ),
-}
+PlatformType.CELLPHONES = 6
+PlatformType.FPTSHOP = 7
+PlatformType.PHONGVU = 8
 ```
 
-Adding a new platform = add one entry here + one `impl/` folder.
+Supported crawler classes in the codebase:
+
+| Platform | Crawler class | Location |
+|---|---|---|
+| CellphoneS | `CellphonesCrawler` | `services/crawler/impl/cellphones/crawler_cellphones.py` |
+| FPT Shop | `FPTShopCrawler` | `services/crawler/impl/fpt/crawler_fptshop.py` |
+| Phong Vũ | `PhongVuCrawler` | `services/crawler/impl/phongvu/crawler_phongvu.py` |
+
+`services/crawler/main.py` currently imports all three crawlers, but only the
+Phong Vũ run is enabled by default; FPT Shop and CellphoneS are commented out.
 
 ---
 
 ## 4. Pipeline Subsystem
+
+Current implementation note: the pipeline code currently uses flat modules such
+as `staging_loader.py`, `llm_normalizer.py`, `product_resolver.py`, and
+`persister.py`. The staged package layout below is the rewrite target, not the
+exact checked-in structure. `services/pipeline/main.py` currently comments out
+Stage 1 CSV loading and the final resolver/persister stages.
 
 ### 4.1 Components
 
@@ -297,11 +290,8 @@ staging.normalized_products    ← silver: LLM output, derived normalized_name
 
 | Utility | Location | Used by |
 |---|---|---|
-| `slugify(text)` | `crawler/utils/text.py` | Crawler, Pipeline |
-| `normalize_ascii(text)` | `crawler/utils/text.py` | Crawler, Pipeline |
-| `parse_price(text)` | `crawler/utils/text.py` | Crawler |
-| `ProductNormalizer` | `crawler/utils/normalizer.py` | Crawler, Pipeline (pre-clean before LLM) |
-| `TypesenseHandler` | `crawler/base/` or shared lib | Pipeline only (Resolver + Persister) |
+| `ProductNormalizer` | `crawler/utils/text_parser.py` | Crawler, Pipeline pre-cleaning |
+| `TypesenseHandler` | `crawler/core/storage/typesense_handler.py` | Crawler storage and Pipeline |
 
 Pipeline imports from `services.crawler.utils` — no duplication.
 
@@ -309,7 +299,8 @@ Pipeline imports from `services.crawler.utils` — no duplication.
 
 ## 6. Configuration (`services/.env`)
 
-Single `.env` file, single loader function in `services/shared/env.py` — imported by both `crawler/config.py` and `pipeline/config.py`. No other file parses `.env`.
+Current pipeline config loads `services/.env` from `services/pipeline/config.py`.
+The target rewrite is a single shared loader in `services/shared/env.py`.
 
 | Key | Used by |
 |---|---|
@@ -320,10 +311,12 @@ Single `.env` file, single loader function in `services/shared/env.py` — impor
 | `TYPESENSE_HOST/PORT/API_KEY` | Pipeline |
 | `LITELLM_BASE_URL` | Pipeline |
 | `LITELLM_API_KEY` | Pipeline |
+| `LITELLM_USERNAME/PASSWORD` | Pipeline fallback auth |
 | `FPT_CATEGORIES` | Crawler (comma-separated, overrides default list) |
 | `PHONGVU_CATEGORIES` | Crawler |
-| `LLM_BATCH_SIZE` | Pipeline (default: 20) |
+| `LLM_BATCH_SIZE` | Pipeline (default: 10) |
 | `LLM_MAX_RETRIES` | Pipeline (default: 3) |
+| `DEDUP_SCORE_THRESHOLD` | Pipeline product resolver |
 
 ---
 

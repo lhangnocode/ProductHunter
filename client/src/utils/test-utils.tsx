@@ -30,7 +30,8 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
             isAlertsLoading: false,
             setAlert: vi.fn(),
             removeAlert: vi.fn(),
-            clearAlerts: vi.fn()
+            clearAlerts: vi.fn(),
+            triggerPriceCheck: vi.fn()
           }}>
             {children}
           </UserContext.Provider>

@@ -9,6 +9,14 @@ export interface PriceAlertItem {
   current_price?: number | null; // Có thể backend trả về hoặc không
 }
 
+export interface TriggerPriceAlertResponse {
+  status: string;
+  message: string;
+  checked_products: number;
+  triggered_alerts: number;
+  skipped_without_price: number;
+}
+
 export const priceAlertService = {
   // Lấy danh sách Alert
   async getAlerts(accessToken: string): Promise<PriceAlertItem[]> {
@@ -52,6 +60,24 @@ export const priceAlertService = {
       },
     });
     if (!response.ok) throw new Error('Không thể xóa cảnh báo giá');
+    return response.json();
+  },
+
+  async triggerPriceCheck(
+    accessToken: string,
+  ): Promise<TriggerPriceAlertResponse> {
+    const response = await fetch(`${CONFIG.API_URL}/price_alerts/trigger`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.detail || 'Không thể kích hoạt kiểm tra giá');
+    }
     return response.json();
   }
 };
