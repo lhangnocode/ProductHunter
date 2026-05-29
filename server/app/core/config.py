@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     TYPESENSE_PROTOCOL: str = "http"
     DASHSCOPE_API_KEY: str = ""
     QWEN_BASE_URL: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-    QWEN_MODEL: str = "qwen3.5-plus"
+    QWEN_MODEL: str = "qwen3.6-flash"
     QWEN_TIMEOUT_SECONDS: int = 30
     ADVISOR_MAX_CONTEXT_PRODUCTS: int = 5
     SECRET_KEY: str

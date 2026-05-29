@@ -6,7 +6,7 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 
 1. **Entry Point**: `services/crawler/main.py` orchestrates one or more crawler runs (cron-safe).
 2. **Base Crawler Class**: `services/crawler/core/crawler.py` defines the shared interface and owns a `StorageManager` instance.
-3. **Specific Crawler Implementations**: Platform crawlers (FPT, Phong Vũ) use Playwright + BeautifulSoup and emit normalized data.
+3. **Specific Crawler Implementations**: Platform crawlers for CellphoneS, FPT Shop, and Phong Vũ use Playwright + BeautifulSoup and emit normalized data.
 4. **Storage Layer**: `services/crawler/core/storage/` provides DB and Typesense handlers plus ETL helpers.
 5. **Error Handling and Logging**: Crawl errors are logged per category; Typesense failures are best-effort.
 
@@ -24,15 +24,15 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
                    |  fetch/parse/emit   |         | schema/constraints  |
                    +----------+----------+         | persist/files/ETL   |
                               |                   +----------+----------+
-          +-------------------+-------------------+          |
-          |                                       |          |
-          v                                       v          v
-+-----------------------+              +-----------------------+
-| Specific Crawler A    |              | Specific Crawler B    |
-| site adapters/parsers |              | site adapters/parsers |
-+-----------+-----------+              +-----------+-----------+
-            |                                       |
-            +-------------------+-------------------+
+          +------------+------------+-------------+          |
+          |            |            |             |          |
+          v            v            v             v          v
++----------------+ +----------------+ +----------------+
+| CellphoneS     | | FPT Shop       | | Phong Vu       |
+| crawler        | | crawler        | | crawler        |
++-------+--------+ +-------+--------+ +-------+--------+
+        |                  |                  |
+        +------------------+------------------+
                                 |
                                 v
                    +---------------------+
@@ -49,7 +49,15 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 - **Storage Manager (Singleton)**: `services/crawler/core/storage/storage_manager.py` wires DB + Typesense handlers once per process.
 - **Database Handler**: `services/crawler/core/storage/database_handler.py` provides a lightweight connection + query layer and loads `.env` DB settings.
 - **Typesense Handler**: `services/crawler/core/storage/typesense_handler.py` ensures the `products` collection (with infix-enabled fields), bulk import, and search updates.
-- **Crawler Implementations**: FPT and Phong Vũ crawlers extract product fields and map to server models.
+- **Crawler Implementations**: CellphoneS, FPT Shop, and Phong Vũ crawlers extract product fields and map to server models.
+
+Current entry point note: `services/crawler/main.py` imports all three crawler
+classes, but only `PhongVuCrawler` is enabled in the default checked-in script.
+Enable the FPT Shop and CellphoneS calls in that file when a full three-site run
+is intended. CellphoneS also has inconsistent platform IDs across current
+service code (`9` in the crawler and pipeline CSV registry, `6` in
+`core/define/platform_type.py`, and `4` in `pipeline/define/platform.py`), so
+confirm the canonical ID before enabling automated end-to-end CellphoneS loads.
 
 ## Data Models (Crawler Output)
 - **products**: `normalized_name`, `slug`, `brand`, `category`, `main_image_url`
@@ -58,19 +66,24 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 ## Runtime Flow (Batch)
 1. **Cron triggers** `services/crawler/main.py`.
 2. **Crawler loads** pages per category (Playwright), expands listings, and parses DOM.
-3. **Normalize + map** raw fields into `products` and `platform_products`.
-4. **Ensure Typesense collection** (`products`) exists with infix-enabled fields.
-5. **For each new platform product**:
-   - **Fuzzy match** in Typesense using `normalized_name` / `slug`.
-   - **If match found**: use the returned product `id`.
-   - **If no match**: create a new product in PostgreSQL, then upsert that product into Typesense.
-   - **Insert/update platform product** in PostgreSQL with the resolved `product_id`.
-6. **Persist CSV snapshots** to `services/crawler/output` for recovery/debug.
+3. **Crawler writes CSV snapshots** to `services/crawler/output`.
+4. **Pipeline utilities** load CSVs into staging, normalize names, resolve products, persist gold tables, and update Typesense.
+5. **Backend ingestion APIs** remain available for controlled product and platform-product upserts with `X-API-Key`.
 
-## Planned Price Alert Trigger Integration
-This section documents the intended post-crawl alert flow. It is not implemented yet.
+Current implementation note: the crawler classes themselves write CSV files; they
+do not directly POST to the FastAPI crawler ingestion endpoints. In
+`services/pipeline/main.py`, the Stage 1 CSV load and later persistence stages
+are currently commented out, so the checked-in pipeline entry point primarily
+ensures schemas/Typesense and runs LLM normalization.
 
-After a crawler run completes and updated `platform_products.current_price` values have been persisted, the crawler/server should trigger the existing API once. The API checks the active price-alert list and computes the current lowest in-stock price on the server:
+## Price Alert Trigger Integration
+The backend trigger API is implemented, but automatic post-crawl invocation from
+the crawler is not wired yet.
+
+After a crawler run completes and updated `platform_products.current_price`
+values have been persisted, the crawler/server should trigger the existing API
+once. The implemented API checks the active price-alert list for the
+authenticated user and computes the current lowest in-stock price on the server:
 
 ```http
 POST /api/v1/price_alerts/trigger
@@ -80,10 +93,17 @@ POST /api/v1/price_alerts/trigger
 {}
 ```
 
-Planned flow:
+Implemented API behavior:
+
+1. `POST /api/v1/price_alerts/trigger` requires a Bearer token today.
+2. Body `{}` checks all active alerts for the authenticated user.
+3. Body `{"product_id": "..."}` narrows the check to one product.
+4. Matching alerts are marked as triggered and email sending is queued via FastAPI background tasks.
+
+Planned crawler integration:
 
 1. Finish persisting updated crawl prices to `platform_products`.
-2. Call `POST /api/v1/price_alerts/trigger` once.
+2. Call a system-level alert trigger once after persistence.
 3. Let the backend iterate through active price alerts and compute `MIN(current_price)` from in-stock platform products for each product.
 4. Let the backend price-alert service evaluate active alerts where `target_price >= current_lowest_price`.
 5. Let the backend queue price-drop emails and mark matched alerts as triggered.
