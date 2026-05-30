@@ -153,7 +153,7 @@ describe('UserContext integration', () => {
       product_name: 'Galaxy S24',
       main_image_url: null,
     });
-    mockedRemoveAlert.mockResolvedValueOnce();
+    mockedRemoveAlert.mockResolvedValueOnce({ success: true });
 
     renderWithProvider();
 
