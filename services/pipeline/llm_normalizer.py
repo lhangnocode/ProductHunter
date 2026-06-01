@@ -1,9 +1,9 @@
 """
-Stage 2 — Transform via LiteRTLM (staging.raw_product → staging.normalized_product)
+Stage 2 — Transform via LLM provider (staging.raw_product → staging.normalized_product)
 
 For each row in staging.raw_product with llm_status='pending':
   1. Pre-clean raw_name with ProductNormalizer (reduce noise in prompt)
-  2. Batch N names into one LiteRTLM stateless conversation request
+  2. Batch N names into one LLM request
   3. Parse structured JSON response:
        { product_type, brand, model, specs: [{name, value}, ...], manufacture_model_id }
   4. Build normalized_name in code from structured fields
@@ -11,7 +11,7 @@ For each row in staging.raw_product with llm_status='pending':
   6. Mark llm_status='done' on success, 'failed' on parse error
 
 normalized_name derivation:
-  "<category> <brand> <model>" → lowercased, ASCII-safe
+  "<category> <brand> <model> <identity specs>" → lowercased, ASCII-safe
   Used for Typesense product dedup and indexing.
 """
 from __future__ import annotations
@@ -20,93 +20,27 @@ import json
 import re
 import time
 import unicodedata
-import uuid
 from typing import Any
-
-import requests
 
 from services.crawler.utils.text_parser import ProductNormalizer
 from services.pipeline.config import (
-    LITELLM_BASE_URL,
-    LITELLM_API_KEY,
-    LITELLM_USERNAME,
-    LITELLM_PASSWORD,
     LLM_BATCH_SIZE,
     LLM_MAX_RETRIES,
 )
-from services.pipeline.define.instruction import LLM_INSTRUCTION
+from services.pipeline.llm_client import ProductNormalizerClient, create_product_normalizer_client
 
 
 _normalizer = ProductNormalizer()
-print(LLM_INSTRUCTION)
-
-# ── Auth helpers ──────────────────────────────────────────────────────────────
-
-def _get_auth_headers() -> dict[str, str]:
-    """Return Authorization header. Prefer API key, fall back to JWT login."""
-    if LITELLM_API_KEY:
-        return {"Authorization": f"Bearer {LITELLM_API_KEY}"}
-    if LITELLM_USERNAME and LITELLM_PASSWORD:
-        token = _jwt_login()
-        return {"Authorization": f"Bearer {token}"}
-    raise EnvironmentError(
-        "No LiteRTLM credentials. Set LITELLM_API_KEY (or LITELLM_USERNAME + LITELLM_PASSWORD) "
-        "in services/.env"
-    )
-
-
-def _jwt_login() -> str:
-    resp = requests.post(
-        f"{LITELLM_BASE_URL}/api/auth/login",
-        json={"username": LITELLM_USERNAME, "password": LITELLM_PASSWORD},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    if not data.get("ok"):
-        raise RuntimeError(f"LiteRTLM login failed: {data.get('error')}")
-    return data["accessToken"]
 
 
 # ── Core LLM call ─────────────────────────────────────────────────────────────
 
-def _call_llm(names: list[str], headers: dict[str, str]) -> list[dict[str, Any]]:
+def _call_llm(names: list[str], client: ProductNormalizerClient) -> list[dict[str, Any]]:
     """
-    Send a batch of pre-cleaned product names to LiteRTLM via a stateless
-    conversation. Returns the parsed JSON array.
+    Send a batch of pre-cleaned product names to the configured LLM provider.
     Raises on network or parse errors (caller handles retries).
     """
-    conv_name = f"pipeline-norm-{uuid.uuid4().hex[:12]}"
-    numbered = "\n".join(f"{i + 1}. {name}" for i, name in enumerate(names))
-    prompt = numbered
-
-    # 1. Send message (blocking — waits for full reply)
-    reply = ""
-    try:
-        resp = requests.post(
-            f"{LITELLM_BASE_URL}/api/conversations/data-normalizer/messages",
-            json={"message": prompt},
-            headers=headers,
-            timeout=500,       # large batches on slow models can take several minutes
-        )
-        resp.raise_for_status()
-        reply = resp.json().get("reply", "")
-    except Exception as exc:
-        print(f"[llm] Error during LLM call: {exc}")
-        pass  # will be handled by caller's retry logic
-
-    # 4. Strip optional markdown code fences (```json ... ```)
-    clean = reply.strip()
-    if clean.startswith("```"):
-        lines = clean.splitlines()
-        # Drop first line (``` or ```json) and last line (```)
-        end = -1 if lines[-1].strip() == "```" else len(lines)
-        clean = "\n".join(lines[1:end])
-
-    parsed = json.loads(clean)
-    if not isinstance(parsed, list):
-        raise ValueError(f"Expected JSON array, got {type(parsed).__name__}: {clean[:200]}")
-    return parsed
+    return client.normalize_batch(names)
 
 
 def _to_ascii_lower(text: str) -> str:
@@ -119,6 +53,7 @@ def _derive_normalized_name(
     category: str | None,
     brand: str | None,
     model: str | None,
+    specs: list[dict[str, str]] | None,
 ) -> str:
     parts: list[str] = []
 
@@ -131,10 +66,43 @@ def _derive_normalized_name(
         m = re.sub(r"(?<=[a-z])\s+(?=[0-9])", "", m)
         m = re.sub(r"(?<=[0-9])\s+(?=[a-z])", "", m)
         parts.append(m)
+    for value in _identity_spec_values(specs):
+        parts.append(_to_ascii_lower(value))
 
     normalized = " ".join(p for p in parts if p)
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized[:100]
+
+
+def _identity_spec_values(specs: list[dict[str, str]] | None) -> list[str]:
+    """Return stable variant-defining spec values for product identity."""
+    if not specs:
+        return []
+
+    priority = {
+        "ram": 10,
+        "memory": 10,
+        "rom": 20,
+        "storage": 20,
+        "ssd": 20,
+        "hdd": 20,
+        "connectivity": 30,
+        "screen_size": 40,
+        "cpu": 50,
+        "gpu": 60,
+        "color": 90,
+    }
+    selected: list[tuple[int, int, str]] = []
+    for index, spec in enumerate(specs):
+        name = str(spec.get("name", "")).strip().lower()
+        value = str(spec.get("value", "")).strip()
+        if not name or not value or value.lower() == "unknown":
+            continue
+        rank = priority.get(name, 80)
+        selected.append((rank, index, value))
+
+    selected.sort(key=lambda item: (item[0], item[1]))
+    return [value for _, _, value in selected]
 
 
 def _derive_product_name(
@@ -193,7 +161,7 @@ def _parse_item(
             if isinstance(s, dict) and s.get("name") and s.get("value")
         ]
 
-    normalized_name = _derive_normalized_name(product_type, brand, model)
+    normalized_name = _derive_normalized_name(product_type, brand, model, specs)
     product_name = _derive_product_name(product_type, brand, model)
     if not normalized_name:
         raise ValueError("Could not derive normalized_name (brand/model/specs empty)")
@@ -218,7 +186,7 @@ def normalize_names(raw_names: list[str]) -> list[dict[str, str | None]]:
     if not raw_names:
         return []
 
-    headers = _get_auth_headers()
+    client = create_product_normalizer_client()
     results_all: list[dict[str, str | None]] = []
 
     for batch_start in range(0, len(raw_names), LLM_BATCH_SIZE):
@@ -230,7 +198,7 @@ def normalize_names(raw_names: list[str]) -> list[dict[str, str | None]]:
 
         for attempt in range(1, LLM_MAX_RETRIES + 1):
             try:
-                results = _call_llm(pre_cleaned, headers)
+                results = _call_llm(pre_cleaned, client)
                 break
             except Exception as exc:
                 last_error = exc
@@ -244,8 +212,7 @@ def normalize_names(raw_names: list[str]) -> list[dict[str, str | None]]:
         print(f"[llm] Batch {batch_start // LLM_BATCH_SIZE + 1}: received {len(results)} results for {len(batch)} names.")
         print(f"[llm] Sample result: {results[0] if results else 'None'}")
         print(f"[llm] Sample raw name: {batch[0]}")
-        
-        
+
         if len(results) != len(batch):
             raise ValueError(
                 f"LLM response length mismatch (expected {len(batch)}, got {len(results)})"
@@ -279,7 +246,7 @@ def normalize_pending(staging_conn) -> None:
     Fetch all pending rows from staging.raw_product, normalize via LLM,
     write structured results to staging.normalized_product.
     """
-    headers = _get_auth_headers()
+    client = create_product_normalizer_client()
 
     with staging_conn.cursor() as cur:
         cur.execute(
@@ -309,7 +276,7 @@ def normalize_pending(staging_conn) -> None:
 
         for attempt in range(1, LLM_MAX_RETRIES + 1):
             try:
-                results = _call_llm(pre_cleaned, headers)
+                results = _call_llm(pre_cleaned, client)
                 break
             except Exception as exc:
                 last_error = exc

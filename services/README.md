@@ -71,6 +71,13 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 - Shell wrapper: `services/crawler/run_crawler.sh` runs `python -m services.crawler.main` from the repo root.
 - Cron template: `services/crawler/crawler.cron` schedules daily runs at 1 AM (edit paths before installing).
 
+## Pipeline LLM Provider
+- Stage 2 normalization defaults to OpenAI through `LLM_PROVIDER=openai`.
+- Required OpenAI settings in `services/.env`: `OPENAI_API_KEY`.
+- Optional OpenAI-compatible gateway setting: `OPENAI_BASE_URL` (for example `http://localhost:8080/v1`; leave unset for OpenAI's hosted API).
+- Optional OpenAI settings: `OPENAI_MODEL` (default `gpt-5.4-mini`), `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_OUTPUT_TOKENS`.
+- LiteRTLM remains available only as a legacy fallback by setting `LLM_PROVIDER=litertlm` and the existing `LITELLM_*` variables.
+
 ## Error Handling
 - Crawl errors are logged per category; the crawler continues with the next category.
 - Typesense updates are best-effort; failures do not block DB persistence.
