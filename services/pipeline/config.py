@@ -7,6 +7,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from services.pipeline.define.platform import Platform
+
 
 def _load_env() -> None:
     """Load services/.env into os.environ (does not overwrite already-set vars)."""
@@ -86,7 +88,7 @@ CRAWLER_OUTPUT_DIR: Path = Path(__file__).resolve().parents[1] / "crawler" / "ou
 # ── CSV file registry ─────────────────────────────────────────────────────────
 # Each entry: (platform_products_csv, platform_id)
 CSV_FILES: list[tuple[Path, int]] = [
-    (CRAWLER_OUTPUT_DIR / "fptshop_products.csv", 7),
-    (CRAWLER_OUTPUT_DIR / "phongvu_products.csv", 8),
-    (CRAWLER_OUTPUT_DIR / "cellphones_products.csv", 9),
+    (CRAWLER_OUTPUT_DIR / "fptshop_products.csv", Platform.FPTSHOP),
+    (CRAWLER_OUTPUT_DIR / "phongvu_products.csv", Platform.PHONGVU),
+    (CRAWLER_OUTPUT_DIR / "cellphones_products.csv", Platform.CELLPHONES),
 ]
