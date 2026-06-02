@@ -125,7 +125,7 @@ describe('UpgradeProModal', () => {
       expect(screen.getByText('NGUYEN VAN A')).toBeInTheDocument();
       expect(screen.getByText('123456')).toBeInTheDocument();
       expect(screen.getByText(/Ngân hàng BIDV/i)).toBeInTheDocument();
-      expect(screen.getByText(/59,000đ/i)).toBeInTheDocument();
+      expect(screen.getByText(/59[.,]000\s?đ/i)).toBeInTheDocument();
     });
   });
 
