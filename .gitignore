@@ -31,6 +31,10 @@ dist/
 
 # testing
 /coverage
+.coverage
+server/.coverage
+server/htmlcov/
+server/coverage.xml
 
 # misc
 .DS_Store
