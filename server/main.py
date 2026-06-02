@@ -7,6 +7,11 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -14,6 +19,8 @@ app = FastAPI(
 )
 
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
