@@ -40,7 +40,7 @@ class PhongVuCrawler:
 
     def crawl(self) -> None:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
             context = browser.new_context(viewport={"width": 1920, "height": 1080})
 
             for category_slug, category_name in CATEGORY_MAP.items():
