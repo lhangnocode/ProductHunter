@@ -9,7 +9,7 @@ import os
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import false, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from app.db.session import get_db
 
 from app.handlers.handler_product import search_product
@@ -81,12 +81,14 @@ MOCK_PLATFORM_DATA = [
 async def search_products_list(
     q: str = Query(..., min_length=2, description="Keyword"),
     page: int = Query(1, ge=1, description="current page"),
-    limit: int = Query(20,alias="size", ge=1, le=100, description="num of products per page"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="limit from test"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="size from frontend"),
     db: AsyncSession = Depends(get_db),
 ):
-    products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
+    final_limit = size if size is not None else (limit if limit is not None else 20)
+    products, total_results = await search_product(query=q, db=db, limit=final_limit, page=page)
     
-    total_pages = math.ceil(total_results / limit) if limit > 0 else 0
+    total_pages = math.ceil(total_results / final_limit) if final_limit > 0 else 0
 
     return {
         "keyword": q,
@@ -109,12 +111,14 @@ async def get_all_products(skip: int = 0, limit: int = 100, db: AsyncSession = D
 async def search_products_list(
     q: str = Query(..., min_length=2, description="Keyword"),
     page: int = Query(1, ge=1, description="current page"),
-    limit: int = Query(20, ge=1, le=100, description="num of products per page"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="limit from test"),
+    size: Optional[int] = Query(None, ge=1, le=100, description="size from frontend"),
     db: AsyncSession = Depends(get_db),
 ):
-    products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
-    
-    total_pages = math.ceil(total_results / limit) if total_results > 0 else 0
+    final_limit = size if size is not None else (limit if limit is not None else 20)
+    products, total_results = await search_product(query=q, db=db, limit=final_limit, page=page)
+
+    total_pages = math.ceil(total_results / final_limit) if final_limit > 0 else 0
 
     platform_items = []
     for p in products:
