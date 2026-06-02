@@ -57,9 +57,7 @@ export async function searchProducts(
   size = 24,
 ): Promise<SearchResponse> {
   try {
-    const url = `${CONFIG.API_URL}/products/search?q=${encodeURIComponent(
-      name,
-    )}&page=${page}&size=${size}`;
+    const url = `${CONFIG.API_URL}/products/search?q=${encodeURIComponent(name)}&page=${page}&limit=${size}`;
     console.debug("[searchProducts] requesting", url);
     const response = await fetch(url);
     console.debug("[searchProducts] status", response.status);
@@ -80,9 +78,9 @@ export async function searchProducts(
       ? result.items
       : [];
 
-    const pageNum = Number(result.page ?? result.page_number ?? page) || page;
-    const pageSize = Number(result.size ?? result.page_size ?? size) || size;
-    const totalElements = Number(result.total_elements ?? result.total ?? 0) || 0;
+    const pageNum = Number(result.page ?? result.page_number ?? result.current_page ?? page) || page;
+    const pageSize = Number(result.size ?? result.page_size ?? result.limit ?? size) || size;
+    const totalElements = Number(result.total_elements ?? result.total ?? result.total_results ?? 0) || 0;
     const totalPages = Number(result.total_pages ?? result.totalPages ?? Math.ceil(totalElements / pageSize)) || 0;
 
     return {

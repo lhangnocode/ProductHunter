@@ -190,17 +190,7 @@ async def search_product(
                 .order_by(ordering)
             )
             result = await db.execute(stmt)
-            all_db_products: List[Product] = list(result.scalars().unique().all())
-            
-            # Khắc phục lỗi phân trang: Loại bỏ các sản phẩm trùng lặp normalized_name 
-            # để đảm bảo số lượng trả về khớp chính xác với số lượng hit (limit) từ Typesense
-            products_by_norm = {}
-            for p in all_db_products:
-                if p.normalized_name not in products_by_norm:
-                    products_by_norm[p.normalized_name] = p
-            
-            # Lọc và giữ đúng thứ tự từ Typesense
-            products: List[Product] = [products_by_norm[nid] for nid in product_ids if nid in products_by_norm]
+            products: List[Product] = list(result.scalars().unique().all())
             
             return products, total_results 
             
