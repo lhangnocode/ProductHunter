@@ -164,7 +164,17 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
         }));
       }
 
-      // 2. Cập nhật State
+      // 2. Sắp xếp lại danh sách các nền tảng: ưu tiên còn hàng và giá thấp nhất
+      platforms.sort((a, b) => {
+        if (a.in_stock && !b.in_stock) return -1;
+        if (!a.in_stock && b.in_stock) return 1;
+        
+        const priceA = a.current_price != null ? Number(a.current_price) : Infinity;
+        const priceB = b.current_price != null ? Number(b.current_price) : Infinity;
+        return priceA - priceB;
+      });
+
+      // 3. Cập nhật State
       setAllPlatformProducts(platforms);
       
       // Reset về trang 1 mỗi khi fetch data mới

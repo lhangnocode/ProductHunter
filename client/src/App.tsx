@@ -57,7 +57,14 @@ import { Pagination } from './components/Pagination';
 
 type Tab = "search" | "trending" | "wishlist" | "alerts";
 type SortOption = "trending" | "price-asc" | "price-desc" | "rating";
-const ADMIN_EMAILS = new Set(["lhang18022005@gmail.com", "vinhlg@gmail.com"]);
+const ADMIN_EMAILS = new Set([
+  "lhang18022005@gmail.com",
+  "vinhlg@gmail.com",
+  "testbank@gmail.com",
+  "letridangg2005@gmail.com",
+  "23020715@vnu.edu.vn",
+  "nguyenhaibatrung05@gmail.com",
+]);
 
 function AppContent() {
   const isResetPasswordPath = window.location.pathname === "/reset-password";
