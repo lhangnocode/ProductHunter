@@ -335,6 +335,20 @@ function AppContent() {
   const getProductId = (product: any): string =>
     product.product_id ?? product.id;
 
+  const getProductIdCandidates = (product: any): string[] => {
+    const candidates = [
+      product?.product_id,
+      product?.product?.id,
+      product?.id,
+    ];
+    return candidates
+      .filter((value): value is string | number => value !== undefined && value !== null && value !== "")
+      .map((value) => String(value));
+  };
+
+  const hasAlertForProduct = (product: any): boolean =>
+    getProductIdCandidates(product).some((id) => alertIds.has(id));
+
   const handleAddWishlist = async (product: any) => {
     if (!user) {
       setIsAuthModalOpen(true);
@@ -665,7 +679,7 @@ function AppContent() {
                         product={product}
                         onClick={handleNavigateToDetail}
                         isWishlisted={wishlistIds.has(getProductId(product))}
-                        isAlerted={alertIds.has(getProductId(product))} // THÊM DÒNG NÀY
+                        isAlerted={hasAlertForProduct(product)}
                         onToggleWishlist={(e) => {
                           e.stopPropagation();
                           handleAddWishlist(product);
@@ -709,6 +723,7 @@ function AppContent() {
           <TrendingDeals
             onProductClick={handleNavigateToDetail}
             wishlistIds={wishlistIds}
+            alertIds={alertIds}
             onToggleWishlist={handleAddWishlist}
           />
         );
@@ -797,6 +812,7 @@ function AppContent() {
                       <ProductCard
                         product={product}
                         onClick={(p) => handleNavigateToDetail(p, p.product_id)}
+                        isAlerted={hasAlertForProduct(product)}
                         onRemove={(e) => {
                           e.stopPropagation();
                           handleAddWishlist(product);
@@ -962,6 +978,7 @@ function AppContent() {
                     >
                       <ProductCard
                         product={productForCard}
+                        isAlerted
                         // Click vào thẻ thì bay tới trang chi tiết
                         onClick={(p) => handleNavigateToDetail(p, p.product_id)}
                         // Nút X để xóa cảnh báo
