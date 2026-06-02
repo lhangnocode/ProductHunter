@@ -47,11 +47,12 @@ const TestComponent = () => {
 };
 
 const AlertTestComponent = ({ productId }: { productId: string }) => {
-    const { alerts, setAlert } = useUser();
+    const { alerts, setAlert, isAlertLimitModalOpen, closeAlertLimitModal } = useUser();
     const [message, setMessage] = React.useState('');
     return (
         <div>
             <div data-testid="alert-count">{alerts.length}</div>
+            <div data-testid="limit-modal-open">{String(isAlertLimitModalOpen)}</div>
             <div data-testid="alert-message">{message}</div>
             <button
                 data-testid="set-alert-btn"
@@ -65,6 +66,9 @@ const AlertTestComponent = ({ productId }: { productId: string }) => {
                 }}
             >
                 Set Alert
+            </button>
+            <button data-testid="close-limit-modal-btn" onClick={closeAlertLimitModal}>
+                Close
             </button>
         </div>
     );
@@ -133,7 +137,13 @@ describe('UserContext', () => {
         });
 
         expect(screen.getByTestId('alert-message')).toHaveTextContent('up to 5 products');
+        expect(screen.getByTestId('limit-modal-open')).toHaveTextContent('true');
         expect(priceAlertService.setAlert).not.toHaveBeenCalled();
+
+        await act(async () => {
+            screen.getByTestId('close-limit-modal-btn').click();
+        });
+        expect(screen.getByTestId('limit-modal-open')).toHaveTextContent('false');
     });
 
     it('allows free users to update an existing alert at the limit', async () => {
