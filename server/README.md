@@ -1,5 +1,15 @@
 # Server
 
+FastAPI backend for ProductHunter. Major implemented areas:
+
+- Product search and comparison with Typesense fallback to PostgreSQL.
+- Platform and platform-product APIs.
+- Crawler ingestion protected by `X-API-Key`.
+- Price records, price analysis, and trending deals.
+- Email/password auth, refresh tokens, password reset, Google/GitHub OAuth.
+- Wishlist and price-alert APIs for authenticated users.
+- ProductHunter Advisor chat endpoint.
+
 ### Manual run the server (dev)
 
 ```bash
@@ -25,6 +35,16 @@ curl -X POST http://localhost:8000/api/v1/crawler/products \
   -H "X-API-Key: $DEV_API_KEY" \
   -d '{"normalized_name":"iphone 15","slug":"iphone-15","brand":"Apple","category":"phone","main_image_url":"https://example.com/p.jpg"}'
 ```
+
+### Tests
+
+```bash
+pytest
+```
+
+Tests live in `server/tests/` and cover auth, crawler ingest, products,
+platform products, price records, trending deals, wishlist, price alerts,
+security, social auth, Advisor, and integration flows.
 
 ### Docker Compose
 

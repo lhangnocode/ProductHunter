@@ -33,3 +33,25 @@ async def send_price_drop_email_async(to_email: str, product_name: str, current_
 
     fm = FastMail(conf)
     await fm.send_message(message)
+
+
+async def send_password_reset_email_async(to_email: str, reset_link: str):
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif;">
+        <h2 style="color: #2563EB;">Reset mật khẩu ProductHunter</h2>
+        <p>Bạn vừa yêu cầu đặt lại mật khẩu.</p>
+        <p>Nhấn vào liên kết bên dưới để tiếp tục:</p>
+        <p><a href="{reset_link}">{reset_link}</a></p>
+        <p>Nếu không phải bạn yêu cầu, hãy bỏ qua email này.</p>
+    </div>
+    """
+
+    message = MessageSchema(
+        subject="Đặt lại mật khẩu ProductHunter",
+        recipients=[to_email],
+        body=html_content,
+        subtype=MessageType.html
+    )
+
+    fm = FastMail(conf)
+    await fm.send_message(message)

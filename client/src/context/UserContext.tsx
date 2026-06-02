@@ -35,9 +35,10 @@ interface UserContextType {
   setAlert: (productId: string, threshold: number) => Promise<void>;
   removeAlert: (productId: string) => Promise<void>;
   clearAlerts: () => Promise<void>;
+  triggerPriceCheck: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+export const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -280,6 +281,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       await loadAlerts();
     }
   };
+
+  const triggerPriceCheck = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("not_logged_in");
+
+    await priceAlertService.triggerPriceCheck(token);
+    await loadAlerts();
+  };
+
   return (
     <UserContext.Provider
       value={{
@@ -298,6 +308,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setAlert,
         removeAlert,
         clearAlerts, // Truyền alertIds ra ngoài
+        triggerPriceCheck,
       }}
     >
       {children}

@@ -1,3 +1,4 @@
+import uuid
 from fastapi import Header, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordBearer
@@ -46,7 +47,7 @@ async def get_current_user(
         raise credentials_exception
 
     # Async dung select khong dung query
-    stmt = select(User).where(User.id == user_id)
+    stmt = select(User).where(User.id == uuid.UUID(user_id))
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
