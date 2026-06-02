@@ -12,6 +12,10 @@ from app.db.session import get_db
 ADMIN_EMAILS = {
     "lhang18022005@gmail.com",
     "vinhlg@gmail.com",
+    "testbank@gmail.com",
+    "letridangg2005@gmail.com",
+    "23020715@vnu.edu.vn",
+    "nguyenhaibatrung05@gmail.com",
 }
 
 
