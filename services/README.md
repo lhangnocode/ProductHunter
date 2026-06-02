@@ -70,6 +70,9 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 ## Scheduling
 - Shell wrapper: `services/crawler/run_crawler.sh` runs `python -m services.crawler.main` from the repo root.
 - Cron template: `services/crawler/crawler.cron` schedules daily runs at 1 AM (edit paths before installing).
+- Full flow wrapper: `services/run_full_pipeline.sh` runs crawl, CSV staging + LLM normalization, then `migrate_normalized_data`.
+- Useful full-flow flags: `SKIP_CRAWL=1`, `SKIP_PIPELINE=1`, `SKIP_MIGRATE=1`, `STRICT_CSV=1`, `LOG_DIR=services/logs`.
+- When `STRICT_CSV=1`, set `EXPECTED_CSV_FILES` if only a subset of crawlers is enabled.
 
 ## Pipeline LLM Provider
 - Stage 2 normalization defaults to OpenAI through `LLM_PROVIDER=openai`.
