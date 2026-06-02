@@ -166,6 +166,13 @@ async def search_and_compare_products(
 
         lowest_price = min(valid_prices) if valid_prices else None
         
+        platforms_data.sort(
+            key=lambda p: (
+                not p.in_stock, 
+                p.current_price if p.current_price is not None else float('inf')
+            )
+        )
+        
         response_list.append(
             ProductCompareGroup(
                 id=product.id,
