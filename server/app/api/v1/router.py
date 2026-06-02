@@ -24,8 +24,8 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(social_auth.router, prefix="/auth", tags=["social_auth"])
 api_router.include_router(wish_list.router, prefix="/wish_lists", tags=["wish_lists"])
 api_router.include_router(advisor.router, prefix="/advisor", tags=["advisor"])
-<<<<<<< HEAD
+
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
-=======
+
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
->>>>>>> 46f6e8767df94cd8b3c55bd4dff75d15dca6a2d2
+
