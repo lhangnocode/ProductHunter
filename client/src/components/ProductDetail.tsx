@@ -11,6 +11,22 @@ import { useToast } from './Toast'; // Thêm useToast
 import { fetchPriceHistory, PriceAnalysis, fetchPriceAnalysis, fetchCompareGroups, PlatformProduct, fetchPlatformProductsByProductId } from '../services/price_record_api';
 import { Pagination } from './Pagination';
 
+const PLATFORM_META: Record<number, { name: string; gradient: string }> = {
+  1: { name: 'Shopee', gradient: 'from-[#ee4d2d] to-[#d63f1f]' },
+  2: { name: 'Tiki', gradient: 'from-[#003da5] to-[#001f5c]' },
+  5: { name: 'CellphoneS', gradient: 'from-[#003da5] to-[#001f5c]' },
+  7: { name: 'FPT Shop', gradient: 'from-[#ee4d2d] to-[#d63f1f]' },
+  8: { name: 'Phong Vũ', gradient: 'from-[#003da5] to-[#001f5c]' },
+};
+
+export const getPlatformName = (id: number | null | undefined) => (
+  id != null ? PLATFORM_META[id]?.name || 'Sàn khác' : 'Sàn khác'
+);
+
+const getPlatformGradient = (id: number | null | undefined) => (
+  id != null ? PLATFORM_META[id]?.gradient || 'from-[#003da5] to-[#001f5c]' : 'from-[#003da5] to-[#001f5c]'
+);
+
 interface ProductDetailProps {
 
   product: any; 
@@ -296,17 +312,6 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
     }).format(convertedValue);
   };
 
-  const getPlatformName = (id: number) => {
-    switch (id) {
-      case 1: return 'Shopee';
-      case 2: return 'Tiki';
-      case 5: return 'CellPhones';
-      case 7: return 'FPT Shop';
-      case 8: return 'Phong Vũ';
-      default: return 'Sàn khác';
-    }
-  };
-
   const platformName = getPlatformName(currentPlatformData.platform_id);
 
   const handleSelectPlatform = (platform: PlatformProduct) => {
@@ -505,7 +510,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                   className="w-full p-6 rounded-3xl bg-brand-primary/5 border border-brand-primary/20 flex items-center justify-between hover:border-brand-primary/40 transition-colors"
                 >
                   <div className="flex items-center gap-5">
-                    <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl bg-gradient-to-br ${currentPlatformData.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : currentPlatformData.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                    <div className={`h-12 w-12 flex items-center justify-center rounded-xl text-white font-bold text-xl bg-gradient-to-br ${getPlatformGradient(currentPlatformData.platform_id)}`}>
                       {platformName.charAt(0)}
                     </div>
                     <div className="text-left">
@@ -538,7 +543,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                         className={`w-full px-6 py-4 text-left border-b border-slate-100 dark:border-slate-800 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${selectedPlatformProduct?.id === platform.id ? 'bg-brand-primary/10' : ''}`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`h-10 w-10 flex items-center justify-center rounded-lg text-white font-bold text-sm bg-gradient-to-br ${platform.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : platform.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                          <div className={`h-10 w-10 flex items-center justify-center rounded-lg text-white font-bold text-sm bg-gradient-to-br ${getPlatformGradient(platform.platform_id)}`}>
                             {getPlatformName(platform.platform_id).charAt(0)}
                           </div>
                           <div className="min-w-0">
@@ -580,7 +585,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
                         )}
 
                         <div className="flex items-center gap-4 min-w-0">
-                          <div className={`flex h-14 w-14 items-center justify-center rounded-lg text-white font-bold text-lg bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 ${p.platform_id === 7 ? 'from-[#ee4d2d] to-[#d63f1f]' : p.platform_id === 1 ? 'from-[#ee4d2d] to-[#d63f1f]' : 'from-[#003da5] to-[#001f5c]'}`}>
+                          <div className={`flex h-14 w-14 items-center justify-center rounded-lg text-white font-bold text-lg bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 ${getPlatformGradient(p.platform_id)}`}>
                             {getPlatformName(p.platform_id).charAt(0)}
                           </div>
                           <div className="min-w-0">

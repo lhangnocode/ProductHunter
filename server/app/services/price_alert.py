@@ -9,14 +9,36 @@ from app.models.platform_product import PlatformProduct
 from app.schemas.price_alert import PriceAlertCreate
 from app.services.email import send_price_drop_email_async 
 
+FREE_PLAN_PRICE_ALERT_LIMIT = 5
+
 # ==========================================
 # 1. HÀM DÀNH CHO USER (API Đặt ngưỡng giá)
 # ==========================================
 async def set_price_alert(
     db: AsyncSession,
     user_id: UUID,
-    alert_in: PriceAlertCreate
+    alert_in: PriceAlertCreate,
+    user_plan: int = 0,
 ):
+    existing_stmt = select(PriceAlert.id).where(
+        PriceAlert.user_id == user_id,
+        PriceAlert.product_id == alert_in.product_id,
+    )
+    existing_result = await db.execute(existing_stmt)
+    existing_alert_id = existing_result.scalar_one_or_none()
+
+    if user_plan == 0 and existing_alert_id is None:
+        count_stmt = select(func.count(PriceAlert.id)).where(PriceAlert.user_id == user_id)
+        alert_count = await db.scalar(count_stmt) or 0
+        if alert_count >= FREE_PLAN_PRICE_ALERT_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Free plan users can only create price alerts for up to 5 products. "
+                    "Upgrade to Pro for unlimited alerts."
+                ),
+            )
+
     # UPSERT
     stmt = insert(PriceAlert).values(
         user_id=user_id,

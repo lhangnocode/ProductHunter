@@ -27,7 +27,7 @@ export function PriceChart({ data }: PriceChartProps) {
   return (
     <div className="h-[300px] w-full mt-6">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <AreaChart data={data} margin={{ top: 10, right: 0, bottom: 0, left: 0 }}>
+        <AreaChart data={data} margin={{ top: 10, right: 16, bottom: 8, left: 16 }}>
           <defs>
             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#ff4d00" stopOpacity={0.2}/>
@@ -52,8 +52,8 @@ export function PriceChart({ data }: PriceChartProps) {
             tickFormatter={(value) => language === 'vi' ? `${(value / 1000000).toFixed(1)}M` : `$${(value / 25000).toFixed(0)}`}
             tickLine={false} 
             axisLine={false}
-            width={45}
-            dx={-10}
+            width={64}
+            dx={0}
             fontFamily="JetBrains Mono"
             fontWeight={700}
           />

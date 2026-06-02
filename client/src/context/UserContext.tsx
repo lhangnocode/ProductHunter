@@ -211,6 +211,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!token) throw new Error("not_logged_in");
 
     const isExisting = alertIds.has(productId);
+    if (user?.plan === 0 && !isExisting && alerts.length >= 5) {
+      throw new Error(
+        "Free plan users can only create price alerts for up to 5 products. Upgrade to Pro for unlimited alerts.",
+      );
+    }
 
     // --- Optimistic update ---
     if (!isExisting) {
