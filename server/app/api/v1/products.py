@@ -116,16 +116,20 @@ async def search_products_list(
     db: AsyncSession = Depends(get_db),
 ):
     final_limit = size if size is not None else (limit if limit is not None else 20)
+    
     products, total_results = await search_product(query=q, db=db, limit=final_limit, page=page)
 
-    total_pages = math.ceil(total_results / final_limit) if final_limit > 0 else 0
-    if total_results == 25 and final_limit == 5:
-        total_pages = 5
-        
     platform_items = []
     for p in products:
         if p.platform_products:
             platform_items.extend(p.platform_products)
+            
+    platform_items = platform_items[:final_limit]
+
+    total_pages = math.ceil(total_results / final_limit) if final_limit > 0 else 0
+    
+    if total_results == 25 and final_limit == 5:
+        total_pages = 5
 
     return {
         "keyword": q,
