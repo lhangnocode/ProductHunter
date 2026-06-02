@@ -51,6 +51,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       if (isLogin) {
         const tokens = await authService.login(email, password);
+        localStorage.setItem('token', tokens.access_token); 
         localStorage.setItem('refresh_token', tokens.refresh_token);
         const userData = await authService.getMe(tokens.access_token);
         setAuthData(tokens.access_token, userData);

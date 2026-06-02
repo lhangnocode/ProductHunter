@@ -138,6 +138,24 @@ CREATE TABLE price_alerts (
     UNIQUE(user_id, product_id)
 );
 
+-- payment
+CREATE TABLE payment_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    receipt_url TEXT,
+
+    -- 0: Pending, 1: Approved, 2: Rejected
+    status SMALLINT DEFAULT 0,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_user_payment
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
 -- =========================
 -- INDEXES
 -- =========================
@@ -159,3 +177,6 @@ ON price_alerts(user_id);
 
 CREATE INDEX idx_price_alert_product
 ON price_alerts(product_id);
+
+CREATE INDEX idx_payment_requests_user
+ON payment_requests(user_id);
