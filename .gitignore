@@ -70,3 +70,6 @@ server/test_runner.db
 *.db
 *.sqlite
 *.sqlite3
+
+
+server/static/receipts/*

@@ -9,6 +9,7 @@ import { TrendingDeals } from "./components/TrendingDeals";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { AdvisorWidget } from "./components/AdvisorWidget";
 import { ExtensionGuideModal } from "./components/ExtensionGuideModal";
+
 import { AlertLimitModal } from "./components/AlertLimitModal";
 import { UpgradeProModal } from "./components/UpgradeProModal";
 import { AdminPage } from "./components/AdminPage";
@@ -89,6 +90,7 @@ function AppContent() {
   const [sortBy, setSortBy] = useState<SortOption>("trending");
 
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   // Xóa recentlyViewed cũ (chứa ID mock như p1, p2) tránh crash API
   useEffect(() => {
@@ -118,7 +120,6 @@ function AppContent() {
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [isTriggeringAlerts, setIsTriggeringAlerts] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const isAdmin = !!user && ADMIN_EMAILS.has(user.email.toLowerCase());
 
   // Tự động khởi động app nếu đã có user (chỉ check 1 lần sau khi restore session xong)
@@ -1099,6 +1100,11 @@ function AppContent() {
         onClose={() => setIsGuideOpen(false)} 
       />
 
+      <UpgradeProModal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
+      />
+
       {/* Background Decorative Elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-brand-primary/10 blur-[150px] animate-pulse" />
@@ -1331,8 +1337,11 @@ function AppContent() {
                 <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
                   {t("sidebarPromoDesc")}
                 </p>
-                <button
-                  onClick={() => setIsUpgradeModalOpen(true)}
+
+                {/* CẬP NHẬT NÚT NÀY */}
+                <button 
+                  onClick={() => setIsUpgradeModalOpen(true)} // <--- THÊM SỰ KIỆN NÀY
+
                   className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display"
                 >
                   {t("upgradeNow")}

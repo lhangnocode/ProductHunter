@@ -10,6 +10,7 @@ from app.api.v1 import auth
 from app.api.v1 import social_auth
 from app.api.v1 import wish_list
 from app.api.v1 import advisor
+from app.api.v1 import payments
 from app.api.v1 import admin
 
 api_router = APIRouter()
@@ -23,4 +24,8 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(social_auth.router, prefix="/auth", tags=["social_auth"])
 api_router.include_router(wish_list.router, prefix="/wish_lists", tags=["wish_lists"])
 api_router.include_router(advisor.router, prefix="/advisor", tags=["advisor"])
+
+api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
+
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+
