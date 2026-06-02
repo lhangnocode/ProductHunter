@@ -81,7 +81,7 @@ MOCK_PLATFORM_DATA = [
 async def search_products_list(
     q: str = Query(..., min_length=2, description="Keyword"),
     page: int = Query(1, ge=1, description="current page"),
-    limit: int = Query(20, ge=1, le=100, description="num of products per page"),
+    limit: int = Query(20,alias="size", ge=1, le=100, description="num of products per page"),
     db: AsyncSession = Depends(get_db),
 ):
     products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
