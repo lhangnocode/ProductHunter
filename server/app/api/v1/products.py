@@ -86,7 +86,7 @@ async def search_products_list(
 ):
     products, total_results = await search_product(query=q, db=db, limit=limit, page=page)
     
-    total_pages = math.ceil(total_results / limit) if total_results > 0 else 0
+    total_pages = math.ceil(total_results / limit) if limit > 0 else 0
 
     return {
         "keyword": q,
