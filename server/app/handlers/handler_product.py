@@ -202,6 +202,9 @@ async def search_product(
             # Lọc và giữ đúng thứ tự từ Typesense
             products: List[Product] = [products_by_norm[nid] for nid in product_ids if nid in products_by_norm]
             
+            if total_results <= limit and page > 1:
+                total_results = max(total_results, (page * limit))
+                
             return products, total_results 
             
         except Exception as exc:
