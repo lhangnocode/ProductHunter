@@ -4,7 +4,10 @@ Bao gồm: register, login, get me, refresh token, premium feature.
 """
 import pytest
 from httpx import AsyncClient
-from app.core.security import create_password_reset_token
+from jose import jwt
+
+from app.core.config import settings
+from app.core.security import create_access_token, create_password_reset_token, create_refresh_token
 
 
 # ============================================================
@@ -172,6 +175,43 @@ async def test_refresh_token_invalid(ac: AsyncClient):
     assert response.status_code == 401
 
 
+@pytest.mark.asyncio
+async def test_refresh_token_rejects_wrong_token_type(ac: AsyncClient):
+    access_token = create_access_token(data={"sub": "00000000-0000-0000-0000-000000000000"})
+
+    response = await ac.post("/api/v1/auth/refresh", json={
+        "refresh_token": access_token,
+    })
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_rejects_missing_sub(ac: AsyncClient):
+    token = jwt.encode(
+        {"type": "refresh"},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    response = await ac.post("/api/v1/auth/refresh", json={
+        "refresh_token": token,
+    })
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_rejects_nonexistent_user(ac: AsyncClient):
+    token = create_refresh_token(data={"sub": "00000000-0000-0000-0000-000000000000"})
+
+    response = await ac.post("/api/v1/auth/refresh", json={
+        "refresh_token": token,
+    })
+
+    assert response.status_code == 401
+
+
 # ============================================================
 # FORGOT / RESET PASSWORD
 # ============================================================
@@ -264,6 +304,30 @@ async def test_reset_password_invalid_token(ac: AsyncClient):
         "token": "invalid.token.value",
         "new_password": "AnyPass@1234",
     })
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_reset_password_rejects_wrong_token_type(ac: AsyncClient):
+    token = create_access_token(data={"sub": "reset-wrong-type@example.com"})
+
+    response = await ac.post("/api/v1/auth/reset-password", json={
+        "token": token,
+        "new_password": "AnyPass@1234",
+    })
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_reset_password_rejects_missing_user(ac: AsyncClient):
+    token = create_password_reset_token("missing-reset-user@example.com")
+
+    response = await ac.post("/api/v1/auth/reset-password", json={
+        "token": token,
+        "new_password": "AnyPass@1234",
+    })
+
     assert response.status_code == 400
 
 

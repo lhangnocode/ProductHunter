@@ -5,6 +5,10 @@ Bao gồm: search, get all, compare.
 import pytest
 from httpx import AsyncClient
 from unittest.mock import patch, AsyncMock
+from types import SimpleNamespace
+import uuid
+
+from app.api.v1 import products as products_api
 
 
 # ============================================================
@@ -159,3 +163,158 @@ async def test_compare_success(mock_search, ac: AsyncClient):
     assert data["keyword"] == "test"
     assert "data" in data
     assert isinstance(data["data"], list)
+
+
+def _fake_platform_product(price, in_stock=True, platform_id=1):
+    return SimpleNamespace(
+        platform_id=platform_id,
+        url=f"https://example.com/{platform_id}",
+        affiliate_url=None,
+        current_price=price,
+        original_price=price + 1000 if price is not None else None,
+        in_stock=in_stock,
+        last_crawled_at=None,
+    )
+
+
+def _fake_product(name, platform_products):
+    return SimpleNamespace(
+        id=uuid.uuid4(),
+        normalized_name=name,
+        product_name=name.title(),
+        slug=name.replace(" ", "-"),
+        main_image_url=None,
+        platform_products=platform_products,
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.api.v1.products.search_product")
+async def test_search_all_returns_platform_items_for_products_with_platforms(
+    mock_search,
+):
+    product = _fake_product("phone", [_fake_platform_product(100), _fake_platform_product(90)])
+    mock_search.return_value = ([product], 1)
+
+    response = await products_api.search_products_list(q="phone", page=1, limit=20, db=AsyncMock())
+
+    assert response["keyword"] == "phone"
+    assert response["total_pages"] == 1
+    assert len(response["data"]) == 2
+
+
+@pytest.mark.asyncio
+@patch("app.api.v1.products.search_product")
+async def test_search_all_ignores_products_without_platforms(mock_search):
+    product = _fake_product("phone", [])
+    mock_search.return_value = ([product], 1)
+
+    response = await products_api.search_products_list(q="phone", page=1, limit=20, db=AsyncMock())
+
+    assert response["data"] == []
+
+
+@pytest.mark.asyncio
+@patch("app.api.v1.products.search_product")
+async def test_compare_uses_in_stock_prices_and_ignores_out_of_stock(mock_search, ac: AsyncClient):
+    product = _fake_product(
+        "phone",
+        [
+            _fake_platform_product(500, in_stock=False, platform_id=1),
+            _fake_platform_product(300, in_stock=True, platform_id=2),
+        ],
+    )
+    mock_search.return_value = ([product], 1)
+
+    response = await ac.get("/api/v1/products/compare?q=phone")
+
+    assert response.status_code == 200
+    item = response.json()["data"][0]
+    assert item["lowest_price"] == 300
+    assert len(item["platforms"]) == 2
+
+
+@pytest.mark.asyncio
+@patch("app.api.v1.products.search_product")
+async def test_compare_no_valid_prices_returns_null_lowest_price(mock_search, ac: AsyncClient):
+    product = _fake_product(
+        "phone",
+        [
+            _fake_platform_product(None, in_stock=True),
+            _fake_platform_product(500, in_stock=False),
+        ],
+    )
+    mock_search.return_value = ([product], 1)
+
+    response = await ac.get("/api/v1/products/compare?q=phone")
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["lowest_price"] is None
+
+
+@pytest.mark.asyncio
+@patch("app.api.v1.products.search_product")
+async def test_compare_sorts_by_lowest_price(mock_search, ac: AsyncClient):
+    expensive = _fake_product("expensive", [_fake_platform_product(900)])
+    cheap = _fake_product("cheap", [_fake_platform_product(100)])
+    no_price = _fake_product("no price", [])
+    mock_search.return_value = ([expensive, no_price, cheap], 3)
+
+    response = await ac.get("/api/v1/products/compare?q=phone")
+
+    assert response.status_code == 200
+    names = [item["normalized_name"] for item in response.json()["data"]]
+    assert names == ["cheap", "expensive", "no price"]
+
+
+@pytest.mark.asyncio
+async def test_compare2_mock_data_branch(monkeypatch: pytest.MonkeyPatch, ac: AsyncClient, created_product: dict):
+    monkeypatch.setattr(
+        products_api,
+        "MOCK_PLATFORM_DATA",
+        [
+            {
+                "product_id": created_product["id"],
+                "platform_id": 1,
+                "url": "https://example.com/a",
+                "affiliate_url": None,
+                "current_price": 200,
+                "original_price": 300,
+                "in_stock": True,
+                "last_crawled_at": None,
+            },
+            {
+                "product_id": created_product["id"],
+                "platform_id": 2,
+                "url": "https://example.com/b",
+                "affiliate_url": None,
+                "current_price": 100,
+                "original_price": 300,
+                "in_stock": True,
+                "last_crawled_at": None,
+            },
+        ],
+    )
+
+    response = await ac.get("/api/v1/products/compare2?q=iphone")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_results"] == 1
+    assert data["data"][0]["lowest_price"] == 100
+
+
+@pytest.mark.asyncio
+async def test_compare2_skips_db_products_without_mock_platforms(
+    monkeypatch: pytest.MonkeyPatch,
+    ac: AsyncClient,
+    created_product: dict,
+):
+    monkeypatch.setattr(products_api, "MOCK_PLATFORM_DATA", [])
+
+    response = await ac.get("/api/v1/products/compare2?q=iphone")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_results"] == 0
+    assert data["data"] == []

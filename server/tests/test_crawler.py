@@ -7,6 +7,8 @@ import pytest
 from httpx import AsyncClient
 from unittest.mock import patch, AsyncMock
 from app.core.config import settings
+from app.api.v1 import crawler as crawler_api
+from tests.conftest import TestingSessionLocal
 
 
 # ============================================================
@@ -142,6 +144,72 @@ async def test_upload_platform_products_success(
     assert len(data) == 1
     assert data[0]["original_item_id"] == "crawl_item_001"
     assert data[0]["platform_id"] == platform_id
+
+
+@pytest.mark.asyncio
+async def test_upload_platform_products_updates_existing_item(
+    ac: AsyncClient, created_platform: dict, created_product: dict
+):
+    platform_id = created_platform["id"]
+    product_id = created_product["id"]
+    payload = {
+        "product_id": product_id,
+        "platform_id": platform_id,
+        "original_item_id": "crawl_item_update_001",
+        "url": "https://shopee.vn/product-update",
+        "current_price": 5000000,
+        "original_price": 6000000,
+        "in_stock": True,
+    }
+
+    first = await ac.post(
+        "/api/v1/crawler/platform-products",
+        json=[payload],
+        headers=dev_api_headers(),
+    )
+    assert first.status_code == 200
+
+    payload["current_price"] = 4500000
+    payload["in_stock"] = False
+    second = await ac.post(
+        "/api/v1/crawler/platform-products",
+        json=[payload],
+        headers=dev_api_headers(),
+    )
+
+    assert second.status_code == 200
+    data = second.json()
+    assert len(data) == 1
+    assert float(data[0]["current_price"]) == 4500000
+    assert data[0]["in_stock"] is False
+
+
+@pytest.mark.asyncio
+async def test_upload_platform_products_rolls_back_on_price_record_error(
+    monkeypatch: pytest.MonkeyPatch,
+    created_platform: dict,
+    created_product: dict,
+):
+    async def _raise_create_price_record(*args, **kwargs):
+        raise RuntimeError("price history failed")
+
+    monkeypatch.setattr(crawler_api, "create_price_record", _raise_create_price_record)
+
+    from app.schemas.crawler import PlatformProductIngestRequest
+
+    payload = [
+        PlatformProductIngestRequest(
+            product_id=created_product["id"],
+            platform_id=created_platform["id"],
+            original_item_id="rollback-item",
+            url="https://example.com/rollback",
+            current_price=5000000,
+        )
+    ]
+
+    async with TestingSessionLocal() as db:
+        with pytest.raises(RuntimeError, match="price history failed"):
+            await crawler_api.upload_platform_products_bulk(payload=payload, db=db)
 
 
 @pytest.mark.asyncio
