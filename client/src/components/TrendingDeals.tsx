@@ -22,10 +22,11 @@ interface TrendingDeal {
 interface TrendingDealsProps {
   onProductClick: (product: TrendingDeal, id: string) => void;
   wishlistIds: Set<string>;
+  alertIds: Set<string>;
   onToggleWishlist: (product: TrendingDeal) => void;
 }
 
-export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }: TrendingDealsProps) {
+export function TrendingDeals({ onProductClick, wishlistIds, alertIds, onToggleWishlist }: TrendingDealsProps) {
   const { t } = useLanguage();
   
   const [deals, setDeals] = useState<TrendingDeal[]>([]);
@@ -113,6 +114,7 @@ export function TrendingDeals({ onProductClick, wishlistIds, onToggleWishlist }:
                 onClick={onProductClick}
                 // Sử dụng product.product_id để check wishlist (vì wishlist thường lưu ID sản phẩm chung)
                 isWishlisted={wishlistIds.has(product.product_id)}
+                isAlerted={alertIds.has(product.product_id) || alertIds.has(product.id)}
                 onToggleWishlist={(e) => {
                   e.stopPropagation();
                   onToggleWishlist(product);

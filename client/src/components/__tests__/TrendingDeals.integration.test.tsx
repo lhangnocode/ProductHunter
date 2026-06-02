@@ -50,6 +50,7 @@ describe('TrendingDeals integration', () => {
       <TrendingDeals
         onProductClick={vi.fn()}
         wishlistIds={new Set(['product-1'])}
+        alertIds={new Set(['product-1'])}
         onToggleWishlist={vi.fn()}
       />,
     );
@@ -58,6 +59,7 @@ describe('TrendingDeals integration', () => {
 
     expect(await screen.findByText(/iPhone 15 Pro Max/i)).toBeInTheDocument();
     expect(screen.getByText(/Samsung Galaxy S24 Ultra/i)).toBeInTheDocument();
+    expect(screen.getAllByTitle('Cập nhật cảnh báo giá')[0]).toBeInTheDocument();
     expect(mockedFetchTrendingDeals).toHaveBeenCalledTimes(1);
   });
 
@@ -70,6 +72,7 @@ describe('TrendingDeals integration', () => {
       <TrendingDeals
         onProductClick={onProductClick}
         wishlistIds={new Set(['product-1'])}
+        alertIds={new Set()}
         onToggleWishlist={onToggleWishlist}
       />,
     );
@@ -96,6 +99,7 @@ describe('TrendingDeals integration', () => {
       <TrendingDeals
         onProductClick={vi.fn()}
         wishlistIds={new Set()}
+        alertIds={new Set()}
         onToggleWishlist={vi.fn()}
       />,
     );
