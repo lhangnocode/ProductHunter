@@ -12,6 +12,7 @@ A Micro-SaaS for users to find better prices for tech products by comparing list
 
 #### Crawling services
 - **Crawler**: Python (Playwright + BeautifulSoup)
+- **Supported crawler implementations**: CellphoneS, FPT Shop, Phong Vũ
 - **Task scheduling**: Cron jobs (Linux) via `services/crawler/run_crawler.sh`
 
 #### Deployment
@@ -24,4 +25,5 @@ A Micro-SaaS for users to find better prices for tech products by comparing list
 - The SaaS focuses on tech products to narrow scope and improve catalog quality.
 - Data collection is currently crawler-driven with scheduled runs and API ingestion.
 - The backend exposes APIs for search and comparison, using Typesense for ranking with a Postgres fallback.
-- Future user-driven ingestion (browser extension) remains an optional roadmap item.
+- The browser extension exists as a Plasmo project; production integration remains an optional roadmap item.
+- Authentication, wishlist, price alerts, trending deals, price analysis, and Advisor chat are implemented in the backend and frontend.

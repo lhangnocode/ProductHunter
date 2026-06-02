@@ -145,7 +145,7 @@ async def search_products_list(
 
 from fastapi import Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-# Import các schema và dependency cần thiết của bạn ở đây...
+
 
 @router.get("/compare", response_model=SearchCompareResponse)
 async def search_and_compare_products(

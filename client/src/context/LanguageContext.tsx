@@ -63,6 +63,10 @@ const translations: Translations = {
   fullName: { vi: 'Họ và tên', en: 'Full Name' },
   yourEmail: { vi: 'Email của bạn', en: 'Your Email' },
   password: { vi: 'Mật khẩu', en: 'Password' },
+  forgotPassword: { vi: 'Quên mật khẩu?', en: 'Forgot password?' },
+  enterEmailForReset: { vi: 'Vui lòng nhập email để đặt lại mật khẩu', en: 'Please enter your email to reset password' },
+  passwordResetSent: { vi: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.', en: 'If the email exists, reset instructions have been sent.' },
+  passwordResetSendFailed: { vi: 'Không thể gửi yêu cầu đặt lại mật khẩu', en: 'Unable to send password reset request' },
   orContinueWith: { vi: 'Hoặc tiếp tục với', en: 'Or continue with' },
   noAccountRegister: { vi: 'Chưa có tài khoản? Đăng ký ngay', en: 'No account? Register now' },
   haveAccountLogin: { vi: 'Đã có tài khoản? Đăng nhập', en: 'Already have an account? Login' },
@@ -76,6 +80,10 @@ const translations: Translations = {
   addedToWishlist: { vi: 'Đã thêm vào Wishlist', en: 'Added to Wishlist' },
   removedFromWishlist: { vi: 'Đã xóa khỏi Wishlist', en: 'Removed from Wishlist' },
   alertSetSuccess: { vi: 'Đã đặt cảnh báo giá thành công', en: 'Price alert set successfully' },
+  runPriceCheck: { vi: 'Kiểm tra giá ngay', en: 'Run price check' },
+  checkingPriceAlert: { vi: 'Đang kiểm tra...', en: 'Checking...' },
+  priceAlertTriggerSuccess: { vi: 'Đã kích hoạt kiểm tra cảnh báo giá', en: 'Price alert check triggered' },
+  priceAlertTriggerFailed: { vi: 'Không thể kích hoạt kiểm tra cảnh báo giá', en: 'Unable to trigger price alert check' },
   back: { vi: 'Quay lại', en: 'Back' },
   comparePrices: { vi: 'So sánh giá', en: 'Compare Prices' },
   priceHistory: { vi: 'Lịch sử giá', en: 'Price History' },
@@ -184,7 +192,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>(() => {
     const saved = localStorage.getItem('language');
     if (saved === 'vi' || saved === 'en') return saved;
-    return 'vi';
+    return 'en';
   });
 
   useEffect(() => {

@@ -226,11 +226,10 @@ export function ProductCard({
                   }
                   setIsAlertModalOpen(true);
                 }}
-                className={`p-2 rounded-full shadow-sm border transition-colors ${
-                  isAlerted
+                className={`p-2 rounded-full shadow-sm border transition-colors ${isAlerted
                     ? "bg-brand-accent text-white border-brand-accent"
                     : "bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-accent border-slate-100 dark:border-slate-700"
-                }`}
+                  }`}
                 title={
                   isAlerted
                     ? "Cập nhật cảnh báo giá"
@@ -247,11 +246,10 @@ export function ProductCard({
                     e.stopPropagation();
                     onToggleWishlist(e, product);
                   }}
-                  className={`p-2 rounded-full shadow-sm border transition-colors ${
-                    isWishlisted
+                  className={`p-2 rounded-full shadow-sm border transition-colors ${isWishlisted
                       ? "bg-brand-primary text-white border-brand-primary"
                       : "bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-primary border-slate-100 dark:border-slate-700"
-                  }`}
+                    }`}
                   title="Thêm vào Wishlist"
                 >
                   <Heart
@@ -308,10 +306,10 @@ export function ProductCard({
           <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
             {formatDisplayName(
               product.product_name ||
-                product.slug ||
-                product.normalized_name ||
-                product.raw_name ||
-                "",
+              product.slug ||
+              product.normalized_name ||
+              product.raw_name ||
+              "",
             )}
           </h3>
           {alertTargetPrice !== undefined ? (
@@ -326,11 +324,10 @@ export function ProductCard({
               </div>
 
               <span
-                className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest shadow-sm ${
-                  alertStatus === 1
+                className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest shadow-sm ${alertStatus === 1
                     ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30"
                     : "bg-amber-100 text-amber-600 dark:bg-amber-950/30"
-                }`}
+                  }`}
               >
                 {alertStatus === 1 ? (
                   <CheckCircle2 size={10} />

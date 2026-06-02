@@ -23,6 +23,23 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { showToast } = useToast();
   const { t } = useLanguage();
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      showToast(t('enterEmailForReset'), 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await authService.forgotPassword(email);
+      showToast(result.message || t('passwordResetSent'), 'success');
+    } catch (error: any) {
+      showToast(error.message || t('passwordResetSendFailed'), 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || (!isLogin && !name)) {
@@ -145,6 +162,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     className="w-full rounded-xl border-0 bg-slate-50 dark:bg-slate-950/50 py-3.5 pl-11 pr-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 transition-all focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-brand-primary outline-none disabled:opacity-50"
                   />
                 </div>
+                {isLogin && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={isLoading}
+                      className="text-xs font-semibold text-brand-primary hover:underline disabled:opacity-60"
+                    >
+                      {t('forgotPassword')}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Mật khẩu */}

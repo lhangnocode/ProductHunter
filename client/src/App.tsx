@@ -6,6 +6,9 @@ import { LandingPage } from "./components/LandingPage";
 import { AuthModal } from "./components/AuthModal";
 import { ToastProvider, useToast } from "./components/Toast";
 import { TrendingDeals } from "./components/TrendingDeals";
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
+import { AdvisorWidget } from "./components/AdvisorWidget";
+import { ExtensionGuideModal } from "./components/ExtensionGuideModal";
 
 import { UserProvider, useUser } from "./context/UserContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -44,11 +47,17 @@ import {
   searchProducts,
   fetchCompareGroups,
 } from "./services/price_record_api";
+import { Pagination } from './components/Pagination';
 
 type Tab = "search" | "trending" | "wishlist" | "alerts";
 type SortOption = "trending" | "price-asc" | "price-desc" | "rating";
 
 function AppContent() {
+  const isResetPasswordPath = window.location.pathname === "/reset-password";
+  if (isResetPasswordPath) {
+    return <ResetPasswordPage />;
+  }
+
   // Restore isAppStarted & activeTab from localStorage khi F5
   const [isAppStarted, setIsAppStarted] = useState<boolean>(() => {
     return localStorage.getItem("app_started") === "true";
@@ -76,6 +85,9 @@ function AppContent() {
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("trending");
+
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
   // Xóa recentlyViewed cũ (chứa ID mock như p1, p2) tránh crash API
   useEffect(() => {
     localStorage.removeItem("recentlyViewed");
@@ -96,10 +108,12 @@ function AppContent() {
     removeAlert,
     setAlert,
     clearAlerts,
+    triggerPriceCheck,
   } = useUser();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
+  const [isTriggeringAlerts, setIsTriggeringAlerts] = useState(false);
 
   // Tự động khởi động app nếu đã có user (chỉ check 1 lần sau khi restore session xong)
   useEffect(() => {
@@ -111,6 +125,21 @@ function AppContent() {
   const handleProductClick = (product: any) => {
     setSelectedPlatformProduct(product);
     setCurrentPlatformId(product.id);
+  };
+
+  const handleTriggerPriceCheck = async () => {
+    setIsTriggeringAlerts(true);
+    try {
+      await triggerPriceCheck();
+      showToast(t("priceAlertTriggerSuccess"), "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : t("priceAlertTriggerFailed"),
+        "error",
+      );
+    } finally {
+      setIsTriggeringAlerts(false);
+    }
   };
 
   const categories = [
@@ -127,32 +156,76 @@ function AppContent() {
   >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPlatformId, setCurrentPlatformId] = useState<string>("");
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  // fixed page size per user request
+  const [pageSize] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [totalElements, setTotalElements] = useState<number>(0);
 
   useEffect(() => {
     let ignore = false;
+    
     const fetchSearchData = async () => {
       const query = searchQuery.trim();
       if (!query || query.length < 2) {
-        if (!ignore) setPlatformProducts([]);
+        if (!ignore) {
+          setPlatformProducts([]);
+          setTotalElements(0);
+          setTotalPages(0);
+        }
         return;
       }
+      
       try {
         if (!ignore) setIsLoading(true);
-        const data = await searchProducts(query);
-        if (!ignore) {
-          setPlatformProducts(data); // Lưu vào platformProducts
-        }
+        
+        // Gọi API 1 lần duy nhất
+        const data = await searchProducts(query, currentPage, pageSize);
+        if (ignore) return;
+
+        const items = Array.isArray(data.items) ? data.items : [];
+        
+        // TÌM VÀ GÁN TRỰC TIẾP TỪ METADATA CỦA BACKEND
+        // Giả sử backend trả về trường total_pages hoặc total_elements
+        const fetchedTotalElements = Number(data.total_elements || 0);
+        
+        // Nếu API có trả total_pages thì dùng, không thì tự chia (total_elements / pageSize)
+        const fetchedTotalPages = Number(data.total_pages || Math.ceil(fetchedTotalElements / pageSize) || 1);
+
+        console.debug('[App] API Response:', { currentPage, fetchedTotalPages, fetchedTotalElements });
+
+        setPlatformProducts(items);
+        setCurrentPage(Number(data.page || currentPage));
+        setTotalElements(fetchedTotalElements);
+        setTotalPages(fetchedTotalPages); // Gán thẳng số trang Backend báo về
+
       } catch (error) {
         if (!ignore) console.error("Lỗi truy vấn DB:", error);
       } finally {
         if (!ignore) setIsLoading(false);
       }
     };
+
     const timer = setTimeout(fetchSearchData, 500);
     return () => {
       ignore = true;
       clearTimeout(timer);
     };
+  }, [searchQuery, currentPage, pageSize]);
+
+  // Auto-reset to page 1 if current page returns empty items (no data for that page)
+  useEffect(() => {
+    if (currentPage > 1 && platformProducts.length === 0 && !isLoading) {
+      console.debug('[App] page', currentPage, 'is empty - resetting to page 1');
+      showToast('Không còn dữ liệu ở trang này. Quay về trang 1.', 'info');
+      setCurrentPage(1);
+    }
+  }, [platformProducts.length, currentPage, isLoading]);
+
+  // When user types a new query, reset to page 1
+  useEffect(() => {
+    setCurrentPage(1);
   }, [searchQuery]);
 
   // 3. Cập nhật useMemo
@@ -322,24 +395,19 @@ function AppContent() {
   //     );
   //   }
 
-  const renderContent = () => {
-    // 1. Kiểm tra state mới: selectedPlatformProduct
-    if (selectedPlatformProduct) {
-      return (
-        <ProductDetail
-          // 2. Truyền prop đúng tên: platformProduct
-          product={selectedProduct}
-          platformProduct={selectedPlatformProduct}
-          // 3. QUAN TRỌNG: Phải truyền thêm ID để lấy lịch sử giá
-          initialPlatformId={currentPlatformId}
-          onBack={() => setSelectedPlatformProduct(null)}
-          onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
-          onSetAlert={() => showToast(t("priceAlertSet"), "success")}
-          // 4. Kiểm tra wishlist dựa trên ID của platformProduct
-          isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))}
-        />
-      );
-    }
+    const renderContent = () => {
+      if (selectedPlatformProduct) {
+        return (
+          <ProductDetail
+            product={selectedProduct}
+            platformProduct={selectedPlatformProduct}
+            platformProductId={currentPlatformId}
+            onBack={() => setSelectedPlatformProduct(null)}
+            onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
+            onSetAlert={() => showToast(t("priceAlertSet"), "success")}
+            isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))} initialPlatformId={""}      />
+        );
+      }
 
     switch (activeTab) {
       case "search":
@@ -564,39 +632,11 @@ function AppContent() {
                       </span>
                     </h2>
                     <p className="mt-0.5 text-[11px] font-bold text-slate-400">
-                      {searchResults.length} {t("products")} {t("found")}
+                      {totalElements} {t("products")} {t("found")} • Showing {platformProducts.length}
                     </p>
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="relative group">
-                      <select
-                        value={sortBy}
-                        onChange={(e) =>
-                          setSortBy(e.target.value as SortOption)
-                        }
-                        className="appearance-none rounded-xl bg-white dark:bg-slate-900 px-5 py-2.5 pr-10 text-[11px] font-black text-slate-700 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary shadow-sm uppercase tracking-wider"
-                      >
-                        <option value="trending">{t("trending")}</option>
-                        <option value="price-asc">{t("priceLowToHigh")}</option>
-                        <option value="price-desc">
-                          {t("priceHighToLow")}
-                        </option>
-                        <option value="rating">{t("rating")}</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 group-hover:text-brand-primary transition-colors" />
-                    </div>
-
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 transition-all border border-transparent hover:border-rose-200"
-                      title={t("clearSearch")}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
+                
                 </div>
-
                 <motion.div
                   variants={containerVariants}
                   initial="hidden"
@@ -628,6 +668,13 @@ function AppContent() {
                     </motion.div>
                   ))}
                 </motion.div>
+
+                {/* Pagination */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(p) => setCurrentPage(p)}
+                />
 
                 {searchResults.length === 0 && (
                   <motion.div
@@ -809,18 +856,30 @@ function AppContent() {
               </div>
 
               {alerts.length > 0 && (
-                <button
-                  onClick={async () => {
-                    if (window.confirm(t("confirmClearAlerts"))) {
-                      await clearAlerts();
-                      showToast("Đã xóa toàn bộ cảnh báo giá", "success");
-                    }
-                  }}
-                  className="flex items-center gap-2.5 rounded-xl bg-white dark:bg-slate-900 px-6 py-3 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:ring-rose-200 dark:hover:ring-rose-800 shadow-sm uppercase tracking-wider"
-                >
-                  <Trash2 size={16} />
-                  {t("clearAll")}
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={handleTriggerPriceCheck}
+                    disabled={isTriggeringAlerts}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-brand-accent px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-brand-accent/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-accent/30 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0"
+                  >
+                    <Zap size={16} />
+                    {isTriggeringAlerts
+                      ? t("checkingPriceAlert")
+                      : t("runPriceCheck")}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm(t("confirmClearAlerts"))) {
+                        await clearAlerts();
+                        showToast("Đã xóa toàn bộ cảnh báo giá", "success");
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-white dark:bg-slate-900 px-6 py-3 text-xs font-black text-slate-600 dark:text-slate-400 transition-all hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 ring-1 ring-inset ring-slate-200 dark:ring-slate-800 hover:ring-rose-200 dark:hover:ring-rose-800 shadow-sm uppercase tracking-wider"
+                  >
+                    <Trash2 size={16} />
+                    {t("clearAll")}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -960,6 +1019,11 @@ function AppContent() {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      <ExtensionGuideModal 
+        isOpen={isGuideOpen} 
+        onClose={() => setIsGuideOpen(false)} 
       />
 
       {/* Background Decorative Elements */}
@@ -1173,7 +1237,9 @@ function AppContent() {
             {renderNavItem(Heart, t("wishlist"), "wishlist")}
             {renderNavItem(Bell, t("priceAlerts"), "alerts")}
 
-            <div className="mt-auto pt-8 pb-4">
+            <div className="mt-auto pt-8 pb-4 space-y-4"> {/* Thêm space-y-4 để tạo khoảng cách giữa 2 hộp */}
+              
+              {/* PHẦN 1: NÂNG CẤP PRO */}
               <div className="rounded-xl bg-gradient-to-br from-brand-primary/10 to-brand-accent/10 p-4 ring-1 ring-inset ring-brand-primary/10">
                 <p className="text-[10px] font-black text-brand-primary mb-1 font-display uppercase tracking-wider">
                   {t("sidebarPromoTitle")}
@@ -1185,6 +1251,23 @@ function AppContent() {
                   {t("upgradeNow")}
                 </button>
               </div>
+
+              {/* PHẦN 2: CÀI ĐẶT EXTENSION */}
+              <div className="rounded-xl bg-gradient-to-br from-brand-primary/10 to-brand-accent/10 p-4 ring-1 ring-inset ring-brand-primary/10">
+                <p className="text-[10px] font-black text-brand-primary mb-1 font-display uppercase tracking-wider">
+                  Săn Deal Tại Sàn
+                </p>
+                <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
+                  Cài đặt Extension để so sánh giá ngay trên Shopee, Lazada, Tiki...
+                </p>
+                <button 
+                  onClick={() => setIsGuideOpen(true)}
+                  className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display"
+                >
+                  Cài đặt ngay
+                </button>
+              </div>
+
             </div>
           </nav>
         </aside>
@@ -1213,6 +1296,16 @@ function AppContent() {
           </AnimatePresence>
         </main>
       </div>
+      <AdvisorWidget
+        activeTab={selectedPlatformProduct ? "product_detail" : activeTab}
+        searchQuery={searchQuery}
+        userId={user?.id || null}
+        productId={
+          selectedPlatformProduct?.product_id ||
+          selectedProduct?.id ||
+          null
+        }
+      />
     </div>
   );
 }
