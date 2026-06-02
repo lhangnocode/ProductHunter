@@ -55,6 +55,15 @@ async def test_get_current_admin_user_accepts_hardcoded_admin_email():
 
 
 @pytest.mark.asyncio
+async def test_get_current_admin_user_accepts_new_admin_email():
+    user = SimpleNamespace(email="23020715@vnu.edu.vn", full_name="New Admin", plan=0)
+
+    result = await get_current_admin_user(current_user=user)
+
+    assert result is user
+
+
+@pytest.mark.asyncio
 async def test_get_current_admin_user_rejects_non_admin_email():
     user = SimpleNamespace(email="regular@example.com", full_name="Regular", plan=1)
 
