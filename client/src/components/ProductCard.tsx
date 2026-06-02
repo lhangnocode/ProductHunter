@@ -116,36 +116,6 @@ export function ProductCard({
     }).format(convertedValue);
   };
 
-  const getPlatformName = (id: number) => {
-    switch (id) {
-      case 7:
-        return "FPT Shop";
-      case 8:
-        return "Phong Vũ";
-      default:
-        return "Sàn khác";
-    }
-  };
-
-  const getPlatformColor = (name: string) => {
-    switch (name.toLowerCase()) {
-      case "shopee":
-        return "bg-[#ee4d2d] text-white";
-      case "fpt shop":
-        return "bg-[#ee4d2d] text-white";
-      case "phong vũ":
-        return "bg-[#0f136d] text-white";
-      case "lazada":
-        return "bg-[#0f136d] text-white";
-      case "tiki":
-        return "bg-[#1a94ff] text-white";
-      default:
-        return "bg-slate-800 text-white";
-    }
-  };
-
-  const platformName = getPlatformName(product.platform_id);
-
   // Hàm xử lý lưu cảnh báo giá
   const handleSaveAlert = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Ngăn click lan ra thẻ card

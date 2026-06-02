@@ -124,9 +124,9 @@ CSV is written atomically per category — append-then-dedup-on-finish. If the p
 ### 3.5 Platform IDs and supported crawlers
 
 ```python
-PlatformType.CELLPHONES = 6
 PlatformType.FPTSHOP = 7
 PlatformType.PHONGVU = 8
+PlatformType.CELLPHONES = 9
 ```
 
 Supported crawler classes in the codebase:

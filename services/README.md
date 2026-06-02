@@ -54,10 +54,8 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 Current entry point note: `services/crawler/main.py` imports all three crawler
 classes, but only `PhongVuCrawler` is enabled in the default checked-in script.
 Enable the FPT Shop and CellphoneS calls in that file when a full three-site run
-is intended. CellphoneS also has inconsistent platform IDs across current
-service code (`9` in the crawler and pipeline CSV registry, `6` in
-`core/define/platform_type.py`, and `4` in `pipeline/define/platform.py`), so
-confirm the canonical ID before enabling automated end-to-end CellphoneS loads.
+is intended. Platform IDs follow the crawler CSV pipeline convention:
+`7 = FPT Shop`, `8 = Phong Vũ`, and `9 = CellphoneS`.
 
 ## Data Models (Crawler Output)
 - **products**: `normalized_name`, `slug`, `brand`, `category`, `main_image_url`

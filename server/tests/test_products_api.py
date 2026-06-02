@@ -220,8 +220,8 @@ async def test_compare_uses_in_stock_prices_and_ignores_out_of_stock(mock_search
     product = _fake_product(
         "phone",
         [
-            _fake_platform_product(500, in_stock=False, platform_id=1),
-            _fake_platform_product(300, in_stock=True, platform_id=2),
+            _fake_platform_product(500, in_stock=False, platform_id=7),
+            _fake_platform_product(300, in_stock=True, platform_id=9),
         ],
     )
     mock_search.return_value = ([product], 1)
@@ -275,7 +275,7 @@ async def test_compare2_mock_data_branch(monkeypatch: pytest.MonkeyPatch, ac: As
         [
             {
                 "product_id": created_product["id"],
-                "platform_id": 1,
+                "platform_id": 7,
                 "url": "https://example.com/a",
                 "affiliate_url": None,
                 "current_price": 200,
@@ -285,7 +285,7 @@ async def test_compare2_mock_data_branch(monkeypatch: pytest.MonkeyPatch, ac: As
             },
             {
                 "product_id": created_product["id"],
-                "platform_id": 2,
+                "platform_id": 9,
                 "url": "https://example.com/b",
                 "affiliate_url": None,
                 "current_price": 100,

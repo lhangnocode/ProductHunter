@@ -10,9 +10,10 @@ from typing import List, Optional
 from playwright.sync_api import ElementHandle, sync_playwright
 from playwright_stealth.stealth import Stealth
 
+from services.crawler.core.define.platform_type import PlatformType
 from services.crawler.models.raw_product import RawProduct
 
-PLATFORM_ID = 9
+PLATFORM_ID = PlatformType.CELLPHONES
 PLATFORM_BASE_URL = "https://cellphones.com.vn"
 OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
 
