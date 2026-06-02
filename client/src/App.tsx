@@ -120,7 +120,6 @@ function AppContent() {
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [isTriggeringAlerts, setIsTriggeringAlerts] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const isAdmin = !!user && ADMIN_EMAILS.has(user.email.toLowerCase());
 
   // Tự động khởi động app nếu đã có user (chỉ check 1 lần sau khi restore session xong)
@@ -1338,15 +1337,11 @@ function AppContent() {
                 <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
                   {t("sidebarPromoDesc")}
                 </p>
-<<<<<<< HEAD
-                
+
                 {/* CẬP NHẬT NÚT NÀY */}
                 <button 
                   onClick={() => setIsUpgradeModalOpen(true)} // <--- THÊM SỰ KIỆN NÀY
-=======
-                <button
-                  onClick={() => setIsUpgradeModalOpen(true)}
->>>>>>> 46f6e8767df94cd8b3c55bd4dff75d15dca6a2d2
+
                   className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display"
                 >
                   {t("upgradeNow")}
