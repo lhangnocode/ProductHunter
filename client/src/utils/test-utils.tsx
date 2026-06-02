@@ -28,6 +28,8 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
             alerts: [],
             alertIds: new Set(),
             isAlertsLoading: false,
+            isAlertLimitModalOpen: false,
+            closeAlertLimitModal: vi.fn(),
             setAlert: vi.fn(),
             removeAlert: vi.fn(),
             clearAlerts: vi.fn(),

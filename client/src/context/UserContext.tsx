@@ -10,6 +10,9 @@ import { authService } from "../services/auth";
 import { wishlistService, WishListItem } from "../services/wishlist";
 import { priceAlertService, PriceAlertItem } from "../services/priceAlert";
 
+export const FREE_PLAN_PRICE_ALERT_LIMIT = 5;
+export const PRICE_ALERT_LIMIT_ERROR = "price_alert_limit_reached";
+
 export interface User {
   id: string;
   email: string;
@@ -32,6 +35,8 @@ interface UserContextType {
   alerts: PriceAlertItem[];
   alertIds: Set<string>;
   isAlertsLoading: boolean;
+  isAlertLimitModalOpen: boolean;
+  closeAlertLimitModal: () => void;
   setAlert: (productId: string, threshold: number) => Promise<void>;
   removeAlert: (productId: string) => Promise<void>;
   clearAlerts: () => Promise<void>;
@@ -52,6 +57,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // KHAI BÁO STATE ALERTS MỚI
   const [alerts, setAlerts] = useState<PriceAlertItem[]>([]);
   const [isAlertsLoading, setIsAlertsLoading] = useState(false);
+  const [isAlertLimitModalOpen, setIsAlertLimitModalOpen] = useState(false);
 
   const alertIds = new Set(alerts.map((a) => a.product_id));
 
@@ -211,10 +217,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!token) throw new Error("not_logged_in");
 
     const isExisting = alertIds.has(productId);
-    if (user?.plan === 0 && !isExisting && alerts.length >= 5) {
-      throw new Error(
+    if (user?.plan === 0 && !isExisting && alerts.length >= FREE_PLAN_PRICE_ALERT_LIMIT) {
+      setIsAlertLimitModalOpen(true);
+      const error = new Error(
         "Free plan users can only create price alerts for up to 5 products. Upgrade to Pro for unlimited alerts.",
       );
+      error.name = PRICE_ALERT_LIMIT_ERROR;
+      throw error;
     }
 
     // --- Optimistic update ---
@@ -256,8 +265,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       // Rollback on failure
       await loadAlerts();
+      if (err instanceof Error && err.message.includes("up to 5 products")) {
+        setIsAlertLimitModalOpen(true);
+        err.name = PRICE_ALERT_LIMIT_ERROR;
+      }
       throw err;
     }
+  };
+
+  const closeAlertLimitModal = () => {
+    setIsAlertLimitModalOpen(false);
   };
 
   const removeAlert = async (productId: string) => {
@@ -310,6 +327,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         alerts,
         alertIds,
         isAlertsLoading,
+        isAlertLimitModalOpen,
+        closeAlertLimitModal,
         setAlert,
         removeAlert,
         clearAlerts, // Truyền alertIds ra ngoài

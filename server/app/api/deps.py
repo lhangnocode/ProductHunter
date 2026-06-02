@@ -9,6 +9,11 @@ from app.models.user import User
 from app.core.config import settings
 from app.db.session import get_db
 
+ADMIN_EMAILS = {
+    "lhang18022005@gmail.com",
+    "vinhlg@gmail.com",
+}
+
 
 async def require_dev_api_key(
     x_api_key: str = Header(default="", alias="X-API-Key")
@@ -64,5 +69,16 @@ async def get_current_premium_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Tính năng này yêu cầu tài khoản Premium."
+        )
+    return current_user
+
+
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    if current_user.email.lower() not in ADMIN_EMAILS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access is required."
         )
     return current_user
