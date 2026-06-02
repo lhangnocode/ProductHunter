@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Crown, Loader2, ShieldCheck, UserCog } from 'lucide-react';
-import { adminService, AdminUser } from '../services/admin';
+import { ArrowLeft, Crown, Loader2, ShieldCheck, UserCog, CreditCard, Check, X, ExternalLink, Clock } from 'lucide-react';
+import { adminService, AdminUser, AdminPaymentRequest } from '../services/admin';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
+import { CONFIG } from '../config';
 
 const ADMIN_EMAILS = new Set([
   'lhang18022005@gmail.com',
@@ -13,139 +14,226 @@ const ADMIN_EMAILS = new Set([
   'nguyenhaibatrung05@gmail.com',
 ]);
 
+type AdminTab = 'users' | 'payments';
+
 interface AdminPageProps {
   onBackHome: () => void;
 }
 
 export function AdminPage({ onBackHome }: AdminPageProps) {
-  const { user, isLoadingUser } = useUser();
+  const { user } = useUser();
   const { showToast } = useToast();
+  
+  const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [payments, setPayments] = useState<AdminPaymentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isAdmin = !!user && ADMIN_EMAILS.has(user.email.toLowerCase());
 
-  useEffect(() => {
-    const loadUsers = async () => {
-      const token = localStorage.getItem('access_token');
-      if (!token || !isAdmin) return;
-      setIsLoading(true);
-      try {
-        const items = await adminService.getUsers(token);
-        setUsers(items);
-      } catch (error: any) {
-        showToast(error.message || 'Không thể tải danh sách người dùng', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadUsers();
-  }, [isAdmin]);
+  const token = localStorage.getItem('access_token') || '';
 
-  const updatePlan = async (targetUser: AdminUser, plan: 0 | 1) => {
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
-    setUpdatingUserId(targetUser.id);
+  const fetchData = async () => {
+    if (!isAdmin || !token) return;
+    setIsLoading(true);
     try {
-      const updated = await adminService.updateUserPlan(token, targetUser.id, plan);
-      setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-      showToast(plan === 1 ? 'Đã nâng cấp người dùng lên Pro' : 'Đã chuyển người dùng về Free', 'success');
-    } catch (error: any) {
-      showToast(error.message || 'Không thể cập nhật gói người dùng', 'error');
+      if (activeTab === 'users') {
+        const data = await adminService.getUsers(token);
+        setUsers(data);
+      } else {
+        const data = await adminService.getPaymentRequests(token);
+        setPayments(data);
+      }
+    } catch (err: any) {
+      showToast(err.message, 'error');
     } finally {
-      setUpdatingUserId(null);
+      setIsLoading(false);
     }
   };
 
-  if (isLoadingUser) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500 dark:bg-slate-950">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
-  }
+  useEffect(() => { fetchData(); }, [activeTab, isAdmin]);
 
-  if (!isAdmin) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6 dark:bg-slate-950">
-        <div className="max-w-md rounded-[2rem] bg-white p-8 text-center shadow-xl ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <ShieldCheck className="mx-auto mb-4 text-rose-500" size={40} />
-          <h1 className="font-display text-2xl font-black uppercase text-slate-950 dark:text-white">Không có quyền truy cập</h1>
-          <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">Trang này chỉ dành cho admin.</p>
-          <button
-            onClick={onBackHome}
-            className="mt-6 rounded-xl bg-brand-primary px-6 py-3 text-xs font-black uppercase tracking-widest text-white"
-          >
-            Về trang chính
-          </button>
-        </div>
+  const handleUpdatePlan = async (u: AdminUser, newPlan: number) => {
+    setActionLoading(u.id);
+    try {
+      await adminService.updateUserPlan(token, u.id, newPlan);
+      showToast("Cập nhật quyền hạn thành công", "success");
+      fetchData();
+    } catch (err: any) { showToast(err.message, "error"); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleProcessPayment = async (id: string, action: 'approve' | 'reject') => {
+    setActionLoading(id);
+    try {
+      if (action === 'approve') await adminService.approvePayment(token, id);
+      else await adminService.rejectPayment(token, id);
+      
+      showToast(action === 'approve' ? "Đã duyệt nâng cấp!" : "Đã từ chối yêu cầu", "success");
+      fetchData();
+    } catch (err: any) { showToast(err.message, "error"); }
+    finally { setActionLoading(null); }
+  };
+
+  if (!isAdmin) return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
+      <div className="max-w-md text-center p-8 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl">
+        <ShieldCheck size={48} className="mx-auto text-rose-500 mb-4" />
+        <h2 className="text-xl font-black uppercase font-display">Truy cập bị từ chối</h2>
+        <button onClick={onBackHome} className="mt-6 bg-brand-primary text-white px-8 py-3 rounded-xl font-bold uppercase text-xs">Về trang chủ</button>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 text-slate-950 dark:bg-slate-950 dark:text-white">
-      <div className="mx-auto max-w-6xl">
-        <button
-          onClick={onBackHome}
-          className="mb-6 flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800"
-        >
-          <ArrowLeft size={16} />
-          Trang chính
-        </button>
-
-        <div className="mb-8 flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
-            <UserCog size={28} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white pb-20">
+      <div className="max-w-6xl mx-auto px-6 pt-10">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div className="flex items-center gap-4">
+            <button onClick={onBackHome} className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm hover:scale-105 transition-transform">
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 className="text-3xl font-black font-display uppercase tracking-tighter">Hệ thống Quản trị</h1>
+              <p className="text-sm text-slate-500 font-bold">Xin chào Admin, {user?.full_name}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary">Admin</p>
-            <h1 className="font-display text-3xl font-black uppercase tracking-tight">Quản lý người dùng</h1>
+
+          <div className="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-2xl">
+            <button 
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'users' ? 'bg-white dark:bg-slate-900 shadow-md text-brand-primary' : 'text-slate-500'}`}
+            >
+              <UserCog size={16} /> Người dùng
+            </button>
+            <button 
+              onClick={() => setActiveTab('payments')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'payments' ? 'bg-white dark:bg-slate-900 shadow-md text-brand-primary' : 'text-slate-500'}`}
+            >
+              <CreditCard size={16} /> Duyệt Pro
+              {payments.filter(p => p.status === 0).length > 0 && (
+                <span className="bg-rose-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] animate-pulse">
+                  {payments.filter(p => p.status === 0).length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <div className="grid grid-cols-[1.6fr_1fr_0.6fr_0.9fr_0.9fr] gap-4 border-b border-slate-200 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:border-slate-800">
-            <span>Email</span>
-            <span>Tên</span>
-            <span>Gói</span>
-            <span>Ngày tạo</span>
-            <span className="text-right">Thao tác</span>
-          </div>
-
+        {/* Content */}
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-slate-400">
-              <Loader2 className="animate-spin" />
+            <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
+              <Loader2 className="animate-spin" size={32} />
+              <p className="text-xs font-black uppercase tracking-widest">Đang tải dữ liệu...</p>
+            </div>
+          ) : activeTab === 'users' ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Người dùng</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Gói hiện tại</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400">Ngày tham gia</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {users.map(u => (
+                    <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-sm">{u.full_name || 'Chưa đặt tên'}</p>
+                        <p className="text-xs text-slate-500">{u.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${u.plan === 1 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
+                          {u.plan === 1 ? <><Crown size={12}/> Pro</> : 'Free'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-500">
+                        {new Date(u.created_at).toLocaleDateString('vi-VN')}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => handleUpdatePlan(u, u.plan === 1 ? 0 : 1)}
+                          disabled={actionLoading === u.id}
+                          className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:underline disabled:opacity-50"
+                        >
+                          {actionLoading === u.id ? '...' : u.plan === 1 ? 'Hạ cấp' : 'Nâng cấp'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
-            users.map((item) => (
-              <div
-                key={item.id}
-                className="grid grid-cols-[1.6fr_1fr_0.6fr_0.9fr_0.9fr] items-center gap-4 border-b border-slate-100 px-6 py-4 last:border-b-0 dark:border-slate-800"
-              >
-                <span className="truncate text-sm font-bold">{item.email}</span>
-                <span className="truncate text-sm text-slate-500 dark:text-slate-400">{item.full_name || '-'}</span>
-                <span>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${item.plan === 1 ? 'bg-brand-primary/10 text-brand-primary' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
-                    {item.plan === 1 && <Crown size={12} />}
-                    {item.plan === 1 ? 'Pro' : 'Free'}
-                  </span>
-                </span>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {new Date(item.created_at).toLocaleDateString('vi-VN')}
-                </span>
-                <div className="text-right">
-                  <button
-                    onClick={() => updatePlan(item, item.plan === 1 ? 0 : 1)}
-                    disabled={updatingUserId === item.id}
-                    className={`rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all disabled:cursor-wait disabled:opacity-60 ${item.plan === 1 ? 'bg-slate-700 hover:bg-slate-800' : 'bg-brand-primary hover:opacity-90'}`}
-                  >
-                    {updatingUserId === item.id ? 'Đang cập nhật' : item.plan === 1 ? 'Downgrade' : 'Upgrade'}
-                  </button>
-                </div>
-              </div>
-            ))
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {payments.length === 0 ? (
+                <div className="col-span-full py-20 text-center text-slate-400 font-bold italic">Không có yêu cầu thanh toán nào</div>
+              ) : (
+                payments.map(p => (
+                  <div key={p.id} className={`p-6 rounded-3xl border transition-all ${p.status === 0 ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-md ring-1 ring-brand-primary/10' : 'bg-slate-50 dark:bg-slate-950/40 border-transparent opacity-60'}`}>
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center">
+                          <CreditCard size={24} />
+                        </div>
+                        <div>
+                          <p className="font-black text-sm uppercase">{p.email}</p>
+                          <div className="flex items-center gap-2 text-xs text-slate-500 font-bold mt-1">
+                            <Clock size={12}/> {new Date(p.created_at).toLocaleString('vi-VN')}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${p.status === 0 ? 'bg-blue-100 text-blue-600' : p.status === 1 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                        {p.status === 0 ? 'Chờ duyệt' : p.status === 1 ? 'Đã duyệt' : 'Từ chối'}
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Số tiền chuyển khoản</p>
+                      <p className="text-2xl font-black text-brand-primary font-mono">
+                        {new Intl.NumberFormat('vi-VN').format(p.amount)}đ
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <a 
+                        href={`${CONFIG.API_URL}${p.receipt_url}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-colors"
+                      >
+                        <ExternalLink size={14} /> Xem biên lai
+                      </a>
+                      
+                      {p.status === 0 && (
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleProcessPayment(p.id, 'reject')}
+                            disabled={!!actionLoading}
+                            className="flex-1 bg-rose-50 text-rose-500 py-3 rounded-xl hover:bg-rose-100 transition-colors"
+                          >
+                            <X size={18} className="mx-auto" />
+                          </button>
+                          <button 
+                            onClick={() => handleProcessPayment(p.id, 'approve')}
+                            disabled={!!actionLoading}
+                            className="flex-[2] bg-emerald-500 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-all"
+                          >
+                            Duyệt ngay
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>
