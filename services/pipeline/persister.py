@@ -15,14 +15,16 @@ import psycopg2.extras
 
 from services.crawler.core.storage.typesense_handler import TypesenseHandler
 from services.pipeline.config import DB_BATCH_SIZE
+from services.pipeline.define.platform import Platform
 from services.pipeline.product_resolver import ResolvedProduct
 
 
 # Platform metadata keyed by platform_id
 PLATFORM_META: dict[int, tuple[str, str]] = {
     # platform_id: (name, base_url)
-    7: ("FPT Shop",  "https://fptshop.com.vn"),
-    8: ("Phong Vũ",  "https://phongvu.vn"),
+    Platform.FPTSHOP: ("FPT Shop",  "https://fptshop.com.vn"),
+    Platform.PHONGVU: ("Phong Vũ",  "https://phongvu.vn"),
+    Platform.CELLPHONES: ("CellphoneS", "https://cellphones.com.vn"),
 }
 
 

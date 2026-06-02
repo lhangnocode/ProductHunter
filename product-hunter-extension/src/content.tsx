@@ -136,6 +136,9 @@ const ProductCompareOverlay = () => {
                       } else if (p.platform_id === 8) {
                         platformLabel = "PHONG VŨ";
                         platformStyle = "bg-blue-100 text-blue-700"; // Phong Vũ thường dùng màu xanh dương
+                      } else if (p.platform_id === 9) {
+                        platformLabel = "CELLPHONES";
+                        platformStyle = "bg-red-100 text-red-700";
                       }
 
                       return (

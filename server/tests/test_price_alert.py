@@ -6,6 +6,28 @@ Tất cả endpoint đều yêu cầu authentication.
 import pytest
 from httpx import AsyncClient
 import uuid
+from app.models.product import Product
+from tests.conftest import TestingSessionLocal
+
+
+async def _create_alert_products(count: int) -> list[str]:
+    product_ids: list[str] = []
+    async with TestingSessionLocal() as session:
+        for index in range(count):
+            product_id = uuid.uuid4()
+            product = Product(
+                id=product_id,
+                normalized_name=f"Alert Limit Product {product_id.hex[:8]}",
+                product_name=f"Alert Limit Product {product_id.hex}",
+                slug=f"alert-limit-product-{product_id.hex}",
+                brand="Test",
+                category="Test",
+                main_image_url="https://example.com/alert-limit.jpg",
+            )
+            session.add(product)
+            product_ids.append(str(product_id))
+        await session.commit()
+    return product_ids
 
 
 # ============================================================
@@ -115,6 +137,112 @@ async def test_update_alert_upsert(
     assert response.status_code == 200
     data = response.json()
     assert data["target_price"] == 20000000
+
+
+@pytest.mark.asyncio
+async def test_free_user_can_create_five_price_alerts(ac: AsyncClient, auth_headers: dict):
+    product_ids = await _create_alert_products(5)
+
+    for product_id in product_ids:
+        response = await ac.post("/api/v1/price_alerts/", json={
+            "product_id": product_id,
+            "target_price": 1000000,
+        }, headers=auth_headers)
+        assert response.status_code == 200
+
+    response = await ac.get("/api/v1/price_alerts/", headers=auth_headers)
+    assert response.status_code == 200
+    assert len(response.json()) == 5
+
+
+@pytest.mark.asyncio
+async def test_free_user_sixth_distinct_price_alert_is_forbidden(
+    ac: AsyncClient,
+    auth_headers: dict,
+):
+    product_ids = await _create_alert_products(6)
+
+    for product_id in product_ids[:5]:
+        response = await ac.post("/api/v1/price_alerts/", json={
+            "product_id": product_id,
+            "target_price": 1000000,
+        }, headers=auth_headers)
+        assert response.status_code == 200
+
+    response = await ac.post("/api/v1/price_alerts/", json={
+        "product_id": product_ids[5],
+        "target_price": 1000000,
+    }, headers=auth_headers)
+
+    assert response.status_code == 403
+    assert "up to 5 products" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_free_user_can_update_existing_alert_at_limit(
+    ac: AsyncClient,
+    auth_headers: dict,
+):
+    product_ids = await _create_alert_products(5)
+
+    for product_id in product_ids:
+        response = await ac.post("/api/v1/price_alerts/", json={
+            "product_id": product_id,
+            "target_price": 1000000,
+        }, headers=auth_headers)
+        assert response.status_code == 200
+
+    response = await ac.post("/api/v1/price_alerts/", json={
+        "product_id": product_ids[0],
+        "target_price": 2000000,
+    }, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["target_price"] == 2000000
+
+
+@pytest.mark.asyncio
+async def test_premium_user_can_create_more_than_five_price_alerts(
+    ac: AsyncClient,
+    premium_auth_headers: dict,
+):
+    product_ids = await _create_alert_products(6)
+
+    for product_id in product_ids:
+        response = await ac.post("/api/v1/price_alerts/", json={
+            "product_id": product_id,
+            "target_price": 1000000,
+        }, headers=premium_auth_headers)
+        assert response.status_code == 200
+
+    response = await ac.get("/api/v1/price_alerts/", headers=premium_auth_headers)
+    assert response.status_code == 200
+    assert len(response.json()) == 6
+
+
+@pytest.mark.asyncio
+async def test_delete_price_alert_frees_free_user_slot(
+    ac: AsyncClient,
+    auth_headers: dict,
+):
+    product_ids = await _create_alert_products(6)
+
+    for product_id in product_ids[:5]:
+        response = await ac.post("/api/v1/price_alerts/", json={
+            "product_id": product_id,
+            "target_price": 1000000,
+        }, headers=auth_headers)
+        assert response.status_code == 200
+
+    delete_response = await ac.delete(f"/api/v1/price_alerts/{product_ids[0]}", headers=auth_headers)
+    assert delete_response.status_code == 200
+
+    response = await ac.post("/api/v1/price_alerts/", json={
+        "product_id": product_ids[5],
+        "target_price": 1000000,
+    }, headers=auth_headers)
+
+    assert response.status_code == 200
 
 
 # ============================================================

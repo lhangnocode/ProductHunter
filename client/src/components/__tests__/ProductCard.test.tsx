@@ -10,7 +10,7 @@ const mockProduct = {
   normalized_name: "Test Product iPhone",
   main_image_url: "https://example.com/test.jpg",
   lowest_price: 10000000,
-  platforms: [{ platform_id: 1, current_price: 10000000 }]
+  platforms: [{ platform_id: 9, current_price: 10000000 }]
 };
 
 // Wrapper component để test với locale cụ thể

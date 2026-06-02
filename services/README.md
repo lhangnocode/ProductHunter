@@ -54,10 +54,8 @@ The crawler service is modular and extensible. It focuses on batch crawling, nor
 Current entry point note: `services/crawler/main.py` imports all three crawler
 classes, but only `PhongVuCrawler` is enabled in the default checked-in script.
 Enable the FPT Shop and CellphoneS calls in that file when a full three-site run
-is intended. CellphoneS also has inconsistent platform IDs across current
-service code (`9` in the crawler and pipeline CSV registry, `6` in
-`core/define/platform_type.py`, and `4` in `pipeline/define/platform.py`), so
-confirm the canonical ID before enabling automated end-to-end CellphoneS loads.
+is intended. Platform IDs follow the crawler CSV pipeline convention:
+`7 = FPT Shop`, `8 = Phong Vũ`, and `9 = CellphoneS`.
 
 ## Data Models (Crawler Output)
 - **products**: `normalized_name`, `slug`, `brand`, `category`, `main_image_url`
@@ -118,6 +116,16 @@ Open implementation decisions:
 ## Scheduling
 - Shell wrapper: `services/crawler/run_crawler.sh` runs `python -m services.crawler.main` from the repo root.
 - Cron template: `services/crawler/crawler.cron` schedules daily runs at 1 AM (edit paths before installing).
+- Full flow wrapper: `services/run_full_pipeline.sh` runs crawl, CSV staging + LLM normalization, then `migrate_normalized_data`.
+- Useful full-flow flags: `SKIP_CRAWL=1`, `SKIP_PIPELINE=1`, `SKIP_MIGRATE=1`, `STRICT_CSV=1`, `LOG_DIR=services/logs`.
+- When `STRICT_CSV=1`, set `EXPECTED_CSV_FILES` if only a subset of crawlers is enabled.
+
+## Pipeline LLM Provider
+- Stage 2 normalization defaults to OpenAI through `LLM_PROVIDER=openai`.
+- Required OpenAI settings in `services/.env`: `OPENAI_API_KEY`.
+- Optional OpenAI-compatible gateway setting: `OPENAI_BASE_URL` (for example `http://localhost:8080/v1`; leave unset for OpenAI's hosted API).
+- Optional OpenAI settings: `OPENAI_MODEL` (default `gpt-5.4-mini`), `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_OUTPUT_TOKENS`.
+- LiteRTLM remains available only as a legacy fallback by setting `LLM_PROVIDER=litertlm` and the existing `LITELLM_*` variables.
 
 ## Error Handling
 - Crawl errors are logged per category; the crawler continues with the next category.

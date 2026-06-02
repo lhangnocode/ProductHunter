@@ -10,7 +10,11 @@ import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { AdvisorWidget } from "./components/AdvisorWidget";
 import { ExtensionGuideModal } from "./components/ExtensionGuideModal";
 
-import { UserProvider, useUser } from "./context/UserContext";
+import { AlertLimitModal } from "./components/AlertLimitModal";
+import { UpgradeProModal } from "./components/UpgradeProModal";
+import { AdminPage } from "./components/AdminPage";
+
+import { FREE_PLAN_PRICE_ALERT_LIMIT, UserProvider, useUser } from "./context/UserContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { LanguageProvider, useLanguage } from "./context/LanguageContext";
 import {
@@ -40,6 +44,8 @@ import {
   Home,
   Headphones,
   Watch,
+  Crown,
+  ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -51,13 +57,10 @@ import { Pagination } from './components/Pagination';
 
 type Tab = "search" | "trending" | "wishlist" | "alerts";
 type SortOption = "trending" | "price-asc" | "price-desc" | "rating";
+const ADMIN_EMAILS = new Set(["lhang18022005@gmail.com", "vinhlg@gmail.com"]);
 
 function AppContent() {
   const isResetPasswordPath = window.location.pathname === "/reset-password";
-  if (isResetPasswordPath) {
-    return <ResetPasswordPage />;
-  }
-
   // Restore isAppStarted & activeTab from localStorage khi F5
   const [isAppStarted, setIsAppStarted] = useState<boolean>(() => {
     return localStorage.getItem("app_started") === "true";
@@ -87,6 +90,7 @@ function AppContent() {
   const [sortBy, setSortBy] = useState<SortOption>("trending");
 
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   // Xóa recentlyViewed cũ (chứa ID mock như p1, p2) tránh crash API
   useEffect(() => {
@@ -105,6 +109,8 @@ function AppContent() {
     clearWishlist,
     alerts,
     alertIds,
+    isAlertLimitModalOpen,
+    closeAlertLimitModal,
     removeAlert,
     setAlert,
     clearAlerts,
@@ -114,6 +120,7 @@ function AppContent() {
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [isTriggeringAlerts, setIsTriggeringAlerts] = useState(false);
+  const isAdmin = !!user && ADMIN_EMAILS.has(user.email.toLowerCase());
 
   // Tự động khởi động app nếu đã có user (chỉ check 1 lần sau khi restore session xong)
   useEffect(() => {
@@ -328,6 +335,20 @@ function AppContent() {
   // hay từ trending (id=platform_product_id, product_id=product_id)
   const getProductId = (product: any): string =>
     product.product_id ?? product.id;
+
+  const getProductIdCandidates = (product: any): string[] => {
+    const candidates = [
+      product?.product_id,
+      product?.product?.id,
+      product?.id,
+    ];
+    return candidates
+      .filter((value): value is string | number => value !== undefined && value !== null && value !== "")
+      .map((value) => String(value));
+  };
+
+  const hasAlertForProduct = (product: any): boolean =>
+    getProductIdCandidates(product).some((id) => alertIds.has(id));
 
   const handleAddWishlist = async (product: any) => {
     if (!user) {
@@ -659,7 +680,7 @@ function AppContent() {
                         product={product}
                         onClick={handleNavigateToDetail}
                         isWishlisted={wishlistIds.has(getProductId(product))}
-                        isAlerted={alertIds.has(getProductId(product))} // THÊM DÒNG NÀY
+                        isAlerted={hasAlertForProduct(product)}
                         onToggleWishlist={(e) => {
                           e.stopPropagation();
                           handleAddWishlist(product);
@@ -703,6 +724,7 @@ function AppContent() {
           <TrendingDeals
             onProductClick={handleNavigateToDetail}
             wishlistIds={wishlistIds}
+            alertIds={alertIds}
             onToggleWishlist={handleAddWishlist}
           />
         );
@@ -791,6 +813,7 @@ function AppContent() {
                       <ProductCard
                         product={product}
                         onClick={(p) => handleNavigateToDetail(p, p.product_id)}
+                        isAlerted={hasAlertForProduct(product)}
                         onRemove={(e) => {
                           e.stopPropagation();
                           handleAddWishlist(product);
@@ -825,7 +848,9 @@ function AppContent() {
             )}
           </div>
         );
-      case "alerts":
+      case "alerts": {
+        const freeAlertUsage = Math.min(alerts.length, FREE_PLAN_PRICE_ALERT_LIMIT);
+        const freeAlertUsagePercent = `${Math.min(100, (freeAlertUsage / FREE_PLAN_PRICE_ALERT_LIMIT) * 100)}%`;
         return (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-8">
@@ -883,6 +908,45 @@ function AppContent() {
               )}
             </div>
 
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-primary">
+                    Mức sử dụng cảnh báo giá
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {user?.plan === 1
+                      ? "Gói Pro: cảnh báo giá không giới hạn"
+                      : `Bạn đang dùng ${freeAlertUsage}/${FREE_PLAN_PRICE_ALERT_LIMIT} cảnh báo giá của gói Free`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${user?.plan === 1 ? "bg-brand-primary/10 text-brand-primary" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"}`}>
+                    {user?.plan === 1 ? "Pro" : "Free"}
+                  </span>
+                  {user?.plan !== 1 && (
+                    <button
+                      onClick={() => setIsUpgradeModalOpen(true)}
+                      className="flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white"
+                    >
+                      <Crown size={14} />
+                      Upgrade
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {user?.plan === 1 ? (
+                <div className="mt-4 h-2 rounded-full bg-brand-primary/15">
+                  <div className="h-full w-full rounded-full bg-brand-primary" />
+                </div>
+              ) : (
+                <div className="mt-4 h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+                  <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: freeAlertUsagePercent }} />
+                </div>
+              )}
+            </div>
+
             {alerts.length > 0 ? (
               <motion.div
                 variants={containerVariants}
@@ -915,6 +979,7 @@ function AppContent() {
                     >
                       <ProductCard
                         product={productForCard}
+                        isAlerted
                         // Click vào thẻ thì bay tới trang chi tiết
                         onClick={(p) => handleNavigateToDetail(p, p.product_id)}
                         // Nút X để xóa cảnh báo
@@ -956,6 +1021,7 @@ function AppContent() {
             )}
           </div>
         );
+      }
     }
   };
 
@@ -1014,6 +1080,14 @@ function AppContent() {
     </motion.button>
   );
 
+  if (isResetPasswordPath) {
+    return <ResetPasswordPage />;
+  }
+
+  if (window.location.pathname === "/admin") {
+    return <AdminPage onBackHome={() => window.location.assign("/")} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-brand-primary/10 selection:text-brand-primary transition-colors duration-300">
       <AuthModal
@@ -1024,6 +1098,11 @@ function AppContent() {
       <ExtensionGuideModal 
         isOpen={isGuideOpen} 
         onClose={() => setIsGuideOpen(false)} 
+      />
+
+      <UpgradeProModal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
       />
 
       {/* Background Decorative Elements */}
@@ -1177,6 +1256,17 @@ function AppContent() {
                           </div>
 
                           {/* Nút đăng xuất chính thức */}
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                window.location.assign("/admin");
+                              }}
+                              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors uppercase tracking-widest font-display"
+                            >
+                              <ShieldCheck size={14} />
+                              Admin
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               logout();
@@ -1247,7 +1337,13 @@ function AppContent() {
                 <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
                   {t("sidebarPromoDesc")}
                 </p>
-                <button className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display">
+
+                {/* CẬP NHẬT NÚT NÀY */}
+                <button 
+                  onClick={() => setIsUpgradeModalOpen(true)} // <--- THÊM SỰ KIỆN NÀY
+
+                  className="w-full rounded-lg bg-brand-primary py-2 text-[8px] font-black text-white shadow-lg shadow-brand-primary/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest font-display"
+                >
                   {t("upgradeNow")}
                 </button>
               </div>
@@ -1305,6 +1401,19 @@ function AppContent() {
           selectedProduct?.id ||
           null
         }
+      />
+      <AlertLimitModal
+        isOpen={isAlertLimitModalOpen}
+        used={alerts.length}
+        onClose={closeAlertLimitModal}
+        onUpgrade={() => {
+          closeAlertLimitModal();
+          setIsUpgradeModalOpen(true);
+        }}
+      />
+      <UpgradeProModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
       />
     </div>
   );

@@ -65,8 +65,8 @@ def main() -> None:
             print(f"[pipeline] Warning: Typesense unavailable — {exc}")
 
         # # ── Stage 1: Extract → Bronze ─────────────────────────────────────────
-        # print("\n[pipeline] Stage 1: Loading CSVs into staging.raw_crawl...")
-        # load_csvs_to_staging(staging_conn)
+        print("\n[pipeline] Stage 1: Loading CSVs into staging.raw_crawl...")
+        load_csvs_to_staging(staging_conn)
 
         # ── Stage 2: LLM normalization ─────────────────────────────────────────
         print("\n[pipeline] Stage 2: LLM normalization...")

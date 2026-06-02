@@ -41,33 +41,9 @@ router = APIRouter()
 MOCK_PLATFORM_DATA = [
    {
     "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
-    "platform_id": 1,
-    "raw_name": "Xiaomi POCO M7 Pro 5G (8GB/256GB) Màn hình 120Hz Camera 64MP",
-    "original_item_id": "sp_3291_01",
-    "url": "https://shopee.vn/xiaomi-poco-m7-pro-5g",
-    "affiliate_url": "https://shopee.vn/xiaomi-poco-m7-pro-5g?utm_source=producthunter&aff_sub=ID",
-    "current_price": 5200000,
-    "original_price": 5990000,
-    "in_stock": true,
-    "last_crawled_at": "2026-03-29T10:00:00.000Z"
-  },
-  {
-    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
-    "platform_id": 2,
-    "raw_name": "Điện Thoại Xiaomi POCO M7 Pro 5G 8GB/256GB - Hàng Chính Hãng",
-    "original_item_id": "tk_3291_02",
-    "url": "https://tiki.vn/xiaomi-poco-m7-pro",
-    "affiliate_url": "https://tiki.vn/xiaomi-poco-m7-pro?utm_source=producthunter&aff_sub=ID",
-    "current_price": 5350000,
-    "original_price": 5990000,
-    "in_stock": true,
-    "last_crawled_at": "2026-03-29T10:00:00.000Z"
-  },
-  {
-    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
-    "platform_id": 5,
+    "platform_id": 9,
     "raw_name": "Xiaomi POCO M7 Pro 5G 8GB 256GB",
-    "original_item_id": "cps_3291_03",
+    "original_item_id": "cps_3291_01",
     "url": "https://cellphones.com.vn/xiaomi-poco-m7-pro",
     "affiliate_url": "https://cellphones.com.vn/xiaomi-poco-m7-pro?utm_source=producthunter&cps_aff=ID",
     "current_price": 5490000,
@@ -77,9 +53,21 @@ MOCK_PLATFORM_DATA = [
   },
   {
     "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
+    "platform_id": 8,
+    "raw_name": "Xiaomi POCO M7 Pro 5G 8GB/256GB",
+    "original_item_id": "pv_3291_02",
+    "url": "https://phongvu.vn/xiaomi-poco-m7-pro",
+    "affiliate_url": "https://phongvu.vn/xiaomi-poco-m7-pro?utm_source=producthunter",
+    "current_price": 5350000,
+    "original_price": 5990000,
+    "in_stock": true,
+    "last_crawled_at": "2026-03-29T10:00:00.000Z"
+  },
+  {
+    "product_id": "32918c2b-6f9f-4f67-a907-f4e9a68b16f7",
     "platform_id": 7,
     "raw_name": "Xiaomi POCO M7 Pro 5G 8GB-256GB Đen",
-    "original_item_id": "fpt_3291_04",
+    "original_item_id": "fpt_3291_03",
     "url": "https://fptshop.com.vn/dien-thoai/xiaomi-poco-m7-pro",
     "affiliate_url": "https://fptshop.com.vn/dien-thoai/xiaomi-poco-m7-pro?utm_source=producthunter",
     "current_price": 5690000,
@@ -258,4 +246,3 @@ async def search_and_compare_mock(
         total_results=len(matched_groups),
         data=matched_groups
     )
-

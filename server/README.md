@@ -46,6 +46,17 @@ Tests live in `server/tests/` and cover auth, crawler ingest, products,
 platform products, price records, trending deals, wishlist, price alerts,
 security, social auth, Advisor, and integration flows.
 
+### Coverage
+
+`pytest-cov` is included in `requirements.txt`. Run coverage from `server/`:
+
+```bash
+pytest --cov=app --cov-report=term-missing --cov-report=html --cov-report=xml
+```
+
+This prints missing lines in the terminal, writes the HTML report to
+`server/htmlcov/index.html`, and writes the XML report to `server/coverage.xml`.
+
 ### Docker Compose
 
 `docker-compose.yml` now includes both `api` and `postgres` (`postgres:16-alpine`) services.

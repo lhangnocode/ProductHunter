@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Bird, ArrowRight, Bell, ShieldAlert, Play, TrendingDown, History, Star, ShoppingCart, Store, ShoppingBag, Package, Users, Heart } from 'lucide-react';
+import { Bird, ArrowRight, Bell, ShieldAlert, Play, TrendingDown, History, Star, Monitor, Smartphone, Store, Users, Heart } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext'; // 1. Import useUser
@@ -296,15 +296,14 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             {t('platforms')}
           </h2>
           <p className="text-base md:text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium mb-16">
-            We track prices across all major e-commerce platforms in Vietnam to ensure you never miss a deal.
+            We track prices across Phong Vũ, FPT Shop, and CellphoneS to ensure you never miss a deal.
           </p>
           
           <div className="flex flex-wrap justify-center gap-4 md:gap-8">
             {[
-              { name: 'Shopee', color: 'text-[#ee4d2d]', bg: 'bg-[#ee4d2d]/10', icon: ShoppingBag },
-              { name: 'Lazada', color: 'text-[#0f136d]', bg: 'bg-[#0f136d]/10', icon: ShoppingCart },
-              { name: 'Tiki', color: 'text-[#1a94ff]', bg: 'bg-[#1a94ff]/10', icon: Package },
-              { name: 'TikTok Shop', color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-white/10', icon: Store },
+              { name: 'Phong Vũ', color: 'text-[#0f136d]', bg: 'bg-[#0f136d]/10', icon: Monitor },
+              { name: 'FPT Shop', color: 'text-[#ee4d2d]', bg: 'bg-[#ee4d2d]/10', icon: Store },
+              { name: 'CellphoneS', color: 'text-[#d70018]', bg: 'bg-[#d70018]/10', icon: Smartphone },
             ].map((platform) => (
               <div key={platform.name} className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white dark:bg-[#111] border border-black/5 dark:border-white/5 shadow-sm hover:-translate-y-1 transition-transform cursor-pointer">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${platform.bg} ${platform.color}`}>
@@ -356,7 +355,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
           <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-center">
             {[
               { label: 'Active Users', value: '50K+', icon: Users },
-              { label: 'Deals Found', value: '1M+', icon: ShoppingBag },
+              { label: 'Deals Found', value: '1M+', icon: Store },
               { label: 'Money Saved', value: '10B+ ₫', icon: TrendingDown },
               { label: 'Reviews', value: '4.9/5', icon: Heart },
             ].map((stat, i) => (

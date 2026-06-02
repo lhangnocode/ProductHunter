@@ -30,7 +30,8 @@ async def create_or_update_alert(
     return await price_alert_service.set_price_alert(
         db,
         current_user.id,
-        alert_in
+        alert_in,
+        current_user.plan,
     )
 
 

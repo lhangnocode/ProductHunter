@@ -7,6 +7,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from services.pipeline.define.platform import Platform
+
 
 def _load_env() -> None:
     """Load services/.env into os.environ (does not overwrite already-set vars)."""
@@ -52,7 +54,17 @@ if not STAGING_DB_URL:
         "Example: STAGING_DB_URL=postgresql://user:pass@host:5432/producthunter_staging"
     )
 
-# ── LiteRTLM gateway ─────────────────────────────────────────────────────────
+# ── LLM provider ──────────────────────────────────────────────────────────────
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+
+# OpenAI Responses API
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "").rstrip("/")
+OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+OPENAI_TIMEOUT_SECONDS: int = int(os.getenv("OPENAI_TIMEOUT_SECONDS", "120"))
+OPENAI_MAX_OUTPUT_TOKENS: int = int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "4096"))
+
+# LiteRTLM gateway (legacy fallback; set LLM_PROVIDER=litertlm to use)
 LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:8080").rstrip("/")
 LITELLM_API_KEY: str = os.getenv("LITELLM_API_KEY", "")
 LITELLM_USERNAME: str = os.getenv("LITELLM_USERNAME", "")
@@ -76,7 +88,7 @@ CRAWLER_OUTPUT_DIR: Path = Path(__file__).resolve().parents[1] / "crawler" / "ou
 # ── CSV file registry ─────────────────────────────────────────────────────────
 # Each entry: (platform_products_csv, platform_id)
 CSV_FILES: list[tuple[Path, int]] = [
-    (CRAWLER_OUTPUT_DIR / "fptshop_products.csv", 7),
-    (CRAWLER_OUTPUT_DIR / "phongvu_products.csv", 8),
-    (CRAWLER_OUTPUT_DIR / "cellphones_products.csv", 9),
+    (CRAWLER_OUTPUT_DIR / "fptshop_products.csv", Platform.FPTSHOP),
+    (CRAWLER_OUTPUT_DIR / "phongvu_products.csv", Platform.PHONGVU),
+    (CRAWLER_OUTPUT_DIR / "cellphones_products.csv", Platform.CELLPHONES),
 ]

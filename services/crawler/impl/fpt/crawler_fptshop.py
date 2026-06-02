@@ -10,9 +10,10 @@ from typing import List, Optional
 from playwright.sync_api import ElementHandle, sync_playwright
 from playwright_stealth.stealth import Stealth
 
+from services.crawler.core.define.platform_type import PlatformType
 from services.crawler.models.raw_product import RawProduct
 
-PLATFORM_ID = 7
+PLATFORM_ID = PlatformType.FPTSHOP
 PLATFORM_BASE_URL = "https://fptshop.com.vn"
 OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
 
@@ -70,7 +71,7 @@ class FPTShopCrawler:
         
     def crawl(self) -> None:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
             context = browser.new_context()
             page = context.new_page()
             Stealth().apply_stealth_sync(page)
