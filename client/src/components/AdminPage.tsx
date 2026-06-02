@@ -4,7 +4,14 @@ import { adminService, AdminUser } from '../services/admin';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 
-const ADMIN_EMAILS = new Set(['lhang18022005@gmail.com', 'vinhlg@gmail.com']);
+const ADMIN_EMAILS = new Set([
+  'lhang18022005@gmail.com',
+  'vinhlg@gmail.com',
+  'testbank@gmail.com',
+  'letridangg2005@gmail.com',
+  '23020715@vnu.edu.vn',
+  'nguyenhaibatrung05@gmail.com',
+]);
 
 interface AdminPageProps {
   onBackHome: () => void;
