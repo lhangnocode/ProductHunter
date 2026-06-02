@@ -39,7 +39,7 @@ class CellphonesCrawler:
 
     def crawl(self) -> None:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            browser = p.chromium.launch(headless=False, args=["--no-sandbox", "--disable-setuid-sandbox"])
             context = browser.new_context()
             page = context.new_page()
             Stealth().apply_stealth_sync(page)

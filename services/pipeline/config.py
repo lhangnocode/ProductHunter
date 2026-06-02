@@ -52,7 +52,17 @@ if not STAGING_DB_URL:
         "Example: STAGING_DB_URL=postgresql://user:pass@host:5432/producthunter_staging"
     )
 
-# ── LiteRTLM gateway ─────────────────────────────────────────────────────────
+# ── LLM provider ──────────────────────────────────────────────────────────────
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+
+# OpenAI Responses API
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "").rstrip("/")
+OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+OPENAI_TIMEOUT_SECONDS: int = int(os.getenv("OPENAI_TIMEOUT_SECONDS", "120"))
+OPENAI_MAX_OUTPUT_TOKENS: int = int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "4096"))
+
+# LiteRTLM gateway (legacy fallback; set LLM_PROVIDER=litertlm to use)
 LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:8080").rstrip("/")
 LITELLM_API_KEY: str = os.getenv("LITELLM_API_KEY", "")
 LITELLM_USERNAME: str = os.getenv("LITELLM_USERNAME", "")
