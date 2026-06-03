@@ -11,7 +11,7 @@ All frontend service tests are located in `client/src/services/__tests__/` and u
 ### Test Files
 
 1. **auth.test.ts** - Authentication service tests
-2. **advisor.test.ts** - AI Advisor chat service tests
+2. **agent.test.ts** - Dashboard telesales agent service tests
 3. **priceAlert.test.ts** - Price alert management tests
 4. **wishlist.test.ts** - Wishlist management tests
 5. **trending_deal_api.test.ts** - Trending deals API tests
@@ -81,18 +81,18 @@ Tests verify:
 - ❌ Registration with duplicate email
 - ✅ Token inclusion in Authorization header
 
-### advisor.test.ts
+### agent.test.ts
 
 **Covered Methods:**
-- `sendAdvisorMessage()` - Chat with AI advisor
+- `sendAgentMessage()` - Send a dashboard agent message over HTTP
+- `streamAgentMessage()` - Stream dashboard agent events over HTTP SSE
 
 **Key Test Cases:**
 - ✅ Send message and receive recommendations
 - ✅ Include chat history in requests
 - ✅ Include context parameters
-- ✅ Parse multiple platform recommendations
+- ✅ Parse streamed agent events
 - ❌ Handle API errors with detail messages
-- ✅ Handle null prices in recommendations
 
 ### priceAlert.test.ts
 
