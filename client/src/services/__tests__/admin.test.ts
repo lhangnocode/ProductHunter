@@ -11,6 +11,64 @@ describe('adminService', () => {
     vi.resetAllMocks();
   });
 
+  describe('Overview', () => {
+    it('should fetch overview with correct headers', async () => {
+      const mockOverview = {
+        counts: {
+          products: 12,
+          platform_products: 30,
+          platforms: 3,
+          in_stock_offers: 25,
+          users: 5,
+          pending_payments: 1,
+        },
+        recent_products: [],
+        sample_offers: [],
+      };
+
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockOverview,
+      });
+
+      const result = await adminService.getOverview(MOCK_TOKEN, true);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/overview'),
+        expect.objectContaining({
+          headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+        })
+      );
+      expect(result.counts.products).toBe(12);
+    });
+
+    it('should cache overview responses for the same token', async () => {
+      const mockOverview = {
+        counts: {
+          products: 2,
+          platform_products: 4,
+          platforms: 1,
+          in_stock_offers: 3,
+          users: 1,
+          pending_payments: 0,
+        },
+        recent_products: [],
+        sample_offers: [],
+      };
+
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockOverview,
+      });
+
+      const first = await adminService.getOverview('cache-token', true);
+      const second = await adminService.getOverview('cache-token');
+
+      expect(first).toBe(second);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('User Management', () => {
     it('should fetch users with correct headers', async () => {
       const mockUsers = [
