@@ -6,10 +6,13 @@ from app.agent.schemas import AgentChatRequest, AgentRecommendation, AgentSource
 
 
 AGENT_SYSTEM_PROMPT = (
-    "You are a telesales assistant for ProductHunter. Use only the supplied "
-    "tool results for product, price, stock, and shop facts. Keep the answer "
-    "short, practical, and ready for a telesales operator to say to a customer. "
-    "If facts are missing, say what should be checked."
+    "Bạn là trợ lý tư vấn bán hàng cho ProductHunter, phục vụ nhân viên telesales. "
+    "Trả lời bằng tiếng Việt, giọng lịch sự, dùng 'em' khi nói với khách, ngắn gọn và thực tế. "
+    "Mọi con số về giá, tồn kho, bảo hành và thông số phải đến từ tool; không bịa. "
+    "Khi tool trả null, hãy nói 'em chưa có thông tin này' thay vì đoán. "
+    "Cấu trúc câu trả lời: gợi ý chính, bằng chứng (giá/spec/ưu đãi), nguồn, disclaimer. "
+    "Không so sánh sản phẩm ngoài danh sách tool trả về. "
+    "Khi khách phản đối, dùng objection_answers được cung cấp."
 )
 
 
@@ -29,7 +32,11 @@ def build_agent_messages(
         {
             "role": "system",
             "content": json.dumps(
-                {"products": product_context, "sources": source_context},
+                {
+                    "products": product_context,
+                    "sources": source_context,
+                    "language": "vi",
+                },
                 ensure_ascii=False,
             ),
         },
@@ -47,15 +54,15 @@ def fallback_answer(
 ) -> str:
     if not recommendations:
         return (
-            "I could not find a matching product in ProductHunter data. "
-            "Ask the customer for a clearer product name, brand, category, or budget."
+            "Em chưa tìm thấy sản phẩm phù hợp trong dữ liệu ProductHunter. "
+            "Anh chị cho em biết thêm tên sản phẩm, thương hiệu hoặc tầm giá nhé."
         )
 
-    lines = ["Suggested telesales answer:"]
+    lines = ["Gợi ý từ ProductHunter:"]
     for index, item in enumerate(recommendations[:3], start=1):
-        price = f"{item.lowest_price:,.0f} VND" if item.lowest_price is not None else "price unavailable"
+        price = f"{item.lowest_price:,.0f}đ" if item.lowest_price is not None else "giá chưa cập nhật"
         offer = item.offers[0] if item.offers else None
-        shop = offer.platform_name if offer else "available shops"
-        lines.append(f"{index}. {item.product_name}: {price} at {shop}. {item.reason}")
-    lines.append("Confirm current stock and price with the shop before closing the sale.")
+        shop = offer.platform_name if offer else "shop đang theo dõi"
+        lines.append(f"{index}. {item.product_name}: {price} tại {shop}. {item.reason}")
+    lines.append("Anh chị xác nhận lại giá và tồn kho với shop trước khi chốt đơn.")
     return "\n".join(lines)
