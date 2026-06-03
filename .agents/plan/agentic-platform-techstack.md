@@ -268,6 +268,103 @@ Stop point:
 
 - User verifies whether this chatbot should be anonymous, logged-in only, or plan-gated.
 
+### Phase 2.6: Admin Overview With Real Catalog Metrics
+
+Goal:
+
+Make the dashboard Overview show real database state instead of static module cards.
+
+Scope:
+
+- Add one admin-only backend summary endpoint:
+  - `GET /api/v1/admin/overview`
+- Return count metrics from existing tables only:
+  - `products_count`
+  - `platform_products_count`
+  - `platforms_count`
+  - `in_stock_offers_count`
+  - optional existing operational counts like `users_count` and `pending_payments_count`
+- Return a small set of real catalog rows for visual inspection:
+  - `recent_products`: newest products with image, brand, category, and offer count
+  - `sample_offers`: recently crawled or cheapest in-stock platform products with price, original price, stock, platform name, URL, and product name
+- Do not add database tables, migrations, or fake/mock products.
+- Keep the Overview read-only.
+
+Backend Shape:
+
+```text
+server/app/api/v1/admin.py
+  GET /overview
+    -> counts
+    -> recent_products[]
+    -> sample_offers[]
+```
+
+Suggested response:
+
+```json
+{
+  "counts": {
+    "products": 1200,
+    "platform_products": 5400,
+    "platforms": 8,
+    "in_stock_offers": 4210,
+    "users": 300,
+    "pending_payments": 4
+  },
+  "recent_products": [
+    {
+      "id": "...",
+      "product_name": "iPhone 15 Pro Max 256GB",
+      "brand": "Apple",
+      "category": "Phone",
+      "main_image_url": "...",
+      "offer_count": 5
+    }
+  ],
+  "sample_offers": [
+    {
+      "platform_product_id": "...",
+      "product_id": "...",
+      "product_name": "iPhone 15 Pro Max 256GB",
+      "platform_name": "Shopee",
+      "price": 28990000,
+      "original_price": 34990000,
+      "in_stock": true,
+      "url": "https://..."
+    }
+  ]
+}
+```
+
+UI Shape:
+
+- Replace static Overview cards with DB-backed cards:
+  - Products
+  - Offers / platform products
+  - Platforms / shops
+  - In-stock offers
+- Add a compact "Real catalog sample" table/list:
+  - product image thumbnail
+  - product name
+  - platform/shop
+  - current price
+  - stock status
+  - external URL button
+- Add loading, empty, and error states.
+- Keep the styling simple and consistent with the current no-border dashboard direction.
+
+Verification:
+
+- Backend test for `/api/v1/admin/overview` using SQLite fixtures.
+- Frontend service test for `adminService.getOverview`.
+- `npm run lint` and `npm run test -- --run` in `client`.
+- Backend import/compile check and targeted admin test when the local DB test harness is available.
+
+Stop point:
+
+- User verifies which product sample is most useful: newest products, cheapest in-stock offers, recent crawls, or highest-discount offers.
+
 ### Phase 3: Product And Shop Management APIs
 
 Goal:

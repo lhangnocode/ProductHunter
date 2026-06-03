@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Bot,
-  Boxes,
   Monitor,
   Clock,
   CreditCard,
@@ -10,12 +9,15 @@ import {
   ExternalLink,
   LayoutDashboard,
   Loader2,
+  PackageSearch,
   ShieldCheck,
+  Store,
+  Tags,
   UserCog,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { adminService, AdminUser, AdminPaymentRequest } from '../services/admin';
+import { adminService, AdminUser, AdminPaymentRequest, AdminOverview } from '../services/admin';
 import { useUser } from '../context/UserContext';
 import { useToast } from './Toast';
 import { CONFIG } from '../config';
@@ -124,6 +126,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [payments, setPayments] = useState<AdminPaymentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -133,7 +136,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
   const token = localStorage.getItem('access_token') || '';
 
-  const pendingPaymentsCount = payments.filter(p => p.status === 0).length;
+  const pendingPaymentsCount = overview?.counts.pending_payments ?? payments.filter(p => p.status === 0).length;
   const activeNavItem = ADMIN_NAV_ITEMS.find(item => item.id === activeTab) || ADMIN_NAV_ITEMS[0];
   const ActiveIcon = activeNavItem.icon;
   const adminFontStyle = {
@@ -142,11 +145,14 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
   const fetchData = async () => {
     if (!isAdmin || !token) return;
-    if (activeTab !== 'users' && activeTab !== 'payments') return;
+    if (activeTab !== 'overview' && activeTab !== 'users' && activeTab !== 'payments') return;
 
     setIsLoading(true);
     try {
-      if (activeTab === 'users') {
+      if (activeTab === 'overview') {
+        const data = await adminService.getOverview(token);
+        setOverview(data);
+      } else if (activeTab === 'users') {
         const data = await adminService.getUsers(token);
         setUsers(data);
       } else if (activeTab === 'payments') {
@@ -184,45 +190,182 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     finally { setActionLoading(null); }
   };
 
-  const renderOverview = () => (
-    <div className="p-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-lg shadow-sm">
-          <p className="text-xs font-medium text-slate-400 mb-2">Ready modules</p>
-          <p className="text-3xl font-semibold">3</p>
-          <p className="text-xs text-slate-500 mt-1">Users, Payments, and Agent are wired to APIs.</p>
-        </div>
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-lg shadow-sm">
-          <p className="text-xs font-medium text-slate-400 mb-2">Planned modules</p>
-          <p className="text-3xl font-semibold">1</p>
-          <p className="text-xs text-slate-500 mt-1">Overview only. Shop, catalog, and settings are temporarily hidden.</p>
-        </div>
-        <div className="bg-white dark:bg-slate-950 p-5 rounded-lg shadow-sm">
-          <p className="text-xs font-medium text-slate-400 mb-2">Pending payments</p>
-          <p className="text-3xl font-semibold">{pendingPaymentsCount}</p>
-          <p className="text-xs text-slate-500 mt-1">Visit Payments to refresh approval requests.</p>
-        </div>
-      </div>
+  const formatCount = (value: number | undefined) => new Intl.NumberFormat('vi-VN').format(value || 0);
+  const formatPrice = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return 'Chưa có giá';
+    return `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
+  };
+  const productImageUrl = (url: string | null | undefined) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return getImageUrl(url);
+  };
 
-      <div className="rounded-lg p-6 bg-white dark:bg-slate-950 shadow-sm">
-        <div className="flex items-center gap-3 mb-4">
+  const renderOverview = () => {
+    const counts = overview?.counts;
+    const metricCards = [
+      {
+        label: 'Products',
+        value: counts?.products,
+        detail: 'Normalized product records in the database.',
+        icon: PackageSearch,
+      },
+      {
+        label: 'Shop offers',
+        value: counts?.platform_products,
+        detail: 'Platform product rows with price and stock data.',
+        icon: Tags,
+      },
+      {
+        label: 'Platforms / shops',
+        value: counts?.platforms,
+        detail: 'Connected sellers or commerce platforms.',
+        icon: Store,
+      },
+      {
+        label: 'In-stock offers',
+        value: counts?.in_stock_offers,
+        detail: 'Offers currently marked available.',
+        icon: CreditCard,
+      },
+    ];
+
+    return (
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+          {metricCards.map(card => {
+            const Icon = card.icon;
+            return (
+              <div key={card.label} className="bg-white dark:bg-slate-950 p-5 rounded-lg shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400 mb-2">{card.label}</p>
+                    <p className="text-3xl font-semibold tabular-nums">{formatCount(card.value)}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 flex items-center justify-center">
+                    <Icon size={19} />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-3">{card.detail}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_420px] gap-6">
+          <div className="bg-white dark:bg-slate-950 rounded-lg shadow-sm overflow-hidden">
+            <div className="px-5 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">Real catalog sample</h3>
+                <p className="text-xs text-slate-500 mt-1">Recent in-stock offers from platform product data.</p>
+              </div>
+            </div>
+            {overview && overview.sample_offers.length === 0 ? (
+              <div className="px-5 py-12 text-center text-sm text-slate-500">
+                No in-stock offers found in the database yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-900/60">
+                    <tr>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-400">Product</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-400">Platform</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-400">Price</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-400">Stock</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-400 text-right">URL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
+                    {(overview?.sample_offers || []).map(offer => (
+                      <tr key={offer.platform_product_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/60">
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-medium text-slate-950 dark:text-white line-clamp-1">{offer.product_name}</p>
+                          <p className="text-xs text-slate-500 mt-1">{offer.platform_product_id}</p>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{offer.platform_name}</td>
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-semibold tabular-nums">{formatPrice(offer.price)}</p>
+                          {offer.original_price && offer.original_price !== offer.price && (
+                            <p className="text-xs text-slate-400 line-through tabular-nums">{formatPrice(offer.original_price)}</p>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            In stock
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <a
+                            href={offer.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                          >
+                            <ExternalLink size={13} />
+                            Open
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-950 rounded-lg shadow-sm p-5">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold">Recent products</h3>
+              <p className="text-xs text-slate-500 mt-1">Newest product identities and offer coverage.</p>
+            </div>
+            {overview && overview.recent_products.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-500">No products found yet.</div>
+            ) : (
+              <div className="space-y-3">
+                {(overview?.recent_products || []).map(product => {
+                  const imageUrl = productImageUrl(product.main_image_url);
+                  return (
+                    <div key={product.id} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+                      <div className="w-12 h-12 rounded-lg bg-white dark:bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={product.product_name || product.normalized_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <PackageSearch size={18} className="text-slate-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-950 dark:text-white truncate">
+                          {product.product_name || product.normalized_name}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {[product.brand, product.category].filter(Boolean).join(' · ') || 'No brand/category'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold tabular-nums">{product.offer_count}</p>
+                        <p className="text-[11px] text-slate-400">offers</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-950 rounded-lg shadow-sm p-5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 flex items-center justify-center">
             <Bot size={20} />
           </div>
           <div>
-            <h3 className="font-semibold text-sm" style={adminFontStyle}>Agentic platform direction</h3>
-            <p className="text-xs text-slate-500">Phase 1 exposes the dashboard shell before backend and agent services are added.</p>
+            <h3 className="font-semibold text-sm" style={adminFontStyle}>Agent data surface</h3>
+            <p className="text-xs text-slate-500">These counts and offers are the same product database surface that the agent tools query.</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
-          {/* <div className="flex items-center gap-2"><Boxes size={16} className="text-slate-500" /> Shop and product management</div>
-          <div className="flex items-center gap-2"><PackageSearch size={16} className="text-slate-500" /> Product database search tools</div> */}
-          <div className="flex items-center gap-2"><Bot size={16} className="text-slate-500" /> LangChain agent service layer</div>
-          {/* <div className="flex items-center gap-2"><MessageSquareText size={16} className="text-slate-500" /> Agent conversations</div> */}
-        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderPlaceholder = (
     title: string,
@@ -359,7 +502,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
   );
 
   const renderContent = () => {
-    if (isLoading && (activeTab === 'users' || activeTab === 'payments')) {
+    if (isLoading && (activeTab === 'overview' || activeTab === 'users' || activeTab === 'payments')) {
       return (
         <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
           <Loader2 className="animate-spin" size={32} />
@@ -501,7 +644,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
               className={
                 activeTab === 'agent'
                   ? 'flex-1 min-h-0 overflow-hidden'
-                  : 'flex-1 min-h-0 bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden'
+                  : 'flex-1 min-h-0 bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm overflow-y-auto overflow-x-hidden'
               }
             >
               {renderContent()}
