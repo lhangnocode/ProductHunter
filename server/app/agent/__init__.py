@@ -1,0 +1,1 @@
+"""Stateless telesales agent services."""

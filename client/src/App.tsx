@@ -7,7 +7,6 @@ import { AuthModal } from "./components/AuthModal";
 import { ToastProvider, useToast } from "./components/Toast";
 import { TrendingDeals } from "./components/TrendingDeals";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
-import { AdvisorWidget } from "./components/AdvisorWidget";
 import { ExtensionGuideModal } from "./components/ExtensionGuideModal";
 
 import { AlertLimitModal } from "./components/AlertLimitModal";
@@ -1426,16 +1425,6 @@ function AppContent() {
           </AnimatePresence>
         </main>
       </div>
-      <AdvisorWidget
-        activeTab={selectedPlatformProduct ? "product_detail" : activeTab}
-        searchQuery={searchQuery}
-        userId={user?.id || null}
-        productId={
-          selectedPlatformProduct?.product_id ||
-          selectedProduct?.id ||
-          null
-        }
-      />
       <AlertLimitModal
         isOpen={isAlertLimitModalOpen}
         used={alerts.length}
