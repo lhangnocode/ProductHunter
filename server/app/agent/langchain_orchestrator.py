@@ -10,7 +10,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from app.agent.prompts import AGENT_SYSTEM_PROMPT
+from app.agent.prompts import system_prompt_for_request
 from app.agent.schemas import AgentChatRequest
 from app.core.config import settings
 
@@ -46,8 +46,12 @@ def _tool_descriptions(tools: list[BaseTool]) -> str:
     return "\n".join(lines)
 
 
-def _build_agent(llm: ChatOpenAI, tools: list[BaseTool]) -> Any:
-    full_system_prompt = f"{AGENT_SYSTEM_PROMPT}\n\n{_tool_descriptions(tools)}"
+def _build_agent(
+    request: AgentChatRequest,
+    llm: ChatOpenAI,
+    tools: list[BaseTool],
+) -> Any:
+    full_system_prompt = f"{system_prompt_for_request(request)}\n\n{_tool_descriptions(tools)}"
     return create_agent(llm, tools, system_prompt=full_system_prompt)
 
 
@@ -70,7 +74,7 @@ async def run_langchain_agent(
 ) -> str:
     _require_openai_config()
     llm = _build_llm()
-    agent = _build_agent(llm, tools)
+    agent = _build_agent(request, llm, tools)
 
     max_loops = settings.AGENT_MAX_ITERATIONS
     recursion_limit = max_loops * 2 + 5
@@ -100,7 +104,7 @@ async def run_langchain_agent_stream(
 ) -> str:
     _require_openai_config()
     llm = _build_llm()
-    agent = _build_agent(llm, tools)
+    agent = _build_agent(request, llm, tools)
 
     max_loops = settings.AGENT_MAX_ITERATIONS
     recursion_limit = max_loops * 2 + 5
