@@ -10,12 +10,7 @@ import {
   ExternalLink,
   LayoutDashboard,
   Loader2,
-  MessageSquareText,
-  PackageSearch,
-  Settings,
   ShieldCheck,
-  Store,
-  Tags,
   UserCog,
   X,
 } from 'lucide-react';
@@ -43,7 +38,6 @@ type AdminTab =
   | 'products'
   | 'offers'
   | 'agent'
-  | 'conversations'
   | 'settings';
 
 interface AdminNavItem {
@@ -76,27 +70,27 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: CreditCard,
     status: 'ready',
   },
-  {
-    id: 'shops',
-    label: 'Shops',
-    description: 'Managed sellers',
-    icon: Store,
-    status: 'planned',
-  },
-  {
-    id: 'products',
-    label: 'Products',
-    description: 'Catalog records',
-    icon: PackageSearch,
-    status: 'planned',
-  },
-  {
-    id: 'offers',
-    label: 'Shop Offers',
-    description: 'Prices and stock',
-    icon: Tags,
-    status: 'planned',
-  },
+  // {
+  //   id: 'shops',
+  //   label: 'Shops',
+  //   description: 'Managed sellers',
+  //   icon: Store,
+  //   status: 'planned',
+  // },
+  // {
+  //   id: 'products',
+  //   label: 'Products',
+  //   description: 'Catalog records',
+  //   icon: PackageSearch,
+  //   status: 'planned',
+  // },
+  // {
+  //   id: 'offers',
+  //   label: 'Shop Offers',
+  //   description: 'Prices and stock',
+  //   icon: Tags,
+  //   status: 'planned',
+  // },
   {
     id: 'agent',
     label: 'Agent',
@@ -104,20 +98,13 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: Bot,
     status: 'ready',
   },
-  {
-    id: 'conversations',
-    label: 'Conversations',
-    description: 'Agent sessions',
-    icon: MessageSquareText,
-    status: 'planned',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    description: 'Platform config',
-    icon: Settings,
-    status: 'planned',
-  },
+  // {
+  //   id: 'settings',
+  //   label: 'Settings',
+  //   description: 'Platform config',
+  //   icon: Settings,
+  //   status: 'planned',
+  // },
 ];
 
 interface AdminPageProps {
@@ -207,8 +194,8 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
         </div>
         <div className="bg-white dark:bg-slate-950 p-5 rounded-lg shadow-sm">
           <p className="text-xs font-medium text-slate-400 mb-2">Planned modules</p>
-          <p className="text-3xl font-semibold">6</p>
-          <p className="text-xs text-slate-500 mt-1">Shop, catalog, agent, and conversation surfaces.</p>
+          <p className="text-3xl font-semibold">1</p>
+          <p className="text-xs text-slate-500 mt-1">Overview only. Shop, catalog, and settings are temporarily hidden.</p>
         </div>
         <div className="bg-white dark:bg-slate-950 p-5 rounded-lg shadow-sm">
           <p className="text-xs font-medium text-slate-400 mb-2">Pending payments</p>
@@ -228,10 +215,10 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
-          <div className="flex items-center gap-2"><Boxes size={16} className="text-slate-500" /> Shop and product management</div>
-          <div className="flex items-center gap-2"><PackageSearch size={16} className="text-slate-500" /> Product database search tools</div>
+          {/* <div className="flex items-center gap-2"><Boxes size={16} className="text-slate-500" /> Shop and product management</div>
+          <div className="flex items-center gap-2"><PackageSearch size={16} className="text-slate-500" /> Product database search tools</div> */}
           <div className="flex items-center gap-2"><Bot size={16} className="text-slate-500" /> LangChain agent service layer</div>
-          <div className="flex items-center gap-2"><MessageSquareText size={16} className="text-slate-500" /> Agent conversations</div>
+          {/* <div className="flex items-center gap-2"><MessageSquareText size={16} className="text-slate-500" /> Agent conversations</div> */}
         </div>
       </div>
     </div>
@@ -384,47 +371,40 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
     if (activeTab === 'overview') return renderOverview();
     if (activeTab === 'users') return renderUsers();
     if (activeTab === 'payments') return renderPayments();
-    if (activeTab === 'shops') {
-      return renderPlaceholder('Shops', 'Manage seller/shop profiles before the product and offer management APIs are added.', [
-        'Shop profile and status',
-        'Owner and contact details',
-        'Business policies',
-        'Catalog ownership',
-      ], Store);
-    }
-    if (activeTab === 'products') {
-      return renderPlaceholder('Products', 'Manage normalized product identities, specs, aliases, and search visibility.', [
-        'Product catalog records',
-        'Brand, model, category',
-        'Specs and images',
-        'Typesense reindex action',
-      ], PackageSearch);
-    }
-    if (activeTab === 'offers') {
-      return renderPlaceholder('Shop Offers', 'Manage shop-specific prices, stock state, URLs, promotions, and crawl/manual freshness.', [
-        'Current and original price',
-        'Stock and promotion labels',
-        'Shop URL and affiliate URL',
-        'Last updated timestamp',
-      ], Tags);
-    }
+    // if (activeTab === 'shops') {
+    //   return renderPlaceholder('Shops', 'Manage seller/shop profiles before the product and offer management APIs are added.', [
+    //     'Shop profile and status',
+    //     'Owner and contact details',
+    //     'Business policies',
+    //     'Catalog ownership',
+    //   ], Store);
+    // }
+    // if (activeTab === 'products') {
+    //   return renderPlaceholder('Products', 'Manage normalized product identities, specs, aliases, and search visibility.', [
+    //     'Product catalog records',
+    //     'Brand, model, category',
+    //     'Specs and images',
+    //     'Typesense reindex action',
+    //   ], PackageSearch);
+    // }
+    // if (activeTab === 'offers') {
+    //   return renderPlaceholder('Shop Offers', 'Manage shop-specific prices, stock state, URLs, promotions, and crawl/manual freshness.', [
+    //     'Current and original price',
+    //     'Stock and promotion labels',
+    //     'Shop URL and affiliate URL',
+    //     'Last updated timestamp',
+    //   ], Tags);
+    // }
     if (activeTab === 'agent') {
       return <AdminAgentPanel />;
     }
-    if (activeTab === 'conversations') {
-      return renderPlaceholder('Conversations', 'Review future telesales conversations, tool calls, recommended products, and operator feedback.', [
-        'Conversation history',
-        'Recommended products',
-        'Source inspection',
-        'Operator feedback',
-      ], MessageSquareText);
-    }
-    return renderPlaceholder('Settings', 'Control platform settings for API providers, agent streaming, crawler status, and migration workflow.', [
-      'Agent provider config',
-      'Agent transport settings',
-      'Crawler and pipeline status',
-      'Alembic migration workflow',
-    ], Settings);
+    // return renderPlaceholder('Settings', 'Control platform settings for API providers, agent streaming, crawler status, and migration workflow.', [
+    //   'Agent provider config',
+    //   'Agent transport settings',
+    //   'Crawler and pipeline status',
+    //   'Alembic migration workflow',
+    // ], Settings);
+    return null;
   };
 
   if (!isAdmin) return (
@@ -453,8 +433,8 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
         </div>
       </div>
 
-      <div className="hidden lg:block w-full px-6 py-6">
-        <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-6">
+      <div className="hidden lg:block w-full px-6 py-6 h-[calc(100vh-48px)] min-h-0">
+        <div className="grid h-full min-h-0 grid-cols-[280px_minmax(0,1fr)] gap-6">
           <aside className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden sticky top-6 self-start">
             <div className="p-5">
               <button onClick={onBackHome} className="mb-5 flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-950 dark:hover:text-white transition-colors">
@@ -504,7 +484,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
             </nav>
           </aside>
 
-          <main className="min-w-0">
+          <main className="min-w-0 min-h-0 flex flex-col">
             <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-lg bg-white dark:bg-slate-900 flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-sm">
@@ -517,7 +497,13 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
               </div>
             </div>
 
-            <div className={activeTab === 'agent' ? 'overflow-hidden' : 'bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden'}>
+            <div
+              className={
+                activeTab === 'agent'
+                  ? 'flex-1 min-h-0 overflow-hidden'
+                  : 'flex-1 min-h-0 bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden'
+              }
+            >
               {renderContent()}
             </div>
           </main>

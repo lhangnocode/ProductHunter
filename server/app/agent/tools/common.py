@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+import app.models  # noqa: F401 – register all models before mapper config
 from app.models.platform_product import PlatformProduct
 from app.models.product import Product
 
