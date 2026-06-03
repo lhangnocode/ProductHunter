@@ -195,7 +195,7 @@ async def search_product(
             return products, total_results 
             
         except Exception as exc:
-            logger.exception("Typesense search failed; falling back to postgres... Exception: %s", exc)
+            logger.warning("Typesense unavailable, falling back to postgres search")
 
     logger.info("Product search using postgres...")
     

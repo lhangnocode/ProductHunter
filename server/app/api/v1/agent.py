@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.events import sse_event
 from app.agent.schemas import AgentChatRequest, AgentChatResponse
-from app.agent.service import run_agent
+from app.agent.service import run_agent, run_agent_stream
 from app.db.session import get_db
 
 router = APIRouter()
@@ -36,7 +36,7 @@ async def agent_chat_stream(
 
         async def execute_agent() -> None:
             try:
-                await run_agent(request, db, event_callback=collect)
+                await run_agent_stream(request, db, event_callback=collect)
             finally:
                 await queue.put(None)
 
@@ -48,13 +48,6 @@ async def agent_chat_stream(
                     break
                 event, data = item
                 if event == "agent.done":
-                    answer = str(data.get("answer") or "")
-                    words = answer.split()
-                    for index in range(0, len(words), 8):
-                        yield sse_event(
-                            "agent.token",
-                            {"content": " ".join(words[index:index + 8])},
-                        )
                     yield sse_event("agent.sources", {"sources": data.get("sources", [])})
                 yield sse_event(event, data)
             await task

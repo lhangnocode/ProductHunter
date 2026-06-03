@@ -36,3 +36,10 @@ def test_out_of_stock_yields_no_freshness_cue():
     offer = {"in_stock": False, "last_crawled_at": _recent_iso(0)}
     cues = build_urgency_cues(offer, None)
     assert not any("Cập nhật" in cue for cue in cues)
+
+
+def test_naive_datetime_string_is_handled():
+    naive = (datetime.now() - timedelta(hours=2)).isoformat(timespec="seconds")
+    offer = {"in_stock": True, "last_crawled_at": naive}
+    cues = build_urgency_cues(offer, None)
+    assert any("Cập nhật" in cue for cue in cues)

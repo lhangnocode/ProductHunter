@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     QWEN_MODEL: str = "qwen3.6-flash"
     QWEN_TIMEOUT_SECONDS: int = 30
     ADVISOR_MAX_CONTEXT_PRODUCTS: int = 5
+    AGENT_OPENAI_API_KEY: str = ""
+    AGENT_OPENAI_BASE_URL: str = ""
+    AGENT_OPENAI_MODEL: str = ""
+    AGENT_OPENAI_TEMPERATURE: float = 0.2
+    AGENT_MAX_ITERATIONS: int = 10
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

@@ -23,6 +23,10 @@ export interface AgentOffer {
   in_stock: boolean | null;
   url: string | null;
   last_crawled_at: string | null;
+  deal_score?: number | null;
+  discount_pct?: number | null;
+  deal_reasons?: string[];
+  price_trend?: string | null;
 }
 
 export interface AgentRecommendation {
@@ -33,6 +37,12 @@ export interface AgentRecommendation {
   lowest_price: number | null;
   reason: string;
   offers: AgentOffer[];
+  deal_score?: number | null;
+  value_score?: number | null;
+  urgency_cues?: string[];
+  trust_warranty_months?: number | null;
+  trust_is_authentic?: boolean | null;
+  trust_return_days?: number | null;
 }
 
 export interface AgentSource {
@@ -55,6 +65,10 @@ export interface AgentChatResponse {
   sources: AgentSource[];
   tool_trace: AgentToolTrace[];
   handoff_required: boolean;
+  alternatives?: unknown[];
+  objection_answers?: unknown[];
+  urgency_cues?: string[];
+  disclaimer?: string | null;
 }
 
 export interface AgentStreamEvent {
