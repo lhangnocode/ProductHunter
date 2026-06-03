@@ -20,7 +20,7 @@ export function UpgradeProModal({ isOpen, onClose }: UpgradeProModalProps) {
 
   const PAYMENT_CONFIG = {
     bankId: "bidv",            
-    accountNo: "887038006",       
+    accountNo: "8870380066",       
     accountName: "DANG DINH KHANG",
     bankName: "Ngân hàng BIDV",
     amount: 59000,
