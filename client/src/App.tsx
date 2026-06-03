@@ -12,6 +12,7 @@ import { ExtensionGuideModal } from "./components/ExtensionGuideModal";
 import { AlertLimitModal } from "./components/AlertLimitModal";
 import { UpgradeProModal } from "./components/UpgradeProModal";
 import { AdminPage } from "./components/AdminPage";
+import { UserAgentChatBot } from "./components/UserAgentChatBot";
 
 import { FREE_PLAN_PRICE_ALERT_LIMIT, UserProvider, useUser } from "./context/UserContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -1425,6 +1426,12 @@ function AppContent() {
           </AnimatePresence>
         </main>
       </div>
+      <UserAgentChatBot
+        activeTab={selectedPlatformProduct ? "product_detail" : activeTab}
+        searchQuery={searchQuery}
+        productId={selectedPlatformProduct?.product_id || null}
+        userId={user?.id || null}
+      />
       <AlertLimitModal
         isOpen={isAlertLimitModalOpen}
         used={alerts.length}

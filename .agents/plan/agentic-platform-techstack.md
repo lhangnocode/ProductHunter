@@ -240,6 +240,34 @@ Stop point:
 
 - User verifies tool behavior and response shape before streaming or persistence.
 
+### Phase 2.5: User-Facing Shopping Chatbot
+
+Goal:
+
+Add a small normal-user chatbot that reuses the same backend agent orchestration as the dashboard telesales assistant.
+
+Scope:
+
+- Add a compact floating chatbot to the main product app.
+- Reuse `client/src/services/agent.ts` and `/api/v1/agent/chat/stream`.
+- Keep conversation state in browser `localStorage`.
+- Pass lightweight page context:
+  - active app tab
+  - current search query
+  - selected product id when available
+- Keep it visually simpler than the dashboard agent console.
+- Do not add database tables, server-side conversation persistence, or a separate agent endpoint.
+
+Verification:
+
+- `npm run lint` in `client`.
+- `npm run test -- --run` in `client`.
+- Manual browser check from the main product view.
+
+Stop point:
+
+- User verifies whether this chatbot should be anonymous, logged-in only, or plan-gated.
+
 ### Phase 3: Product And Shop Management APIs
 
 Goal:

@@ -252,6 +252,20 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
+function AgentLoadingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+      <Loader2 className="animate-spin" size={15} />
+      <span>Agent is checking product data</span>
+      <span className="flex gap-0.5" aria-hidden="true">
+        <span className="h-1 w-1 animate-pulse rounded-full bg-slate-400 [animation-delay:0ms]" />
+        <span className="h-1 w-1 animate-pulse rounded-full bg-slate-400 [animation-delay:120ms]" />
+        <span className="h-1 w-1 animate-pulse rounded-full bg-slate-400 [animation-delay:240ms]" />
+      </span>
+    </div>
+  );
+}
+
 interface AgentSession {
   id: string;
   title: string;
@@ -559,13 +573,15 @@ export function AdminAgentPanel() {
                         : "bg-white text-slate-700 dark:bg-slate-950 dark:text-slate-200"
                       }`}
                   >
-                    {message.role === "assistant" && message.content ? (
+                    {message.role === "assistant" && !message.content && isSending ? (
+                      <AgentLoadingIndicator />
+                    ) : message.role === "assistant" && message.content ? (
                       <div className="text-sm">
                         <MarkdownContent content={message.content} />
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap text-sm leading-6">
-                        {message.content || (isSending ? "Thinking..." : "")}
+                        {message.content}
                       </p>
                     )}
                     {message.toolEvents && message.toolEvents.length > 0 && (
