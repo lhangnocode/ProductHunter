@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { MOCK_PRODUCTS, Product } from "./data/mockData";
 import { ProductCard } from "./components/ProductCard";
 import { ProductDetail } from "./components/ProductDetail";
@@ -172,10 +172,12 @@ function AppContent() {
   const [currentPlatformId, setCurrentPlatformId] = useState<string>("");
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  // fixed page size per user request
-  const [pageSize] = useState<number>(10);
+  // fixed batch size per user request (20 items per load)
+  const [pageSize] = useState<number>(20);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     let ignore = false;
@@ -209,10 +211,17 @@ function AppContent() {
 
         console.debug('[App] API Response:', { currentPage, fetchedTotalPages, fetchedTotalElements });
 
-        setPlatformProducts(items);
+        if (currentPage === 1) {
+          setPlatformProducts(items);
+        } else {
+          setPlatformProducts((prev) => [...prev, ...items]);
+        }
+
         setCurrentPage(Number(data.page || currentPage));
         setTotalElements(fetchedTotalElements);
         setTotalPages(fetchedTotalPages); // Gán thẳng số trang Backend báo về
+        // Determine whether there are more items to load
+        setHasMore(currentPage * pageSize < fetchedTotalElements && items.length > 0);
 
       } catch (error) {
         if (!ignore) console.error("Lỗi truy vấn DB:", error);
@@ -227,6 +236,23 @@ function AppContent() {
       clearTimeout(timer);
     };
   }, [searchQuery, currentPage, pageSize]);
+
+  // IntersectionObserver: load next page when sentinel appears
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const node = loadMoreRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const ent = entries[0];
+        if (ent && ent.isIntersecting && !isLoading && hasMore) {
+          setCurrentPage((p) => p + 1);
+        }
+      },
+      { root: null, rootMargin: "400px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isLoading, hasMore, platformProducts.length]);
 
   // Auto-reset to page 1 if current page returns empty items (no data for that page)
   useEffect(() => {
@@ -697,12 +723,13 @@ function AppContent() {
                   ))}
                 </motion.div>
 
-                {/* Pagination */}
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={(p) => setCurrentPage(p)}
-                />
+                {/* Infinite-scroll sentinel */}
+                <div ref={loadMoreRef} className="h-2" />
+                {isLoading && (
+                  <div className="flex justify-center py-4">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-brand-primary" />
+                  </div>
+                )}
 
                 {searchResults.length === 0 && (
                   <motion.div

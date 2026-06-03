@@ -53,7 +53,7 @@ describe('price_record_api', () => {
 
             const url = (global.fetch as any).mock.calls[0][0];
             expect(url).toContain('page=2');
-            expect(url).toContain('size=10');
+            expect(url).toContain('limit=10');
             expect(result.page).toBe(2);
             expect(result.size).toBe(10);
             expect(result.total_pages).toBe(10);
