@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Literal, Optional
 from uuid import UUID
 
@@ -35,6 +37,10 @@ class AgentOffer(BaseModel):
     in_stock: Optional[bool] = None
     url: Optional[str] = None
     last_crawled_at: Optional[str] = None
+    deal_score: Optional[float] = None
+    discount_pct: Optional[float] = None
+    deal_reasons: list[str] = Field(default_factory=list)
+    price_trend: Optional[str] = None
 
 
 class AgentRecommendation(BaseModel):
@@ -45,6 +51,24 @@ class AgentRecommendation(BaseModel):
     lowest_price: Optional[float] = None
     reason: str
     offers: list[AgentOffer] = Field(default_factory=list)
+    deal_score: Optional[float] = None
+    value_score: Optional[float] = None
+    urgency_cues: list[str] = Field(default_factory=list)
+    trust_warranty_months: Optional[int] = None
+    trust_is_authentic: Optional[bool] = None
+    trust_return_days: Optional[int] = None
+
+
+class AgentAlternative(BaseModel):
+    product_id: UUID
+    product_name: str
+    reason: str
+
+
+class AgentObjectionAnswer(BaseModel):
+    objection: str
+    answer: str
+    source_tool: str
 
 
 class AgentSource(BaseModel):
@@ -67,3 +91,7 @@ class AgentChatResponse(BaseModel):
     sources: list[AgentSource] = Field(default_factory=list)
     tool_trace: list[AgentToolTrace] = Field(default_factory=list)
     handoff_required: bool = False
+    alternatives: list[AgentAlternative] = Field(default_factory=list)
+    objection_answers: list[AgentObjectionAnswer] = Field(default_factory=list)
+    urgency_cues: list[str] = Field(default_factory=list)
+    disclaimer: Optional[str] = None

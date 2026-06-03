@@ -33,7 +33,61 @@ async def test_agent_chat_returns_product_recommendation(
         "compare_prices",
         "get_price_history",
     ]
+    assert "alternatives" in data
+    assert "objection_answers" in data
+    assert "urgency_cues" in data
+    assert "disclaimer" in data
     mock_call_agent_model.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch("app.agent.service.call_agent_model", new_callable=AsyncMock)
+async def test_agent_chat_handles_objection_in_vietnamese(
+    mock_call_agent_model: AsyncMock,
+    ac: AsyncClient,
+    created_platform_product: dict,
+):
+    mock_call_agent_model.return_value = None
+
+    response = await ac.post(
+        "/api/v1/agent/chat",
+        json={
+            "message": "Đắt quá, bên FPT Shop rẻ hơn 500k",
+            "context": {"product_id": created_platform_product["product_id"]},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    objection_keys = [item["objection"] for item in data["objection_answers"]]
+    assert any("rẻ hơn" in key.lower() or "đắt" in key.lower() for key in objection_keys)
+    assert any(item["source_tool"] for item in data["objection_answers"])
+
+
+@pytest.mark.asyncio
+@patch("app.agent.service.call_agent_model", new_callable=AsyncMock)
+async def test_agent_chat_attaches_deal_score_to_offers(
+    mock_call_agent_model: AsyncMock,
+    ac: AsyncClient,
+    created_platform_product: dict,
+):
+    mock_call_agent_model.return_value = None
+
+    response = await ac.post(
+        "/api/v1/agent/chat",
+        json={
+            "message": "Tư vấn giúp tôi",
+            "context": {"product_id": created_platform_product["product_id"]},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    offer = data["recommendations"][0]["offers"][0]
+    assert "deal_score" in offer
+    assert isinstance(offer["deal_score"], (int, float))
+    assert "deal_reasons" in offer
+    assert data["disclaimer"] is not None
 
 
 @pytest.mark.asyncio
