@@ -519,69 +519,6 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
             <div className={activeTab === 'agent' ? 'overflow-hidden' : 'bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden'}>
               {renderContent()}
-          ) : (
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {payments.length === 0 ? (
-                <div className="col-span-full py-20 text-center text-slate-400 font-bold italic">Không có yêu cầu thanh toán nào</div>
-              ) : (
-                payments.map(p => (
-                  <div key={p.id} className={`p-6 rounded-3xl border transition-all ${p.status === 0 ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-md ring-1 ring-brand-primary/10' : 'bg-slate-50 dark:bg-slate-950/40 border-transparent opacity-60'}`}>
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center">
-                          <CreditCard size={24} />
-                        </div>
-                        <div>
-                          <p className="font-black text-sm uppercase">{p.email}</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 font-bold mt-1">
-                            <Clock size={12}/> {new Date(p.created_at).toLocaleString('vi-VN')}
-                          </div>
-                        </div>
-                      </div>
-                      <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${p.status === 0 ? 'bg-blue-100 text-blue-600' : p.status === 1 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                        {p.status === 0 ? 'Chờ duyệt' : p.status === 1 ? 'Đã duyệt' : 'Từ chối'}
-                      </div>
-                    </div>
-
-                    <div className="mb-6">
-                      <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Số tiền chuyển khoản</p>
-                      <p className="text-2xl font-black text-brand-primary font-mono">
-                        {new Intl.NumberFormat('vi-VN').format(p.amount)}đ
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <a 
-                        href={getImageUrl(p.receipt_url)} // Sử dụng hàm helper ở đây
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-colors"
-                      >
-                        <ExternalLink size={14} /> Xem biên lai
-                      </a>
-                      
-                      {p.status === 0 && (
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleProcessPayment(p.id, 'reject')}
-                            disabled={!!actionLoading}
-                            className="flex-1 bg-rose-50 text-rose-500 py-3 rounded-xl hover:bg-rose-100 transition-colors"
-                          >
-                            <X size={18} className="mx-auto" />
-                          </button>
-                          <button 
-                            onClick={() => handleProcessPayment(p.id, 'approve')}
-                            disabled={!!actionLoading}
-                            className="flex-[2] bg-emerald-500 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-all"
-                          >
-                            Duyệt ngay
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           </main>
         </div>
