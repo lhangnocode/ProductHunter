@@ -122,8 +122,8 @@ describe('UpgradeProModal', () => {
 
     // Check for account details
     await waitFor(() => {
-      expect(screen.getByText('NGUYEN VAN A')).toBeInTheDocument();
-      expect(screen.getByText('123456')).toBeInTheDocument();
+      expect(screen.getByText('DANG DINH KHANG')).toBeInTheDocument();
+      expect(screen.getByText('8870380066')).toBeInTheDocument();
       expect(screen.getByText(/Ngân hàng BIDV/i)).toBeInTheDocument();
       expect(screen.getByText(/59[.,]000\s?đ/i)).toBeInTheDocument();
     });
