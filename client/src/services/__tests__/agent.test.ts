@@ -71,9 +71,14 @@ describe("agent service", () => {
       body: stream,
     });
 
+    const history: AgentChatMessage[] = [
+      { role: "user", content: "Find a laptop" },
+      { role: "assistant", content: "I found laptop options" },
+    ];
+
     await streamAgentMessage({
       message: "hello",
-      history: [],
+      history,
       context: { active_tab: "agent" },
       onEvent: ({ event }) => events.push(event),
     });
@@ -82,6 +87,8 @@ describe("agent service", () => {
       expect.stringContaining("/agent/chat/stream"),
       expect.objectContaining({ method: "POST" }),
     );
+    const body = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+    expect(body.history).toEqual(history);
     expect(events).toEqual(["agent.started", "agent.token", "agent.done"]);
   });
 });

@@ -66,6 +66,20 @@ def _extract_answer(result: dict[str, Any]) -> str | None:
     return None
 
 
+def _build_input_messages(request: AgentChatRequest) -> list[HumanMessage | AIMessage]:
+    messages: list[HumanMessage | AIMessage] = []
+    for item in request.history:
+        content = item.content.strip()
+        if not content:
+            continue
+        if item.role == "assistant":
+            messages.append(AIMessage(content=content))
+        else:
+            messages.append(HumanMessage(content=content))
+    messages.append(HumanMessage(content=request.message))
+    return messages
+
+
 async def run_langchain_agent(
     request: AgentChatRequest,
     tools: list[BaseTool],
@@ -80,7 +94,7 @@ async def run_langchain_agent(
     recursion_limit = max_loops * 2 + 5
     config: RunnableConfig = {"recursion_limit": recursion_limit}
 
-    input_messages = [HumanMessage(content=request.message)]
+    input_messages = _build_input_messages(request)
     result = await agent.ainvoke(
         {"messages": input_messages},
         config=config,
@@ -110,7 +124,7 @@ async def run_langchain_agent_stream(
     recursion_limit = max_loops * 2 + 5
     config: RunnableConfig = {"recursion_limit": recursion_limit}
 
-    input_messages = [HumanMessage(content=request.message)]
+    input_messages = _build_input_messages(request)
     inputs = {"messages": input_messages}
 
     answer_parts: list[str] = []
