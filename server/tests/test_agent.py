@@ -24,12 +24,12 @@ async def test_agent_chat_returns_answer(
 
 
 @pytest.mark.asyncio
-@patch("app.agent.service.run_langchain_agent", new_callable=AsyncMock)
+@patch("app.agent.service.run_langchain_agent_stream", new_callable=AsyncMock)
 async def test_agent_chat_stream_emits_sse_events(
-    mock_run_agent: AsyncMock,
+    mock_run_agent_stream: AsyncMock,
     ac: AsyncClient,
 ):
-    mock_run_agent.return_value = "Use this offer because it has current stock."
+    mock_run_agent_stream.return_value = "Use this offer because it has current stock."
 
     response = await ac.post(
         "/api/v1/agent/chat/stream",
