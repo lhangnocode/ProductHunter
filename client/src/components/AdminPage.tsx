@@ -468,7 +468,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <a 
-                href={`${CONFIG.API_URL}${p.receipt_url}`} 
+                href={getImageUrl(p.receipt_url)}
                 target="_blank" 
                 rel="noreferrer"
                 className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-xs font-medium hover:bg-slate-200 transition-colors"
