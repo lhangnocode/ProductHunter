@@ -20,6 +20,14 @@ interface AdminPageProps {
   onBackHome: () => void;
 }
 
+const getImageUrl = (path: string) => {
+  if (!path) return '';
+  // Nếu CONFIG.API_URL là "http://domain.com/api/v1" 
+  // thì rootUrl sẽ là "http://domain.com"
+  const rootUrl = CONFIG.API_URL.replace('/api/v1', '');
+  return `${rootUrl}${path}`;
+};
+
 export function AdminPage({ onBackHome }: AdminPageProps) {
   const { user } = useUser();
   const { showToast } = useToast();
@@ -203,7 +211,7 @@ export function AdminPage({ onBackHome }: AdminPageProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                       <a 
-                        href={`${CONFIG.API_URL}${p.receipt_url}`} 
+                        href={getImageUrl(p.receipt_url)} // Sử dụng hàm helper ở đây
                         target="_blank" 
                         rel="noreferrer"
                         className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-colors"
