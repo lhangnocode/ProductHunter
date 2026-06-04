@@ -9,6 +9,7 @@ from starlette.responses import Response
 
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.db.migrations import run_startup_migrations
 
 from fastapi.staticfiles import StaticFiles
 import os
@@ -67,6 +68,11 @@ logger = logging.getLogger(__name__)
 
 # Enable debug logging for the server
 logger.setLevel(logging.DEBUG)
+
+
+@app.on_event("startup")
+async def startup_migrations():
+    await run_startup_migrations()
 
 @app.get("/")
 async def root():
