@@ -8,15 +8,20 @@ import { fetchTrendingDeals } from '../services/trending_deal_api';
 // 1. Định nghĩa Interface dựa trên TrendingDealResponse từ Backend
 interface TrendingDeal {
   id: string; // platform_product_id
+  platform_product_id: string;
   product_id: string;
   product_name: string;
+  raw_name?: string;
   main_image_url: string;
   current_price: number;
   original_price?: number;
   url: string;
   deal_status: string;
   deal_label: string;
+  platform_id?: number;
   platform_name?: string;
+  in_stock?: boolean;
+  rating?: number;
 }
 
 interface TrendingDealsProps {
@@ -112,9 +117,8 @@ export function TrendingDeals({ onProductClick, wishlistIds, alertIds, onToggleW
               <ProductCard
                 product={product}
                 onClick={onProductClick}
-                // Sử dụng product.product_id để check wishlist (vì wishlist thường lưu ID sản phẩm chung)
-                isWishlisted={wishlistIds.has(product.product_id)}
-                isAlerted={alertIds.has(product.product_id) || alertIds.has(product.id)}
+                isWishlisted={wishlistIds.has(product.platform_product_id ?? product.id)}
+                isAlerted={alertIds.has(product.platform_product_id ?? product.id)}
                 onToggleWishlist={(e) => {
                   e.stopPropagation();
                   onToggleWishlist(product);

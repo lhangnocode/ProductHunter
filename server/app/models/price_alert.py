@@ -13,6 +13,7 @@ class PriceAlert(Base):
     
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    platform_product_id = Column(UUID(as_uuid=True), ForeignKey("platform_products.id", ondelete="CASCADE"), nullable=False, index=True)
     
     target_price = Column(Numeric(12, 2), nullable=False)
     
@@ -24,8 +25,9 @@ class PriceAlert(Base):
     # Relationships để truy vấn ORM dễ dàng hơn
     user = relationship("User", back_populates="price_alerts")
     product = relationship("Product", back_populates="price_alerts")
+    platform_product = relationship("PlatformProduct", back_populates="price_alerts")
 
-    # Ràng buộc UNIQUE(user_id, product_id) giống trong file SQL
+    # Ràng buộc UNIQUE(user_id, platform_product_id) để theo dõi đúng offer trên từng sàn
     __table_args__ = (
-        UniqueConstraint('user_id', 'product_id', name='uq_user_product_price_alert'),
+        UniqueConstraint('user_id', 'platform_product_id', name='uq_user_platform_product_price_alert'),
     )

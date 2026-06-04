@@ -22,6 +22,7 @@ async def create_wishlist_item(
         db=db,
         user_id=current_user.id,
         product_id=body.product_id,
+        platform_product_id=body.platform_product_id,
     )
 
 
@@ -36,15 +37,15 @@ async def get_my_wishlist(
     )
 
 
-@router.delete("/{product_id}")
+@router.delete("/{platform_product_id}")
 async def delete_wishlist_item(
-    product_id: UUID,
+    platform_product_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     await wish_list_service.remove_from_wishlist(
         db=db,
         user_id=current_user.id,
-        product_id=product_id,
+        platform_product_id=platform_product_id,
     )
     return {"message": "Removed from wishlist"}

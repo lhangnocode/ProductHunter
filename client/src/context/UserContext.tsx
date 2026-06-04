@@ -29,7 +29,7 @@ interface UserContextType {
   wishlist: WishListItem[];
   wishlistIds: Set<string>; // for O(1) isWishlisted checks
   isWishlistLoading: boolean;
-  toggleWishlist: (productId: string) => Promise<void>;
+  toggleWishlist: (platformProductId: string) => Promise<void>;
   clearWishlist: () => Promise<void>;
 
   alerts: PriceAlertItem[];
@@ -37,8 +37,8 @@ interface UserContextType {
   isAlertsLoading: boolean;
   isAlertLimitModalOpen: boolean;
   closeAlertLimitModal: () => void;
-  setAlert: (productId: string, threshold: number) => Promise<void>;
-  removeAlert: (productId: string) => Promise<void>;
+  setAlert: (platformProductId: string, threshold: number) => Promise<void>;
+  removeAlert: (platformProductId: string) => Promise<void>;
   clearAlerts: () => Promise<void>;
   triggerPriceCheck: () => Promise<void>;
 }
@@ -52,14 +52,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
   // Derived Set of IDs for fast O(1) lookups
-  const wishlistIds = new Set(wishlist.map((item) => item.product_id));
+  const wishlistIds = new Set(
+    wishlist.map((item) => item.platform_product_id ?? item.product_id),
+  );
 
   // KHAI BÁO STATE ALERTS MỚI
   const [alerts, setAlerts] = useState<PriceAlertItem[]>([]);
   const [isAlertsLoading, setIsAlertsLoading] = useState(false);
   const [isAlertLimitModalOpen, setIsAlertLimitModalOpen] = useState(false);
 
-  const alertIds = new Set(alerts.map((a) => a.product_id));
+  const alertIds = new Set(
+    alerts.map((a) => a.platform_product_id ?? a.product_id),
+  );
 
   // LOAD ALERTS TỪ BACKEND
   const loadAlerts = useCallback(async () => {
@@ -157,20 +161,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
    * Toggle a product in/out of the wishlist.
    * Performs an optimistic UI update then syncs with the backend.
    */
-  const toggleWishlist = async (productId: string) => {
+  const toggleWishlist = async (platformProductId: string) => {
     const token = localStorage.getItem("access_token");
     if (!token) throw new Error("not_logged_in");
 
-    const isInWishlist = wishlistIds.has(productId);
+    const isInWishlist = wishlistIds.has(platformProductId);
 
     // --- Optimistic update ---
     if (isInWishlist) {
-      setWishlist((prev) => prev.filter((i) => i.product_id !== productId));
+      setWishlist((prev) =>
+        prev.filter((i) => (i.platform_product_id ?? i.product_id) !== platformProductId),
+      );
     } else {
       // Add a placeholder so the heart turns red instantly
       setWishlist((prev) => [
         {
-          product_id: productId,
+          product_id: platformProductId,
+          platform_product_id: platformProductId,
           added_at: new Date().toISOString(),
           product_name: null,
           main_image_url: null,
@@ -181,10 +188,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       if (isInWishlist) {
-        await wishlistService.removeFromWishlist(token, productId);
+        await wishlistService.removeFromWishlist(token, platformProductId);
         // No need to refresh; we already removed it optimistically
       } else {
-        const items = await wishlistService.addToWishlist(token, productId);
+        const items = await wishlistService.addToWishlist(token, platformProductId);
         // Replace with authoritative list from backend (fills in product_name etc.)
         setWishlist(items);
       }
@@ -201,7 +208,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const clearWishlist = async () => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
-    const ids: string[] = wishlist.map((item) => item.product_id);
+    const ids: string[] = wishlist.map((item) => item.platform_product_id ?? item.product_id);
     setWishlist([]); // optimistic clear
     try {
       await Promise.all(
@@ -212,11 +219,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const setAlert = async (productId: string, threshold: number) => {
+  const setAlert = async (platformProductId: string, threshold: number) => {
     const token = localStorage.getItem("access_token");
     if (!token) throw new Error("not_logged_in");
 
-    const isExisting = alertIds.has(productId);
+    const isExisting = alertIds.has(platformProductId);
     if (user?.plan === 0 && !isExisting && alerts.length >= FREE_PLAN_PRICE_ALERT_LIMIT) {
       setIsAlertLimitModalOpen(true);
       const error = new Error(
@@ -231,7 +238,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       // Add a placeholder so the alert appears instantly
       setAlerts((prev) => [
         {
-          product_id: productId,
+          product_id: platformProductId,
+          platform_product_id: platformProductId,
           target_price: threshold,
           status: 0,
           product_name: null,
@@ -243,18 +251,22 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       // Update existing alert optimistically
       setAlerts((prev) =>
         prev.map((a) =>
-          a.product_id === productId ? { ...a, target_price: threshold } : a
+          (a.platform_product_id ?? a.product_id) === platformProductId
+            ? { ...a, target_price: threshold }
+            : a
         )
       );
     }
 
     try {
       // Call API Backend (Backend sẽ trả về object đầy đủ tên và ảnh)
-      const newAlert = await priceAlertService.setAlert(token, productId, threshold);
+      const newAlert = await priceAlertService.setAlert(token, platformProductId, threshold);
       
       // Replace with authoritative data from backend
       setAlerts((prev) => {
-        const idx = prev.findIndex((a) => a.product_id === productId);
+        const idx = prev.findIndex(
+          (a) => (a.platform_product_id ?? a.product_id) === platformProductId,
+        );
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = newAlert; // Cập nhật nếu đã có
@@ -277,13 +289,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setIsAlertLimitModalOpen(false);
   };
 
-  const removeAlert = async (productId: string) => {
+  const removeAlert = async (platformProductId: string) => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
 
-    setAlerts((prev) => prev.filter((a) => a.product_id !== productId));
+    setAlerts((prev) =>
+      prev.filter((a) => (a.platform_product_id ?? a.product_id) !== platformProductId),
+    );
     try {
-      await priceAlertService.removeAlert(token, productId);
+      await priceAlertService.removeAlert(token, platformProductId);
     } catch {
       await loadAlerts();
     }
@@ -292,7 +306,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const clearAlerts = async () => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
-    const ids = alerts.map((a) => a.product_id);
+    const ids = alerts.map((a) => a.platform_product_id ?? a.product_id);
     setAlerts([]);
     try {
       // Loop để xóa từng cái (hoặc nếu bạn viết API DELETE / thì gọi ở đây)

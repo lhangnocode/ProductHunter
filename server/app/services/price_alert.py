@@ -1,5 +1,4 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select, delete, func
 from uuid import UUID
 from fastapi import BackgroundTasks, HTTPException, status
@@ -14,15 +13,73 @@ FREE_PLAN_PRICE_ALERT_LIMIT = 5
 # ==========================================
 # 1. HÀM DÀNH CHO USER (API Đặt ngưỡng giá)
 # ==========================================
+async def _resolve_platform_product(
+    db: AsyncSession,
+    product_id: UUID | None,
+    platform_product_id: UUID | None,
+) -> PlatformProduct:
+    stmt = select(PlatformProduct).options(selectinload(PlatformProduct.product))
+    if platform_product_id is not None:
+        stmt = stmt.where(PlatformProduct.id == platform_product_id)
+    elif product_id is not None:
+        stmt = (
+            stmt.where(PlatformProduct.product_id == product_id)
+            .order_by(PlatformProduct.current_price.asc(), PlatformProduct.id.desc())
+            .limit(1)
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="platform_product_id is required",
+        )
+
+    result = await db.execute(stmt)
+    platform_product = result.scalar_one_or_none()
+    if platform_product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Platform product not found",
+        )
+    return platform_product
+
+
+def _alert_response(row: PriceAlert) -> dict:
+    platform_product = row.platform_product
+    product = row.product
+    return {
+        "product_id": row.product_id,
+        "platform_product_id": row.platform_product_id,
+        "target_price": row.target_price,
+        "status": row.status,
+        "product_name": (
+            platform_product.raw_name
+            if platform_product and platform_product.raw_name
+            else product.normalized_name if product else "Sản phẩm"
+        ),
+        "main_image_url": product.main_image_url if product else None,
+        "current_price": (
+            float(platform_product.current_price)
+            if platform_product and platform_product.current_price is not None
+            else None
+        ),
+    }
+
+
 async def set_price_alert(
     db: AsyncSession,
     user_id: UUID,
     alert_in: PriceAlertCreate,
     user_plan: int = 0,
 ):
+    platform_product = await _resolve_platform_product(
+        db,
+        product_id=alert_in.product_id,
+        platform_product_id=alert_in.platform_product_id,
+    )
+
     existing_stmt = select(PriceAlert.id).where(
         PriceAlert.user_id == user_id,
-        PriceAlert.product_id == alert_in.product_id,
+        PriceAlert.platform_product_id == platform_product.id,
     )
     existing_result = await db.execute(existing_stmt)
     existing_alert_id = existing_result.scalar_one_or_none()
@@ -39,49 +96,54 @@ async def set_price_alert(
                 ),
             )
 
-    # UPSERT
-    stmt = insert(PriceAlert).values(
-        user_id=user_id,
-        product_id=alert_in.product_id,
-        target_price=alert_in.target_price,
-        status=0
-    )
-
-    stmt = stmt.on_conflict_do_update(
-        index_elements=['user_id', 'product_id'],
-        set_=dict(
-            target_price=alert_in.target_price,
-            status=0
+    alert_stmt = (
+        select(PriceAlert)
+        .where(
+            PriceAlert.user_id == user_id,
+            PriceAlert.platform_product_id == platform_product.id,
         )
     )
+    alert_result = await db.execute(alert_stmt)
+    alert = alert_result.scalar_one_or_none()
 
-    await db.execute(stmt)
+    if alert is None:
+        alert = PriceAlert(
+            user_id=user_id,
+            product_id=platform_product.product_id,
+            platform_product_id=platform_product.id,
+            target_price=alert_in.target_price,
+            status=0,
+        )
+        db.add(alert)
+    else:
+        alert.target_price = alert_in.target_price
+        alert.status = 0
+
     await db.commit()
 
     query = (
         select(PriceAlert)
-        .options(selectinload(PriceAlert.product)) 
+        .options(
+            selectinload(PriceAlert.product),
+            selectinload(PriceAlert.platform_product),
+        )
         .where(
             PriceAlert.user_id == user_id,
-            PriceAlert.product_id == alert_in.product_id
+            PriceAlert.platform_product_id == platform_product.id
         )
     )
     result = await db.execute(query)
     row = result.scalar_one()
 
-    # Trả về dict để khớp hoàn toàn với schema PriceAlertResponse
-    return {
-        "product_id": row.product_id,
-        "target_price": row.target_price,
-        "status": row.status,
-        "product_name": row.product.normalized_name if row.product else "Sản phẩm",
-        "main_image_url": row.product.main_image_url if row.product else None,
-    }
+    return _alert_response(row)
 
 async def get_user_alerts(db: AsyncSession, user_id: UUID):
     stmt = (
         select(PriceAlert)
-        .options(selectinload(PriceAlert.product)) # Tự động JOIN lấy data product
+        .options(
+            selectinload(PriceAlert.product),
+            selectinload(PriceAlert.platform_product),
+        )
         .where(PriceAlert.user_id == user_id)
         # Bỏ comment dòng order_by dưới đây nếu model của bạn có trường created_at
         .order_by(PriceAlert.created_at.desc()) 
@@ -90,19 +152,7 @@ async def get_user_alerts(db: AsyncSession, user_id: UUID):
     result = await db.execute(stmt)
     rows = result.scalars().all()
 
-    # 2. Map dữ liệu để trả về theo đúng định dạng của PriceAlertResponse
-    alerts = []
-    for row in rows:
-        alerts.append({
-            "product_id": row.product_id,
-            "target_price": row.target_price,
-            "status": row.status,
-            # Lấy thông tin từ bảng product (nếu product tồn tại)
-            "product_name": row.product.normalized_name if row.product else "Sản phẩm không xác định",
-            "main_image_url": row.product.main_image_url if row.product else None,
-        })
-        
-    return alerts
+    return [_alert_response(row) for row in rows]
 
 async def _get_current_lowest_price(db: AsyncSession, product_id: UUID):
     stmt_lowest_price = select(func.min(PlatformProduct.current_price)).where(
@@ -114,17 +164,29 @@ async def _get_current_lowest_price(db: AsyncSession, product_id: UUID):
     return result_lowest_price.scalar_one_or_none()
 
 
+async def _get_current_platform_price(db: AsyncSession, platform_product_id: UUID):
+    stmt = select(PlatformProduct.current_price).where(
+        PlatformProduct.id == platform_product_id,
+        PlatformProduct.in_stock.is_(True),
+        PlatformProduct.current_price.is_not(None),
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 async def check_and_trigger_user_alerts(
     db: AsyncSession,
     user_id: UUID,
     bg_tasks: BackgroundTasks,
     product_id: UUID | None = None,
+    platform_product_id: UUID | None = None,
 ):
     stmt_alerts = (
         select(PriceAlert)
         .options(
             selectinload(PriceAlert.product),
             selectinload(PriceAlert.user),
+            selectinload(PriceAlert.platform_product),
         )
         .where(
             PriceAlert.user_id == user_id,
@@ -134,6 +196,8 @@ async def check_and_trigger_user_alerts(
 
     if product_id is not None:
         stmt_alerts = stmt_alerts.where(PriceAlert.product_id == product_id)
+    if platform_product_id is not None:
+        stmt_alerts = stmt_alerts.where(PriceAlert.platform_product_id == platform_product_id)
 
     result_alerts = await db.execute(stmt_alerts)
     active_alerts = result_alerts.scalars().all()
@@ -143,21 +207,25 @@ async def check_and_trigger_user_alerts(
     skipped_without_price = 0
 
     for alert in active_alerts:
-        current_lowest_price = await _get_current_lowest_price(db, alert.product_id)
-        if current_lowest_price is None:
+        current_price = await _get_current_platform_price(db, alert.platform_product_id)
+        if current_price is None:
             skipped_without_price += 1
             continue
 
         checked_products += 1
-        if alert.target_price < current_lowest_price:
+        if alert.target_price < current_price:
             continue
 
         if alert.user and alert.product:
             bg_tasks.add_task(
                 send_price_drop_email_async,
                 to_email=alert.user.email,
-                product_name=alert.product.normalized_name,
-                current_price=current_lowest_price,
+                product_name=(
+                    alert.platform_product.raw_name
+                    if alert.platform_product and alert.platform_product.raw_name
+                    else alert.product.normalized_name
+                ),
+                current_price=current_price,
                 target_price=alert.target_price,
             )
 
@@ -192,27 +260,37 @@ async def check_and_trigger_alerts(
         .options(
             selectinload(PriceAlert.product),
             selectinload(PriceAlert.user),
+            selectinload(PriceAlert.platform_product),
         )
         .where(
             PriceAlert.product_id == product_id,
             PriceAlert.status == 0, # Đang Active
-            PriceAlert.target_price >= current_lowest_price
         )
     )
     result_alert = await db.execute(stmt_alert)
-    triggered_alerts = result_alert.scalars().all()
+    candidate_alerts = result_alert.scalars().all()
+
+    triggered_alerts = []
+    for alert in candidate_alerts:
+        current_price = await _get_current_platform_price(db, alert.platform_product_id)
+        if current_price is not None and alert.target_price >= current_price:
+            triggered_alerts.append((alert, current_price))
 
     if not triggered_alerts:
         return float(current_lowest_price)
 
-    for alert in triggered_alerts:
+    for alert, current_price in triggered_alerts:
         if alert.user and alert.product:
             # 3. Add tác vụ gửi mail vào Background
             bg_tasks.add_task(
                 send_price_drop_email_async,
                 to_email=alert.user.email,
-                product_name=alert.product.normalized_name,
-                current_price=current_lowest_price,
+                product_name=(
+                    alert.platform_product.raw_name
+                    if alert.platform_product and alert.platform_product.raw_name
+                    else alert.product.normalized_name
+                ),
+                current_price=current_price,
                 target_price=alert.target_price
             )
             
@@ -223,13 +301,13 @@ async def check_and_trigger_alerts(
     await db.commit()
     return float(current_lowest_price)
 
-async def remove_price_alert(db: AsyncSession, user_id: UUID, product_id: UUID) -> None:
+async def remove_price_alert(db: AsyncSession, user_id: UUID, platform_product_id: UUID) -> None:
     """
     Xóa cảnh báo giá của một sản phẩm do người dùng đặt.
     """
     stmt = delete(PriceAlert).where(
         PriceAlert.user_id == user_id,
-        PriceAlert.product_id == product_id,
+        PriceAlert.platform_product_id == platform_product_id,
     )
     result = await db.execute(stmt)
     await db.commit()

@@ -177,6 +177,23 @@ async def get_platform_products_by_product_id(
     platform_products: List[PlatformProduct] = list(result.scalars().unique().all())
     return platform_products
 
+
+async def get_platform_product_by_platform_product_id(
+    platform_product_id: UUID,
+    db: AsyncSession,
+) -> Optional[PlatformProduct]:
+    stmt = (
+        select(PlatformProduct)
+        .options(
+            selectinload(PlatformProduct.platform),
+            selectinload(PlatformProduct.product),
+        )
+        .where(PlatformProduct.id == platform_product_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalars().unique().one_or_none()
+
+
 async def get_trending_deals(db: AsyncSession, limit: int = 1000):
     logger.info(f"Bắt đầu lấy trending deals với limit={limit}")
     try:
@@ -242,15 +259,20 @@ async def get_trending_deals(db: AsyncSession, limit: int = 1000):
 
             trending_items.append(TrendingDealResponse(
                 id=pp.id,
+                platform_product_id=pp.id,
                 product_id=pp.product_id,
-                product_name=pp.product.product_name if pp.product else pp.raw_name,
+                product_name=pp.raw_name or (pp.product.product_name if pp.product else ""),
+                raw_name=pp.raw_name,
                 main_image_url=clean_img,
                 current_price=current_p,
                 original_price=float(pp.original_price) if pp.original_price else None,
                 url=pp.url,
                 deal_status=status,
                 deal_label=label,
-                platform_name=pp.platform.name if pp.platform else None
+                platform_id=pp.platform_id,
+                platform_name=pp.platform.name if pp.platform else None,
+                in_stock=pp.in_stock,
+                rating=float(pp.rating) if pp.rating is not None else None,
             ))
 
         return trending_items

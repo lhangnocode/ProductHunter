@@ -2,6 +2,7 @@ import { CONFIG } from '../config';
 
 export interface PriceAlertItem {
   product_id: string;
+  platform_product_id?: string;
   target_price: number;
   status: number;
   product_name?: string | null;
@@ -32,7 +33,7 @@ export const priceAlertService = {
   },
 
   // Thêm/Sửa Alert
-  async setAlert(accessToken: string, productId: string, targetPrice: number) {
+  async setAlert(accessToken: string, platformProductId: string, targetPrice: number) {
     const response = await fetch(`${CONFIG.API_URL}/price_alerts/`, {
       method: 'POST',
       headers: {
@@ -40,7 +41,7 @@ export const priceAlertService = {
         'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        product_id: productId,
+        platform_product_id: platformProductId,
         target_price: targetPrice
       }),
     });
@@ -52,8 +53,8 @@ export const priceAlertService = {
   },
 
   // Xóa 1 Alert
-  async removeAlert(accessToken: string, productId: string) {
-    const response = await fetch(`${CONFIG.API_URL}/price_alerts/${productId}`, {
+  async removeAlert(accessToken: string, platformProductId: string) {
+    const response = await fetch(`${CONFIG.API_URL}/price_alerts/${platformProductId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${accessToken}`,

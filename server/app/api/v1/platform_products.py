@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.platform import Platform
 from app.models.platform_product import PlatformProduct
 from app.handlers.handler_platformproduct import (
+    get_platform_product_by_platform_product_id,
     get_platform_products_by_product_id,
     search_platform_products,
     get_trending_deals
@@ -54,6 +55,28 @@ async def get_platform_products_by_product_id_endpoint(
         limit=limit,
         page=page,
     )
+
+
+@router.get(
+    "/platform-products/by-platform-product-id/{platform_product_id}",
+    response_model=PlatformProductIngestResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_platform_product_by_platform_product_id_endpoint(
+    platform_product_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    platform_product = await get_platform_product_by_platform_product_id(
+        platform_product_id,
+        db=db,
+    )
+    if platform_product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Platform product not found",
+        )
+    return platform_product
+
 
 @router.get(
     "/platform-products", 

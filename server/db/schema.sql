@@ -97,9 +97,10 @@ CREATE TABLE price_records (
 CREATE TABLE wish_list (
     user_id UUID NOT NULL,
     product_id UUID NOT NULL,
+    platform_product_id UUID NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (user_id, product_id),
+    PRIMARY KEY (user_id, platform_product_id),
 
     FOREIGN KEY (user_id)
         REFERENCES users(id)
@@ -107,6 +108,10 @@ CREATE TABLE wish_list (
 
     FOREIGN KEY (product_id)
         REFERENCES products(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (platform_product_id)
+        REFERENCES platform_products(id)
         ON DELETE CASCADE
 );
 
@@ -118,6 +123,7 @@ CREATE TABLE price_alerts (
 
     user_id UUID NOT NULL,
     product_id UUID NOT NULL,
+    platform_product_id UUID NOT NULL,
 
     target_price DECIMAL(12,2) NOT NULL,
 
@@ -135,7 +141,11 @@ CREATE TABLE price_alerts (
         REFERENCES products(id)
         ON DELETE CASCADE,
 
-    UNIQUE(user_id, product_id)
+    FOREIGN KEY (platform_product_id)
+        REFERENCES platform_products(id)
+        ON DELETE CASCADE,
+
+    UNIQUE(user_id, platform_product_id)
 );
 
 -- payment
@@ -177,6 +187,9 @@ ON price_alerts(user_id);
 
 CREATE INDEX idx_price_alert_product
 ON price_alerts(product_id);
+
+CREATE INDEX idx_price_alert_platform_product
+ON price_alerts(platform_product_id);
 
 CREATE INDEX idx_payment_requests_user
 ON payment_requests(user_id);

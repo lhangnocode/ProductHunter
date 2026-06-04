@@ -15,6 +15,7 @@ router = APIRouter()
 # Schema dùng riêng cho API Trigger
 class TriggerAlertInput(BaseModel):
     product_id: UUID | None = None
+    platform_product_id: UUID | None = None
 
 
 # 1. API Tạo/Cập nhật cảnh báo (Cũ - Giữ nguyên)
@@ -47,9 +48,9 @@ async def get_my_alerts(
     return await price_alert_service.get_user_alerts(db, current_user.id)
 
 # 3. API Xóa cảnh báo giá
-@router.delete("/{product_id}")
+@router.delete("/{platform_product_id}")
 async def delete_price_alert(
-    product_id: UUID,
+    platform_product_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -59,7 +60,7 @@ async def delete_price_alert(
     await price_alert_service.remove_price_alert(
         db=db,
         user_id=current_user.id,
-        product_id=product_id,
+        platform_product_id=platform_product_id,
     )
     return {"message": "Đã xóa cảnh báo giá thành công"}
 
@@ -82,6 +83,7 @@ async def trigger_price_check(
         user_id=current_user.id,
         bg_tasks=bg_tasks,
         product_id=trigger_in.product_id,
+        platform_product_id=trigger_in.platform_product_id,
     )
     
     return {

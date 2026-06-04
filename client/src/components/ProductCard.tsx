@@ -132,7 +132,7 @@ export function ProductCard({
         return;
       }
 
-      const targetProductId = product.product_id ?? product.id;
+      const targetProductId = product.platform_product_id ?? product.id;
 
       await setAlert(targetProductId, numericPrice);
 
@@ -275,10 +275,10 @@ export function ProductCard({
         <div className="flex flex-grow flex-col items-center justify-center p-4 text-center">
           <h3 className="line-clamp-2 text-[15px] font-bold leading-[1.4] text-slate-950 dark:text-white group-hover:text-brand-primary font-display tracking-tight">
             {formatDisplayName(
+              product.raw_name ||
               product.product_name ||
               product.slug ||
               product.normalized_name ||
-              product.raw_name ||
               "",
             )}
           </h3>

@@ -26,3 +26,5 @@ class PlatformProduct(Base):
 
     product = relationship("Product", back_populates="platform_products")
     platform = relationship("Platform", back_populates="platform_products")
+    wish_lists = relationship("WishList", back_populates="platform_product", cascade="all, delete-orphan")
+    price_alerts = relationship("PriceAlert", back_populates="platform_product", cascade="all, delete-orphan")

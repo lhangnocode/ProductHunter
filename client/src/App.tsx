@@ -52,6 +52,7 @@ import {
   searchPlatformProducts,
   searchProducts,
   fetchCompareGroups,
+  fetchPlatformProductByPlatformProductId,
 } from "./services/price_record_api";
 import { Pagination } from './components/Pagination';
 
@@ -136,9 +137,8 @@ function AppContent() {
     }
   }, [user]);
 
-  const handleProductClick = (product: any) => {
-    setSelectedPlatformProduct(product);
-    setCurrentPlatformId(product.id);
+  const handleProductClick = async (product: any) => {
+    await handleNavigateToDetail(product, product.platform_product_id ?? product.id);
   };
 
   const handleTriggerPriceCheck = async () => {
@@ -296,33 +296,46 @@ function AppContent() {
   }, [platformProducts, activeFilter, sortBy]);
 
   // 4. Cập nhật hàm điều hướng
-  const handleNavigateToDetail = (platformProduct: any, platformId: string) => {
+  const handleNavigateToDetail = async (platformProduct: any, platformId: string) => {
+    const exactPlatformId = String(platformProduct.platform_product_id ?? platformId ?? platformProduct.id ?? "");
+    const fetchedPlatformProduct = exactPlatformId
+      ? await fetchPlatformProductByPlatformProductId(exactPlatformId)
+      : null;
+    const detailPlatformProduct = fetchedPlatformProduct
+      ? {
+          ...platformProduct,
+          ...fetchedPlatformProduct,
+          main_image_url: platformProduct.main_image_url ?? fetchedPlatformProduct.main_image_url,
+          raw_name: fetchedPlatformProduct.raw_name ?? platformProduct.raw_name,
+        }
+      : platformProduct;
+
     // Ensure ProductDetail receives a `product` object containing `product_name`.
     // platformProduct may include a nested `product` object or `product_name`/`normalized_name`/`raw_name` fields.
     const derivedProduct = {
-      id: platformProduct.product_id || platformProduct.id || platformId,
+      id: detailPlatformProduct.product_id || detailPlatformProduct.id || platformId,
       product_name:
-        platformProduct.product?.product_name ||
-        platformProduct.product_name ||
-        platformProduct.normalized_name ||
-        platformProduct.raw_name ||
-        platformProduct.slug ||
+        detailPlatformProduct.raw_name ||
+        detailPlatformProduct.product?.product_name ||
+        detailPlatformProduct.product_name ||
+        detailPlatformProduct.normalized_name ||
+        detailPlatformProduct.slug ||
         "",
       normalized_name:
-        platformProduct.product?.normalized_name ||
-        platformProduct.normalized_name ||
-        platformProduct.raw_name ||
-        platformProduct.slug ||
+        detailPlatformProduct.product?.normalized_name ||
+        detailPlatformProduct.normalized_name ||
+        detailPlatformProduct.raw_name ||
+        detailPlatformProduct.slug ||
         "",
       main_image_url:
-        platformProduct.product?.main_image_url ||
-        platformProduct.main_image_url ||
+        detailPlatformProduct.product?.main_image_url ||
+        detailPlatformProduct.main_image_url ||
         null,
     };
 
     setSelectedProduct(derivedProduct as any);
-    setSelectedPlatformProduct(platformProduct);
-    setCurrentPlatformId(platformId);
+    setSelectedPlatformProduct(detailPlatformProduct);
+    setCurrentPlatformId(exactPlatformId || platformId);
   };
 
   // const searchResults = useMemo(() => {
@@ -367,13 +380,14 @@ function AppContent() {
   // Helper: lấy đúng product_id dù product đến từ search (id=product_id)
   // hay từ trending (id=platform_product_id, product_id=product_id)
   const getProductId = (product: any): string =>
-    product.product_id ?? product.id;
+    product.platform_product_id ?? product.id ?? product.product_id;
 
   const getProductIdCandidates = (product: any): string[] => {
     const candidates = [
+      product?.platform_product_id,
+      product?.id,
       product?.product_id,
       product?.product?.id,
-      product?.id,
     ];
     return candidates
       .filter((value): value is string | number => value !== undefined && value !== null && value !== "")
@@ -405,7 +419,7 @@ function AppContent() {
       showToast(t("loginToSetAlert"), "info");
       return;
     }
-    setAlert(product.id, threshold);
+    setAlert((product as any).platform_product_id ?? product.id, threshold);
     showToast(t("alertSetSuccess"));
   };
 
@@ -459,7 +473,7 @@ function AppContent() {
             onBack={() => setSelectedPlatformProduct(null)}
             onAddWishlist={() => handleAddWishlist(selectedPlatformProduct)}
             onSetAlert={() => showToast(t("priceAlertSet"), "success")}
-            isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))} initialPlatformId={""}      />
+            isWishlisted={wishlistIds.has(getProductId(selectedPlatformProduct))} initialPlatformId={currentPlatformId}      />
         );
       }
 
@@ -822,19 +836,20 @@ function AppContent() {
                 {wishlist.map((item) => {
                   // Build a minimal product shape for ProductCard
                   const product = {
-                    id: item.product_id,
+                    id: item.platform_product_id ?? item.product_id,
                     product_id: item.product_id,
+                    platform_product_id: item.platform_product_id ?? item.product_id,
                     slug: item.product_name ?? "",
                     raw_name: item.product_name ?? "",
                     main_image_url: item.main_image_url ?? undefined,
-                    current_price: null,
-                    original_price: null,
+                    current_price: item.current_price ?? null,
+                    original_price: item.original_price ?? null,
                     in_stock: null,
                     platform_id: null,
                   };
                   return (
                     <motion.div
-                      key={item.product_id || Math.random().toString()}
+                      key={item.platform_product_id || item.product_id || Math.random().toString()}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
@@ -846,7 +861,7 @@ function AppContent() {
                     >
                       <ProductCard
                         product={product}
-                        onClick={(p) => handleNavigateToDetail(p, p.product_id)}
+                        onClick={(p) => handleNavigateToDetail(p, p.platform_product_id)}
                         isAlerted={hasAlertForProduct(product)}
                         onRemove={(e) => {
                           e.stopPropagation();
@@ -992,16 +1007,18 @@ function AppContent() {
                 {alerts.map((alert, index) => {
                   // Đóng gói dữ liệu alert thành chuẩn product để truyền vào Card
                   const productForCard = {
-                    id: alert.product_id,
+                    id: alert.platform_product_id ?? alert.product_id,
                     product_id: alert.product_id,
+                    platform_product_id: alert.platform_product_id ?? alert.product_id,
                     raw_name: alert.product_name || "Sản phẩm",
                     slug: alert.product_name || "Sản phẩm",
                     main_image_url: alert.main_image_url || undefined,
+                    current_price: alert.current_price ?? null,
                   };
 
                   return (
                     <motion.div
-                      key={alert.product_id}
+                      key={alert.platform_product_id ?? alert.product_id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
@@ -1015,11 +1032,11 @@ function AppContent() {
                         product={productForCard}
                         isAlerted
                         // Click vào thẻ thì bay tới trang chi tiết
-                        onClick={(p) => handleNavigateToDetail(p, p.product_id)}
+                        onClick={(p) => handleNavigateToDetail(p, p.platform_product_id)}
                         // Nút X để xóa cảnh báo
                         onRemove={async (e) => {
                           e.stopPropagation();
-                          await removeAlert(alert.product_id);
+                          await removeAlert(alert.platform_product_id ?? alert.product_id);
                           showToast("Đã xóa cảnh báo", "info");
                         }}
                         // Truyền 2 prop mới tạo để Card biết đây là chế độ Alert

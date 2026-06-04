@@ -28,7 +28,7 @@ interface ProductDetailProps {
 
 export function ProductDetail({ product,platformProduct, initialPlatformId, onBack, onAddWishlist, onSetAlert, isWishlisted }: ProductDetailProps) {
   const { t, language } = useLanguage();
-  const { user, setAlert, alertIds, removeAlert } = useUser(); // Lấy thông tin user, setAlert, alertIds và removeAlert
+  const { user, setAlert, alertIds, wishlistIds, removeAlert } = useUser(); // Lấy thông tin user, setAlert, alertIds và removeAlert
   const { showToast } = useToast(); // Lấy hàm hiển thị thông báo
 
   // State quản lý các sàn
@@ -60,9 +60,10 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   const currentPlatformData = selectedPlatformProduct || platformProduct;
   const currentPrice = parseFloat(String(currentPlatformData?.current_price)) || 0;
   const originalPrice = parseFloat(String(currentPlatformData?.original_price)) || 0;
-  const currentPlatformId = selectedPlatformProduct?.id || initialPlatformId;
-  const targetProductId = platformProduct.product_id ?? platformProduct.id;
+  const currentPlatformId = selectedPlatformProduct?.id || platformProduct?.platform_product_id || platformProduct?.id || initialPlatformId;
+  const targetProductId = String(selectedPlatformProduct?.id || platformProduct?.platform_product_id || platformProduct?.id || "");
   const isAlerted = alertIds.has(targetProductId);
+  const isCurrentWishlisted = targetProductId ? wishlistIds.has(targetProductId) : isWishlisted;
 
   // Lọc bỏ URL ảnh mock/placeholder không hợp lệ
   const isRealImageUrl = (url: string | null | undefined): boolean => {
@@ -91,7 +92,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   const rawImage = product?.main_image_url || currentPlatformData?.main_image_url;
   const normalizedImage = normalizeImageUrl(rawImage);
   const productImage = isRealImageUrl(normalizedImage) ? normalizedImage : null;
-  const rawName = product?.product_name || product?.normalized_name || currentPlatformData?.raw_name || currentPlatformData?.raw_name || '';
+  const rawName = currentPlatformData?.raw_name || product?.product_name || product?.normalized_name || '';
   const productName = formatDisplayName(rawName);
   
   // State track lỗi ảnh
@@ -112,7 +113,7 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
   async function loadPlatformProducts() {
     setPlatformsLoading(true);
     try {
-      const pId = product?.id || platformProduct?.product_id;
+      const pId = platformProduct?.product_id || product?.id;
       let platforms: PlatformProduct[] = [];
 
       if (pId && isValidUUID(String(pId))) {
@@ -186,7 +187,11 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
       if (platforms.length > 0) {
         const matching = platforms.find(
-          (p: any) => p.id === initialPlatformId || String(p.product_id) === String(platformProduct?.product_id) || p.platform_id === currentPlatformData?.platform_id
+          (p: any) =>
+            p.id === currentPlatformId ||
+            p.id === initialPlatformId ||
+            String(p.product_id) === String(platformProduct?.product_id) ||
+            p.platform_id === currentPlatformData?.platform_id
         );
         setSelectedPlatformProduct(matching || platforms[0]);
       }
@@ -238,7 +243,11 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
 
     setIsSubmittingAlert(true);
     try {
-      const targetProductId = platformProduct.product_id ?? platformProduct.id;
+      const targetProductId = selectedPlatformProduct?.id || platformProduct?.platform_product_id || platformProduct?.id;
+      if (!targetProductId) {
+        showToast('Không tìm thấy sản phẩm để đặt cảnh báo giá', 'error');
+        return;
+      }
       
       await setAlert(targetProductId, numericPrice);
 
@@ -354,8 +363,8 @@ export function ProductDetail({ product,platformProduct, initialPlatformId, onBa
               <Bell size={16} fill={isAlerted ? 'currentColor' : 'none'} />
             </button>
 
-            <button onClick={() => onAddWishlist(currentPlatformData)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}>
-              <Heart size={16} fill={isWishlisted ? 'currentColor' : 'none'} />
+            <button onClick={() => onAddWishlist(currentPlatformData)} className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isCurrentWishlisted ? 'bg-brand-primary text-white border-brand-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}>
+              <Heart size={16} fill={isCurrentWishlisted ? 'currentColor' : 'none'} />
             </button>
           </div>
         </div>

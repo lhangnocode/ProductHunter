@@ -12,6 +12,7 @@ export interface PriceRecord {
 
 export interface PlatformProduct {
   id: string;
+  platform_product_id?: string;
   product_id: string;
   platform_id: number;
   raw_name: string;
@@ -24,6 +25,30 @@ export interface PlatformProduct {
     id: number;
     name: string;
   };
+}
+
+export async function fetchPlatformProductByPlatformProductId(platformProductId: string): Promise<PlatformProduct | null> {
+  try {
+    const response = await fetch(
+      `${CONFIG.API_URL}/platform_products/platform-products/by-platform-product-id/${encodeURIComponent(platformProductId)}`
+    );
+
+    if (!response.ok) {
+      console.error(`Fetch platform product failed with status: ${response.status}`);
+      return null;
+    }
+
+    const item = await response.json();
+    return {
+      ...item,
+      platform_product_id: item.platform_product_id ?? item.id,
+      current_price: item.current_price != null ? parseFloat(String(item.current_price)) : null,
+      original_price: item.original_price != null ? parseFloat(String(item.original_price)) : null,
+    };
+  } catch (error) {
+    console.error('Lỗi khi fetch platform product:', error);
+    return null;
+  }
 }
 
 

@@ -2,9 +2,12 @@ import { CONFIG } from '../config';
 
 export interface WishListItem {
   product_id: string;
+  platform_product_id?: string;
   added_at: string;
   product_name: string | null;
   main_image_url: string | null;
+  current_price?: number | null;
+  original_price?: number | null;
 }
 
 const BASE = `${CONFIG.API_URL}/wish_lists`;
@@ -31,12 +34,12 @@ export const wishlistService = {
     }
   },
 
-  async addToWishlist(token: string, productId: string): Promise<WishListItem[]> {
+  async addToWishlist(token: string, platformProductId: string): Promise<WishListItem[]> {
     try {
       const res = await fetch(`${CONFIG.API_URL}/wish_lists/`, {
         method: 'POST',
         headers: { ...authHeader(token), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: productId }),
+        body: JSON.stringify({ platform_product_id: platformProductId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -50,9 +53,9 @@ export const wishlistService = {
     }
   },
 
-  async removeFromWishlist(token: string, productId: string): Promise<void> {
+  async removeFromWishlist(token: string, platformProductId: string): Promise<void> {
     try {
-      const res = await fetch(`${CONFIG.API_URL}/wish_lists/${productId}`, {
+      const res = await fetch(`${CONFIG.API_URL}/wish_lists/${platformProductId}`, {
         method: 'DELETE',
         headers: authHeader(token),
       });
