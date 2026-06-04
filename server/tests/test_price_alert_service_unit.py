@@ -1,15 +1,67 @@
 import uuid
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
 
+from app.models import platform as _platform_model  # noqa: F401
+from app.models import product as _product_model  # noqa: F401
+from app.models import price_record as _price_record_model  # noqa: F401
+from app.models import wish_list as _wish_list_model  # noqa: F401
 from app.models.platform_product import PlatformProduct
 from app.models.price_alert import PriceAlert
 from app.models.user import User
+from app.schemas.price_alert import PriceAlertCreate
 from app.services import price_alert as service
 from tests.conftest import TestingSessionLocal
+
+
+class _Scalars:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
+
+
+class _ExecuteResult:
+    def __init__(self, *, scalar=None, row=None, rows=None, rowcount=1):
+        self._scalar = scalar
+        self._row = row
+        self._rows = rows or []
+        self.rowcount = rowcount
+
+    def scalar_one_or_none(self):
+        return self._scalar
+
+    def scalar_one(self):
+        return self._row
+
+    def scalars(self):
+        return _Scalars(self._rows)
+
+
+class _FakeSession:
+    def __init__(self, *results, scalar_result=None):
+        self._results = list(results)
+        self.scalar_result = scalar_result
+        self.executed = []
+        self.commits = 0
+
+    async def execute(self, stmt):
+        self.executed.append(stmt)
+        if not self._results:
+            raise AssertionError("No fake execute result configured")
+        return self._results.pop(0)
+
+    async def scalar(self, stmt):
+        self.executed.append(stmt)
+        return self.scalar_result
+
+    async def commit(self):
+        self.commits += 1
 
 
 async def _get_user(email: str = "testuser@example.com") -> User:
@@ -275,3 +327,192 @@ async def test_check_and_trigger_alerts_matching_alerts_enqueue_email_and_mark_t
     assert price == 28_990_000.0
     assert alert.status == 1
     assert len(bg_tasks.tasks) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_price_alert_free_user_counts_new_alert_and_returns_product_data():
+    user_id = uuid.uuid4()
+    product_id = uuid.uuid4()
+    product = SimpleNamespace(
+        normalized_name="iPhone 16",
+        main_image_url="https://example.com/iphone16.jpg",
+    )
+    row = SimpleNamespace(
+        product_id=product_id,
+        target_price=Decimal("21000000"),
+        status=0,
+        product=product,
+    )
+    db = _FakeSession(
+        _ExecuteResult(scalar=None),
+        _ExecuteResult(),
+        _ExecuteResult(row=row),
+        scalar_result=4,
+    )
+
+    result = await service.set_price_alert(
+        db=db,
+        user_id=user_id,
+        alert_in=PriceAlertCreate(product_id=product_id, target_price=Decimal("21000000")),
+        user_plan=0,
+    )
+
+    assert db.commits == 1
+    assert len(db.executed) == 4
+    assert result == {
+        "product_id": product_id,
+        "target_price": Decimal("21000000"),
+        "status": 0,
+        "product_name": "iPhone 16",
+        "main_image_url": "https://example.com/iphone16.jpg",
+    }
+
+
+@pytest.mark.asyncio
+async def test_set_price_alert_free_user_at_limit_raises_403_before_insert():
+    product_id = uuid.uuid4()
+    db = _FakeSession(_ExecuteResult(scalar=None), scalar_result=service.FREE_PLAN_PRICE_ALERT_LIMIT)
+
+    with pytest.raises(HTTPException) as exc:
+        await service.set_price_alert(
+            db=db,
+            user_id=uuid.uuid4(),
+            alert_in=PriceAlertCreate(product_id=product_id, target_price=Decimal("100")),
+            user_plan=0,
+        )
+
+    assert exc.value.status_code == 403
+    assert "up to 5 products" in exc.value.detail
+    assert db.commits == 0
+    assert len(db.executed) == 2
+
+
+@pytest.mark.asyncio
+async def test_set_price_alert_existing_alert_skips_free_limit_count_and_uses_fallback_product_data():
+    user_id = uuid.uuid4()
+    product_id = uuid.uuid4()
+    existing_alert_id = uuid.uuid4()
+    row = SimpleNamespace(
+        product_id=product_id,
+        target_price=Decimal("100"),
+        status=0,
+        product=None,
+    )
+    db = _FakeSession(
+        _ExecuteResult(scalar=existing_alert_id),
+        _ExecuteResult(),
+        _ExecuteResult(row=row),
+    )
+
+    result = await service.set_price_alert(
+        db=db,
+        user_id=user_id,
+        alert_in=PriceAlertCreate(product_id=product_id, target_price=Decimal("100")),
+        user_plan=0,
+    )
+
+    assert db.commits == 1
+    assert len(db.executed) == 3
+    assert result["product_name"] == "Sản phẩm"
+    assert result["main_image_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_set_price_alert_pro_user_skips_free_limit_count():
+    user_id = uuid.uuid4()
+    product_id = uuid.uuid4()
+    row = SimpleNamespace(
+        product_id=product_id,
+        target_price=Decimal("100"),
+        status=0,
+        product=SimpleNamespace(normalized_name="Pro Product", main_image_url=None),
+    )
+    db = _FakeSession(
+        _ExecuteResult(scalar=None),
+        _ExecuteResult(),
+        _ExecuteResult(row=row),
+    )
+
+    result = await service.set_price_alert(
+        db=db,
+        user_id=user_id,
+        alert_in=PriceAlertCreate(product_id=product_id, target_price=Decimal("100")),
+        user_plan=1,
+    )
+
+    assert db.commits == 1
+    assert len(db.executed) == 3
+    assert result["product_name"] == "Pro Product"
+
+
+@pytest.mark.asyncio
+async def test_get_user_alerts_maps_rows_with_and_without_product_data():
+    with_product = SimpleNamespace(
+        product_id=uuid.uuid4(),
+        target_price=Decimal("100"),
+        status=0,
+        product=SimpleNamespace(
+            normalized_name="Known Product",
+            main_image_url="https://example.com/known.jpg",
+        ),
+    )
+    without_product = SimpleNamespace(
+        product_id=uuid.uuid4(),
+        target_price=Decimal("200"),
+        status=1,
+        product=None,
+    )
+    db = _FakeSession(_ExecuteResult(rows=[with_product, without_product]))
+
+    result = await service.get_user_alerts(db, uuid.uuid4())
+
+    assert result == [
+        {
+            "product_id": with_product.product_id,
+            "target_price": Decimal("100"),
+            "status": 0,
+            "product_name": "Known Product",
+            "main_image_url": "https://example.com/known.jpg",
+        },
+        {
+            "product_id": without_product.product_id,
+            "target_price": Decimal("200"),
+            "status": 1,
+            "product_name": "Sản phẩm không xác định",
+            "main_image_url": None,
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_check_and_trigger_alerts_missing_user_or_product_skips_email_but_marks_status(monkeypatch):
+    async def _fake_lowest_price(_db, _product_id):
+        return Decimal("100")
+
+    monkeypatch.setattr(service, "_get_current_lowest_price", _fake_lowest_price)
+    alert = SimpleNamespace(user=None, product=None, status=0)
+    db = _FakeSession(_ExecuteResult(rows=[alert]))
+    bg_tasks = BackgroundTasks()
+
+    price = await service.check_and_trigger_alerts(
+        db=db,
+        product_id=uuid.uuid4(),
+        bg_tasks=bg_tasks,
+    )
+
+    assert price == 100.0
+    assert alert.status == 1
+    assert bg_tasks.tasks == []
+    assert db.commits == 1
+
+
+@pytest.mark.asyncio
+async def test_remove_price_alert_raises_404_when_row_missing_direct_service():
+    db = _FakeSession(_ExecuteResult(rowcount=0))
+
+    with pytest.raises(HTTPException) as exc:
+        await service.remove_price_alert(db, uuid.uuid4(), uuid.uuid4())
+
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Không tìm thấy cảnh báo giá cho sản phẩm này."
+    assert db.commits == 1
