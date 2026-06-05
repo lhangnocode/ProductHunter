@@ -14,9 +14,8 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    # Uncomment after adding the Firebase service-account JSON outside git.
-    # volumes:
-    #   - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
     networks:
       - shared
 
@@ -34,9 +33,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # Uncomment after adding the Firebase service-account JSON outside git.
-    # volumes:
-    #   - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
     networks:
       - shared
 

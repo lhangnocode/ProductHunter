@@ -103,12 +103,37 @@ Tat ca endpoint trong group nay yeu cau Bearer auth.
 
 | Endpoint | Method | Input chinh | Ham xu ly |
 | :--- | :---: | :--- | :--- |
-| `/price_alerts/` | `POST` | JSON: `product_id`, `target_price` | `create_or_update_alert` |
+| `/price_alerts/` | `POST` | JSON: `platform_product_id` or `product_id`, plus `target_price` | `create_or_update_alert` |
 | `/price_alerts/` | `GET` | - | `get_my_alerts` |
-| `/price_alerts/{product_id}` | `DELETE` | Path UUID `product_id` | `delete_price_alert` |
-| `/price_alerts/trigger` | `POST` | JSON: optional `product_id` | `trigger_price_check` |
+| `/price_alerts/{platform_product_id}` | `DELETE` | Path UUID `platform_product_id` | `delete_price_alert` |
+| `/price_alerts/trigger` | `POST` | JSON: optional `product_id`, optional `platform_product_id` | `trigger_price_check` |
 
-`/price_alerts/trigger` kiem tra alert cua user dang dang nhap. Body `{}` la hop le de check tat ca alert cua user; body co `product_id` gioi han check theo mot product.
+Create/update payload:
+
+```json
+{
+  "platform_product_id": "uuid",
+  "target_price": 25000000
+}
+```
+
+`product_id` van duoc chap nhan de tu resolve sang mot platform product phu hop, nhung `platform_product_id` la cach ro rang hon vi alert hien theo doi dung offer tren tung san.
+
+Response item:
+
+```json
+{
+  "product_id": "uuid",
+  "platform_product_id": "uuid",
+  "target_price": 25000000,
+  "status": 0,
+  "product_name": "iPhone 15 Pro Max - Shopee",
+  "main_image_url": "https://example.com/image.jpg",
+  "current_price": 24990000
+}
+```
+
+`status`: `0` la active, `1` la triggered. `/price_alerts/trigger` kiem tra alert cua user dang dang nhap. Body `{}` la hop le de check tat ca alert cua user; body co `product_id` hoac `platform_product_id` gioi han pham vi check.
 
 ## 9. Wish Lists (`/api/v1/wish_lists`)
 
@@ -116,11 +141,47 @@ Tat ca endpoint trong group nay yeu cau Bearer auth.
 
 | Endpoint | Method | Input chinh | Ham xu ly |
 | :--- | :---: | :--- | :--- |
-| `/wish_lists/` | `POST` | JSON: `product_id` | `create_wishlist_item` |
+| `/wish_lists/` | `POST` | JSON: `platform_product_id` or `product_id` | `create_wishlist_item` |
 | `/wish_lists/` | `GET` | - | `get_my_wishlist` |
-| `/wish_lists/{product_id}` | `DELETE` | Path UUID `product_id` | `delete_wishlist_item` |
+| `/wish_lists/{platform_product_id}` | `DELETE` | Path UUID `platform_product_id` | `delete_wishlist_item` |
 
-## 10. Advisor (`/api/v1/advisor`)
+Wishlist item response fields include `product_id`, `platform_product_id`, `added_at`, optional `product_name`, optional `main_image_url`, optional `current_price`, and optional `original_price`.
+
+## 10. Device Tokens (`/api/v1/device_tokens`)
+
+Tat ca endpoint trong group nay yeu cau Bearer auth. Mobile app dung group nay de dang ky FCM registration token cho push notification.
+
+| Endpoint | Method | Input chinh | Ham xu ly |
+| :--- | :---: | :--- | :--- |
+| `/device_tokens/` | `POST` | JSON: `token`, optional `platform` default `android` | `register_device_token` |
+| `/device_tokens/{token}` | `DELETE` | Path string `token` | `remove_device_token` |
+
+Register/update payload:
+
+```json
+{
+  "token": "fcm-registration-token",
+  "platform": "android"
+}
+```
+
+Register response:
+
+```json
+{
+  "id": "uuid",
+  "token": "fcm-registration-token",
+  "platform": "android",
+  "is_active": true,
+  "created_at": "2026-06-05T10:00:00Z",
+  "updated_at": "2026-06-05T10:00:00Z",
+  "last_seen_at": "2026-06-05T10:00:00Z"
+}
+```
+
+`POST` upsert theo token: neu token da ton tai thi cap nhat user, platform, danh dau active va refresh `last_seen_at`. `DELETE` chi deactivate token cua user dang dang nhap; user khac khong deactivate duoc token nay.
+
+## 11. Advisor (`/api/v1/advisor`)
 
 | Endpoint | Method | Input chinh | Auth | Ham xu ly |
 | :--- | :---: | :--- | :---: | :--- |
@@ -128,3 +189,58 @@ Tat ca endpoint trong group nay yeu cau Bearer auth.
 
 Advisor tra ve `answer`, danh sach `recommendations`, va `sources`. Service co the tra
 `503` neu thieu cau hinh provider, `502` neu provider loi, hoac `500` neu retrieval loi.
+
+## 12. Agent (`/api/v1/agent`)
+
+| Endpoint | Method | Input chinh | Auth | Ham xu ly |
+| :--- | :---: | :--- | :---: | :--- |
+| `/agent/chat` | `POST` | JSON: `message`, optional `history`, optional `context`, optional `include_tool_trace` | No | `agent_chat` |
+| `/agent/chat/stream` | `POST` | Same payload as `/agent/chat` | No | `agent_chat_stream` |
+
+Agent request payload:
+
+```json
+{
+  "message": "Find me a good laptop deal",
+  "history": [
+    {
+      "role": "user",
+      "content": "I prefer ASUS"
+    }
+  ],
+  "context": {
+    "active_tab": "search",
+    "search_query": "laptop",
+    "product_id": "uuid",
+    "shop_id": 1
+  },
+  "include_tool_trace": true
+}
+```
+
+`/agent/chat` tra JSON gom `answer`, `recommendations`, `sources`, `tool_trace`, `handoff_required`, `alternatives`, `objection_answers`, `urgency_cues`, va optional `disclaimer`. `/agent/chat/stream` tra Server-Sent Events voi `media_type` la `text/event-stream`.
+
+## 13. Payments (`/api/v1/payments`)
+
+Endpoint nay yeu cau Bearer auth.
+
+| Endpoint | Method | Input chinh | Ham xu ly |
+| :--- | :---: | :--- | :--- |
+| `/payments/request` | `POST` | Multipart form: `amount`, file `receipt` | `create_payment_request` |
+
+Server luu receipt vao `static/receipts` va tao `payment_requests` row voi `status = 0` pending.
+
+## 14. Admin (`/api/v1/admin`)
+
+Tat ca endpoint trong group nay yeu cau Bearer auth cua user nam trong danh sach admin server-side.
+
+| Endpoint | Method | Input chinh | Ham xu ly |
+| :--- | :---: | :--- | :--- |
+| `/admin/overview` | `GET` | - | `get_admin_overview` |
+| `/admin/users` | `GET` | - | `list_users` |
+| `/admin/users/{user_id}/plan` | `PATCH` | JSON: `plan` (`0` or `1`) | `update_user_plan` |
+| `/admin/payments` | `GET` | - | `list_payments` |
+| `/admin/payments/{payment_id}/approve` | `POST` | Path UUID `payment_id` | `approve_payment` |
+| `/admin/payments/{payment_id}/reject` | `POST` | Path UUID `payment_id` | `reject_payment` |
+
+Admin overview tra ve counts, recent products va sample offers. Payment approval set payment `status = 1` va nang user len plan premium (`plan = 1`); reject set `status = 2`.
