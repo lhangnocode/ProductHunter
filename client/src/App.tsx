@@ -726,12 +726,7 @@ function AppContent() {
                       <ProductCard
                         product={product}
                         onClick={handleNavigateToDetail}
-                        isWishlisted={wishlistIds.has(getProductId(product))}
-                        isAlerted={hasAlertForProduct(product)}
-                        onToggleWishlist={(e) => {
-                          e.stopPropagation();
-                          handleAddWishlist(product);
-                        }}
+                        showActions={false}
                       />
                     </motion.div>
                   ))}

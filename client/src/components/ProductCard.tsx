@@ -25,6 +25,7 @@ interface ProductCardProps {
   isAlerted?: boolean;
   alertTargetPrice?: number;
   alertStatus?: number;
+  showActions?: boolean;
   key?: React.Key;
 }
 
@@ -37,6 +38,7 @@ export function ProductCard({
   isAlerted,
   alertTargetPrice,
   alertStatus,
+  showActions = true,
 }: ProductCardProps) {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
@@ -167,70 +169,69 @@ export function ProductCard({
         onClick={() => onClick(product, product.id)}
         className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 transition-all duration-300 hover:shadow-xl"
       >
-        {/* THÊM LẠI ACTION BUTTONS (Wishlist & Alert) */}
-        <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-          {onRemove && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(e, product);
-              }}
-              className="p-2 bg-white dark:bg-slate-800 rounded-full text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100 dark:border-slate-700"
-            >
-              <X size={14} />
-            </button>
-          )}
-
-          {!onRemove && (
-            <>
-              {/* Nút Chuông (Alert) */}
+        {showActions && (
+          <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            {onRemove && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!user) {
-                    showToast(
-                      "Vui lòng đăng nhập để đặt cảnh báo giá!",
-                      "info",
-                    );
-                    return;
-                  }
-                  setIsAlertModalOpen(true);
+                  onRemove(e, product);
                 }}
-                className={`p-2 rounded-full shadow-sm border transition-colors ${isAlerted
-                    ? "bg-brand-accent text-white border-brand-accent"
-                    : "bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-accent border-slate-100 dark:border-slate-700"
-                  }`}
-                title={
-                  isAlerted
-                    ? "Cập nhật cảnh báo giá"
-                    : "Nhận thông báo khi giảm giá"
-                }
+                className="p-2 bg-white dark:bg-slate-800 rounded-full text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100 dark:border-slate-700"
               >
-                <Bell size={14} fill={isAlerted ? "currentColor" : "none"} />
+                <X size={14} />
               </button>
+            )}
 
-              {/* Nút Tim (Wishlist) */}
-              {onToggleWishlist && (
+            {!onRemove && (
+              <>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleWishlist(e, product);
+                    if (!user) {
+                      showToast(
+                        "Vui lòng đăng nhập để đặt cảnh báo giá!",
+                        "info",
+                      );
+                      return;
+                    }
+                    setIsAlertModalOpen(true);
                   }}
-                  className={`p-2 rounded-full shadow-sm border transition-colors ${isWishlisted
-                      ? "bg-brand-primary text-white border-brand-primary"
-                      : "bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-primary border-slate-100 dark:border-slate-700"
+                  className={`p-2 rounded-full shadow-sm border transition-colors ${isAlerted
+                      ? "bg-brand-accent text-white border-brand-accent"
+                      : "bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-accent border-slate-100 dark:border-slate-700"
                     }`}
-                  title="Thêm vào Wishlist"
+                  title={
+                    isAlerted
+                      ? "Cập nhật cảnh báo giá"
+                      : "Nhận thông báo khi giảm giá"
+                  }
                 >
-                  <Heart
-                    size={14}
-                    fill={isWishlisted ? "currentColor" : "none"}
-                  />
+                  <Bell size={14} fill={isAlerted ? "currentColor" : "none"} />
                 </button>
-              )}
-            </>
-          )}
-        </div>
+
+                {onToggleWishlist && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleWishlist(e, product);
+                    }}
+                    className={`p-2 rounded-full shadow-sm border transition-colors ${isWishlisted
+                        ? "bg-brand-primary text-white border-brand-primary"
+                        : "bg-white/95 dark:bg-slate-800/95 text-slate-400 hover:text-brand-primary border-slate-100 dark:border-slate-700"
+                      }`}
+                    title="Thêm vào Wishlist"
+                  >
+                    <Heart
+                      size={14}
+                      fill={isWishlisted ? "currentColor" : "none"}
+                    />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Image Section */}
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-white dark:bg-slate-800/50 flex items-center justify-center p-6 border-b border-slate-100 dark:border-slate-800/50">

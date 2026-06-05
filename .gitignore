@@ -17,6 +17,7 @@ services/lazada_crawler/venv/
 typesense-data/
 # Node / Frontend build
 node_modules/
+node_modules.broken/
 dist/
 
 *.csv
