@@ -53,6 +53,7 @@ import {
   searchProducts,
   fetchCompareGroups,
   fetchPlatformProductByPlatformProductId,
+  fetchPlatformProductsByProductId,
 } from "./services/price_record_api";
 import { Pagination } from './components/Pagination';
 
@@ -295,12 +296,40 @@ function AppContent() {
     return results;
   }, [platformProducts, activeFilter, sortBy]);
 
+  const looksLikePlatformProduct = (item: any): boolean =>
+    Boolean(item?.platform_product_id || (item?.id && item?.product_id));
+
+  const pickDefaultPlatformProduct = (items: any[]): any | null => {
+    if (!Array.isArray(items) || items.length === 0) return null;
+    return (
+      items.find((item) => item?.in_stock && item?.current_price != null) ||
+      items.find((item) => item?.current_price != null) ||
+      items[0]
+    );
+  };
+
   // 4. Cập nhật hàm điều hướng
   const handleNavigateToDetail = async (platformProduct: any, platformId: string) => {
-    const exactPlatformId = String(platformProduct.platform_product_id ?? platformId ?? platformProduct.id ?? "");
-    const fetchedPlatformProduct = exactPlatformId
-      ? await fetchPlatformProductByPlatformProductId(exactPlatformId)
-      : null;
+    const candidatePlatformProductId = String(platformProduct.platform_product_id ?? platformId ?? "");
+    const candidateProductId = String(platformProduct.product_id ?? platformProduct.id ?? platformId ?? "");
+
+    let fetchedPlatformProduct = null;
+    if (candidatePlatformProductId && looksLikePlatformProduct(platformProduct)) {
+      fetchedPlatformProduct = await fetchPlatformProductByPlatformProductId(candidatePlatformProductId);
+    }
+
+    if (!fetchedPlatformProduct && candidateProductId) {
+      const offers = await fetchPlatformProductsByProductId(candidateProductId);
+      fetchedPlatformProduct = pickDefaultPlatformProduct(offers);
+    }
+
+    const exactPlatformId = String(
+      fetchedPlatformProduct?.platform_product_id ??
+      fetchedPlatformProduct?.id ??
+      platformProduct.platform_product_id ??
+      ""
+    );
+
     const detailPlatformProduct = fetchedPlatformProduct
       ? {
           ...platformProduct,
@@ -335,7 +364,7 @@ function AppContent() {
 
     setSelectedProduct(derivedProduct as any);
     setSelectedPlatformProduct(detailPlatformProduct);
-    setCurrentPlatformId(exactPlatformId || platformId);
+    setCurrentPlatformId(exactPlatformId);
   };
 
   // const searchResults = useMemo(() => {
