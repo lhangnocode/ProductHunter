@@ -21,3 +21,4 @@ class User(Base):
 
     price_alerts = relationship("PriceAlert", back_populates="user", cascade="all, delete-orphan")
     wish_lists = relationship("WishList", back_populates="user", cascade="all, delete-orphan")
+    device_tokens = relationship("UserDeviceToken", back_populates="user", cascade="all, delete-orphan")

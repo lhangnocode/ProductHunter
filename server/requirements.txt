@@ -12,6 +12,7 @@ python-multipart==0.0.22
 python-jose[cryptography]==3.5.0
 bcrypt==5.0.0
 fastapi-mail==1.6.2
+firebase-admin==6.9.0
 typesense==2.0.0
 email-validator==2.3.0
 Authlib==1.6.9

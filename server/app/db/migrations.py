@@ -15,6 +15,8 @@ async def run_startup_migrations() -> None:
     async with engine.begin() as conn:
         for statement in _PLATFORM_PRODUCT_WISHLIST_ALERTS_SQL:
             await conn.execute(text(statement))
+        for statement in _USER_DEVICE_TOKENS_SQL:
+            await conn.execute(text(statement))
 
     logger.info("Database startup migrations completed")
 
@@ -205,5 +207,30 @@ ON wish_list(platform_product_id)
 """
 CREATE INDEX IF NOT EXISTS idx_price_alert_platform_product
 ON price_alerts(platform_product_id)
+""",
+]
+
+
+_USER_DEVICE_TOKENS_SQL = [
+"""
+CREATE TABLE IF NOT EXISTS user_device_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    platform VARCHAR(32) NOT NULL DEFAULT 'android',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""",
+"""
+CREATE INDEX IF NOT EXISTS idx_user_device_tokens_user
+ON user_device_tokens(user_id)
+""",
+"""
+CREATE INDEX IF NOT EXISTS idx_user_device_tokens_active_user
+ON user_device_tokens(user_id)
+WHERE is_active = TRUE
 """,
 ]

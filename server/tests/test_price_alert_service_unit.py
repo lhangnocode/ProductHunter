@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.models.platform_product import PlatformProduct
 from app.models.price_alert import PriceAlert
 from app.models.user import User
+from app.models.user_device_token import UserDeviceToken
 from app.services import price_alert as service
 from tests.conftest import TestingSessionLocal
 
@@ -18,12 +19,13 @@ async def _get_user(email: str = "testuser@example.com") -> User:
         return result.scalar_one()
 
 
-async def _add_alert(user_id, product_id, target_price, status=0) -> None:
+async def _add_alert(user_id, product_id, platform_product_id, target_price, status=0) -> None:
     async with TestingSessionLocal() as db:
         db.add(
             PriceAlert(
                 user_id=user_id,
                 product_id=product_id,
+                platform_product_id=platform_product_id,
                 target_price=Decimal(target_price),
                 status=status,
             )
@@ -70,10 +72,21 @@ async def test_get_current_lowest_price_ignores_null_price(created_product, crea
 
 
 @pytest.mark.asyncio
-async def test_check_user_alerts_skips_when_no_current_price(auth_headers, created_product):
+async def test_check_user_alerts_skips_when_no_current_price(
+    auth_headers,
+    created_product,
+    created_platform_product,
+):
     user = await _get_user()
     product_id = uuid.UUID(created_product["id"])
-    await _add_alert(user.id, product_id, 1_000_000)
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    async with TestingSessionLocal() as db:
+        platform_product = (
+            await db.execute(select(PlatformProduct).where(PlatformProduct.id == platform_product_id))
+        ).scalar_one()
+        platform_product.current_price = None
+        await db.commit()
+    await _add_alert(user.id, product_id, platform_product_id, 1_000_000)
 
     async with TestingSessionLocal() as db:
         result = await service.check_and_trigger_user_alerts(
@@ -86,6 +99,9 @@ async def test_check_user_alerts_skips_when_no_current_price(auth_headers, creat
         "checked_products": 0,
         "triggered_alerts": 0,
         "skipped_without_price": 1,
+        "email_queued": 0,
+        "fcm_sent": 0,
+        "invalid_tokens": 0,
     }
 
 
@@ -104,7 +120,8 @@ async def test_check_user_alerts_triggers_when_target_meets_current_price(
     monkeypatch.setattr(service, "send_price_drop_email_async", _fake_send)
     user = await _get_user()
     product_id = uuid.UUID(created_product["id"])
-    await _add_alert(user.id, product_id, 30_000_000)
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    await _add_alert(user.id, product_id, platform_product_id, 30_000_000)
     bg_tasks = BackgroundTasks()
 
     async with TestingSessionLocal() as db:
@@ -116,6 +133,7 @@ async def test_check_user_alerts_triggers_when_target_meets_current_price(
 
     assert result["checked_products"] == 1
     assert result["triggered_alerts"] == 1
+    assert result["email_queued"] == 1
     assert len(bg_tasks.tasks) == 1
 
 
@@ -127,7 +145,8 @@ async def test_check_user_alerts_does_not_trigger_below_current_price(
 ):
     user = await _get_user()
     product_id = uuid.UUID(created_product["id"])
-    await _add_alert(user.id, product_id, 10_000_000)
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    await _add_alert(user.id, product_id, platform_product_id, 10_000_000)
     bg_tasks = BackgroundTasks()
 
     async with TestingSessionLocal() as db:
@@ -139,6 +158,7 @@ async def test_check_user_alerts_does_not_trigger_below_current_price(
 
     assert result["checked_products"] == 1
     assert result["triggered_alerts"] == 0
+    assert result["email_queued"] == 0
     assert bg_tasks.tasks == []
 
 
@@ -150,7 +170,8 @@ async def test_check_user_alerts_filters_by_product_id(
 ):
     user = await _get_user()
     product_id = uuid.UUID(created_product["id"])
-    await _add_alert(user.id, product_id, 30_000_000)
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    await _add_alert(user.id, product_id, platform_product_id, 30_000_000)
 
     async with TestingSessionLocal() as db:
         result = await service.check_and_trigger_user_alerts(
@@ -172,22 +193,23 @@ async def test_check_user_alerts_missing_user_or_product_skips_email_but_updates
     orphan_product_id = uuid.uuid4()
 
     async with TestingSessionLocal() as db:
-        db.add(
-            PlatformProduct(
-                product_id=orphan_product_id,
-                platform_id=created_platform["id"],
-                raw_name="orphan product",
-                original_item_id="orphan-1",
-                url="https://example.com/orphan",
-                current_price=Decimal(100),
-                in_stock=True,
-            )
+        platform_product = PlatformProduct(
+            product_id=orphan_product_id,
+            platform_id=created_platform["id"],
+            raw_name="orphan product",
+            original_item_id="orphan-1",
+            url="https://example.com/orphan",
+            current_price=Decimal(100),
+            in_stock=True,
         )
+        db.add(platform_product)
+        await db.flush()
         db.add(
             PriceAlert(
                 user_id=orphan_user_id,
                 product_id=orphan_product_id,
                 target_price=Decimal(100),
+                platform_product_id=platform_product.id,
                 status=0,
             )
         )
@@ -229,7 +251,8 @@ async def test_check_and_trigger_alerts_no_matching_alerts_returns_current_price
 ):
     user = await _get_user()
     product_id = uuid.UUID(created_product["id"])
-    await _add_alert(user.id, product_id, 1_000_000)
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    await _add_alert(user.id, product_id, platform_product_id, 1_000_000)
 
     async with TestingSessionLocal() as db:
         price = await service.check_and_trigger_alerts(
@@ -254,7 +277,8 @@ async def test_check_and_trigger_alerts_matching_alerts_enqueue_email_and_mark_t
     monkeypatch.setattr(service, "send_price_drop_email_async", _fake_send)
     user = await _get_user()
     product_id = uuid.UUID(created_product["id"])
-    await _add_alert(user.id, product_id, 30_000_000)
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    await _add_alert(user.id, product_id, platform_product_id, 30_000_000)
     bg_tasks = BackgroundTasks()
 
     async with TestingSessionLocal() as db:
@@ -275,3 +299,46 @@ async def test_check_and_trigger_alerts_matching_alerts_enqueue_email_and_mark_t
     assert price == 28_990_000.0
     assert alert.status == 1
     assert len(bg_tasks.tasks) == 1
+
+
+@pytest.mark.asyncio
+async def test_system_alert_check_marks_invalid_fcm_tokens_inactive(
+    monkeypatch,
+    auth_headers,
+    created_product,
+    created_platform_product,
+):
+    user = await _get_user()
+    product_id = uuid.UUID(created_product["id"])
+    platform_product_id = uuid.UUID(created_platform_product["id"])
+    await _add_alert(user.id, product_id, platform_product_id, 30_000_000)
+
+    async with TestingSessionLocal() as db:
+        db.add(UserDeviceToken(user_id=user.id, token="bad-token", platform="android"))
+        await db.commit()
+
+    async def _fake_email(**kwargs):
+        return None
+
+    async def _fake_push(**kwargs):
+        db = kwargs["db"]
+        result = await db.execute(select(UserDeviceToken).where(UserDeviceToken.token == "bad-token"))
+        token = result.scalar_one()
+        token.is_active = False
+        await db.commit()
+        return {"fcm_sent": 0, "invalid_tokens": 1}
+
+    monkeypatch.setattr(service, "send_price_alert_push", _fake_push)
+
+    async with TestingSessionLocal() as db:
+        result = await service.check_and_trigger_system_alerts(db=db, email_sender=_fake_email)
+
+    async with TestingSessionLocal() as db:
+        token = (
+            await db.execute(select(UserDeviceToken).where(UserDeviceToken.token == "bad-token"))
+        ).scalar_one()
+
+    assert result["triggered_alerts"] == 1
+    assert result["email_queued"] == 1
+    assert result["invalid_tokens"] == 1
+    assert token.is_active is False

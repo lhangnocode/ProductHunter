@@ -6,13 +6,19 @@ Tất cả endpoint đều yêu cầu authentication.
 import pytest
 from httpx import AsyncClient
 import uuid
+from decimal import Decimal
+from app.models.platform import Platform
+from app.models.platform_product import PlatformProduct
 from app.models.product import Product
 from tests.conftest import TestingSessionLocal
 
 
 async def _create_alert_products(count: int) -> list[str]:
-    product_ids: list[str] = []
+    platform_product_ids: list[str] = []
     async with TestingSessionLocal() as session:
+        platform = Platform(name="Alert Test Platform", base_url="https://alerts.example.com")
+        session.add(platform)
+        await session.flush()
         for index in range(count):
             product_id = uuid.uuid4()
             product = Product(
@@ -25,9 +31,20 @@ async def _create_alert_products(count: int) -> list[str]:
                 main_image_url="https://example.com/alert-limit.jpg",
             )
             session.add(product)
-            product_ids.append(str(product_id))
+            platform_product = PlatformProduct(
+                id=uuid.uuid4(),
+                product_id=product_id,
+                platform_id=platform.id,
+                raw_name=f"Alert Limit Offer {index}",
+                original_item_id=f"alert-limit-offer-{product_id.hex}",
+                url=f"https://alerts.example.com/{product_id.hex}",
+                current_price=Decimal("999000"),
+                in_stock=True,
+            )
+            session.add(platform_product)
+            platform_product_ids.append(str(platform_product.id))
         await session.commit()
-    return product_ids
+    return platform_product_ids
 
 
 # ============================================================
@@ -83,12 +100,12 @@ async def test_get_alerts_empty(ac: AsyncClient, auth_headers: dict):
 # ============================================================
 @pytest.mark.asyncio
 async def test_create_alert_success(
-    ac: AsyncClient, auth_headers: dict, created_product: dict
+    ac: AsyncClient, auth_headers: dict, created_product: dict, created_platform_product: dict
 ):
     """Tạo alert thành công → 200."""
     product_id = created_product["id"]
     response = await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 25000000,
     }, headers=auth_headers)
     assert response.status_code == 200
@@ -118,20 +135,20 @@ async def test_create_alert_missing_target_price(ac: AsyncClient, auth_headers: 
 
 @pytest.mark.asyncio
 async def test_update_alert_upsert(
-    ac: AsyncClient, auth_headers: dict, created_product: dict
+    ac: AsyncClient, auth_headers: dict, created_product: dict, created_platform_product: dict
 ):
     """Gửi lại alert cùng product → cập nhật target_price (UPSERT)."""
     product_id = created_product["id"]
 
     # Tạo lần 1
     await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 30000000,
     }, headers=auth_headers)
 
     # Tạo lần 2 cùng product → update
     response = await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 20000000,
     }, headers=auth_headers)
     assert response.status_code == 200
@@ -141,11 +158,11 @@ async def test_update_alert_upsert(
 
 @pytest.mark.asyncio
 async def test_free_user_can_create_five_price_alerts(ac: AsyncClient, auth_headers: dict):
-    product_ids = await _create_alert_products(5)
+    platform_product_ids = await _create_alert_products(5)
 
-    for product_id in product_ids:
+    for platform_product_id in platform_product_ids:
         response = await ac.post("/api/v1/price_alerts/", json={
-            "product_id": product_id,
+            "platform_product_id": platform_product_id,
             "target_price": 1000000,
         }, headers=auth_headers)
         assert response.status_code == 200
@@ -160,17 +177,17 @@ async def test_free_user_sixth_distinct_price_alert_is_forbidden(
     ac: AsyncClient,
     auth_headers: dict,
 ):
-    product_ids = await _create_alert_products(6)
+    platform_product_ids = await _create_alert_products(6)
 
-    for product_id in product_ids[:5]:
+    for platform_product_id in platform_product_ids[:5]:
         response = await ac.post("/api/v1/price_alerts/", json={
-            "product_id": product_id,
+            "platform_product_id": platform_product_id,
             "target_price": 1000000,
         }, headers=auth_headers)
         assert response.status_code == 200
 
     response = await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_ids[5],
+        "platform_product_id": platform_product_ids[5],
         "target_price": 1000000,
     }, headers=auth_headers)
 
@@ -183,17 +200,17 @@ async def test_free_user_can_update_existing_alert_at_limit(
     ac: AsyncClient,
     auth_headers: dict,
 ):
-    product_ids = await _create_alert_products(5)
+    platform_product_ids = await _create_alert_products(5)
 
-    for product_id in product_ids:
+    for platform_product_id in platform_product_ids:
         response = await ac.post("/api/v1/price_alerts/", json={
-            "product_id": product_id,
+            "platform_product_id": platform_product_id,
             "target_price": 1000000,
         }, headers=auth_headers)
         assert response.status_code == 200
 
     response = await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_ids[0],
+        "platform_product_id": platform_product_ids[0],
         "target_price": 2000000,
     }, headers=auth_headers)
 
@@ -206,11 +223,11 @@ async def test_premium_user_can_create_more_than_five_price_alerts(
     ac: AsyncClient,
     premium_auth_headers: dict,
 ):
-    product_ids = await _create_alert_products(6)
+    platform_product_ids = await _create_alert_products(6)
 
-    for product_id in product_ids:
+    for platform_product_id in platform_product_ids:
         response = await ac.post("/api/v1/price_alerts/", json={
-            "product_id": product_id,
+            "platform_product_id": platform_product_id,
             "target_price": 1000000,
         }, headers=premium_auth_headers)
         assert response.status_code == 200
@@ -225,20 +242,20 @@ async def test_delete_price_alert_frees_free_user_slot(
     ac: AsyncClient,
     auth_headers: dict,
 ):
-    product_ids = await _create_alert_products(6)
+    platform_product_ids = await _create_alert_products(6)
 
-    for product_id in product_ids[:5]:
+    for platform_product_id in platform_product_ids[:5]:
         response = await ac.post("/api/v1/price_alerts/", json={
-            "product_id": product_id,
+            "platform_product_id": platform_product_id,
             "target_price": 1000000,
         }, headers=auth_headers)
         assert response.status_code == 200
 
-    delete_response = await ac.delete(f"/api/v1/price_alerts/{product_ids[0]}", headers=auth_headers)
+    delete_response = await ac.delete(f"/api/v1/price_alerts/{platform_product_ids[0]}", headers=auth_headers)
     assert delete_response.status_code == 200
 
     response = await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_ids[5],
+        "platform_product_id": platform_product_ids[5],
         "target_price": 1000000,
     }, headers=auth_headers)
 
@@ -250,13 +267,13 @@ async def test_delete_price_alert_frees_free_user_slot(
 # ============================================================
 @pytest.mark.asyncio
 async def test_get_alerts_after_create(
-    ac: AsyncClient, auth_headers: dict, created_product: dict
+    ac: AsyncClient, auth_headers: dict, created_product: dict, created_platform_product: dict
 ):
     """Tạo alert rồi get → có data."""
     product_id = created_product["id"]
 
     await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 22000000,
     }, headers=auth_headers)
 
@@ -281,42 +298,42 @@ async def test_delete_alert_not_found(ac: AsyncClient, auth_headers: dict):
 
 @pytest.mark.asyncio
 async def test_delete_alert_success(
-    ac: AsyncClient, auth_headers: dict, created_product: dict
+    ac: AsyncClient, auth_headers: dict, created_product: dict, created_platform_product: dict
 ):
     """Tạo rồi xóa alert → 200."""
     product_id = created_product["id"]
 
     # Tạo alert
     await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 18000000,
     }, headers=auth_headers)
 
     # Xóa
-    response = await ac.delete(f"/api/v1/price_alerts/{product_id}", headers=auth_headers)
+    response = await ac.delete(f"/api/v1/price_alerts/{created_platform_product['id']}", headers=auth_headers)
     assert response.status_code == 200
     assert "xóa" in response.json()["message"].lower() or "thành công" in response.json()["message"].lower()
 
 
 @pytest.mark.asyncio
 async def test_delete_alert_twice(
-    ac: AsyncClient, auth_headers: dict, created_product: dict
+    ac: AsyncClient, auth_headers: dict, created_product: dict, created_platform_product: dict
 ):
     """Xóa alert 2 lần → lần 2 phải 404."""
     product_id = created_product["id"]
 
     # Tạo
     await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 15000000,
     }, headers=auth_headers)
 
     # Xóa lần 1
-    resp1 = await ac.delete(f"/api/v1/price_alerts/{product_id}", headers=auth_headers)
+    resp1 = await ac.delete(f"/api/v1/price_alerts/{created_platform_product['id']}", headers=auth_headers)
     assert resp1.status_code == 200
 
     # Xóa lần 2
-    resp2 = await ac.delete(f"/api/v1/price_alerts/{product_id}", headers=auth_headers)
+    resp2 = await ac.delete(f"/api/v1/price_alerts/{created_platform_product['id']}", headers=auth_headers)
     assert resp2.status_code == 404
 
 
@@ -344,7 +361,7 @@ async def test_trigger_alert_success(
 
     # Tạo alert trước
     await ac.post("/api/v1/price_alerts/", json={
-        "product_id": product_id,
+        "platform_product_id": created_platform_product["id"],
         "target_price": 30000000,
     }, headers=auth_headers)
 

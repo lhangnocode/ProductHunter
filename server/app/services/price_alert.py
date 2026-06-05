@@ -1,4 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from decimal import Decimal
+
 from sqlalchemy import select, delete, func
 from uuid import UUID
 from fastapi import BackgroundTasks, HTTPException, status
@@ -6,9 +10,74 @@ from sqlalchemy.orm import selectinload
 from app.models.price_alert import PriceAlert
 from app.models.platform_product import PlatformProduct
 from app.schemas.price_alert import PriceAlertCreate
-from app.services.email import send_price_drop_email_async 
+from app.services.email import send_price_drop_email_async
+from app.services.push_notifications import send_price_alert_push
 
 FREE_PLAN_PRICE_ALERT_LIMIT = 5
+
+EmailSender = Callable[..., Awaitable[None]]
+
+
+@dataclass
+class _TriggeredAlertNotification:
+    user_id: UUID
+    user_email: str | None
+    product_id: UUID
+    platform_product_id: UUID
+    product_name: str
+    target_price: Decimal
+    current_price: Decimal
+
+
+def _notification_product_name(alert: PriceAlert) -> str:
+    if alert.platform_product and alert.platform_product.raw_name:
+        return alert.platform_product.raw_name
+    if alert.product:
+        return alert.product.normalized_name
+    return "Product"
+
+
+async def _dispatch_triggered_notifications(
+    db: AsyncSession,
+    notifications: list[_TriggeredAlertNotification],
+    bg_tasks: BackgroundTasks | None,
+    email_sender: EmailSender = send_price_drop_email_async,
+) -> dict[str, int]:
+    email_queued = 0
+    fcm_sent = 0
+    invalid_tokens = 0
+
+    for notification in notifications:
+        if notification.user_email:
+            email_kwargs = {
+                "to_email": notification.user_email,
+                "product_name": notification.product_name,
+                "current_price": notification.current_price,
+                "target_price": notification.target_price,
+            }
+            if bg_tasks is not None:
+                bg_tasks.add_task(email_sender, **email_kwargs)
+            else:
+                await email_sender(**email_kwargs)
+            email_queued += 1
+
+        fcm_result = await send_price_alert_push(
+            db=db,
+            user_id=notification.user_id,
+            product_id=notification.product_id,
+            platform_product_id=notification.platform_product_id,
+            product_name=notification.product_name,
+            target_price=notification.target_price,
+            current_price=notification.current_price,
+        )
+        fcm_sent += fcm_result["fcm_sent"]
+        invalid_tokens += fcm_result["invalid_tokens"]
+
+    return {
+        "email_queued": email_queued,
+        "fcm_sent": fcm_sent,
+        "invalid_tokens": invalid_tokens,
+    }
 
 # ==========================================
 # 1. HÀM DÀNH CHO USER (API Đặt ngưỡng giá)
@@ -202,9 +271,23 @@ async def check_and_trigger_user_alerts(
     result_alerts = await db.execute(stmt_alerts)
     active_alerts = result_alerts.scalars().all()
 
+    result = await _trigger_alert_rows(db, active_alerts)
+    notification_stats = await _dispatch_triggered_notifications(
+        db,
+        result.pop("notifications"),
+        bg_tasks,
+    )
+    return {**result, **notification_stats}
+
+
+async def _trigger_alert_rows(
+    db: AsyncSession,
+    active_alerts: list[PriceAlert],
+) -> dict:
     checked_products = 0
     triggered_alerts = 0
     skipped_without_price = 0
+    notifications: list[_TriggeredAlertNotification] = []
 
     for alert in active_alerts:
         current_price = await _get_current_platform_price(db, alert.platform_product_id)
@@ -216,17 +299,17 @@ async def check_and_trigger_user_alerts(
         if alert.target_price < current_price:
             continue
 
-        if alert.user and alert.product:
-            bg_tasks.add_task(
-                send_price_drop_email_async,
-                to_email=alert.user.email,
-                product_name=(
-                    alert.platform_product.raw_name
-                    if alert.platform_product and alert.platform_product.raw_name
-                    else alert.product.normalized_name
-                ),
-                current_price=current_price,
-                target_price=alert.target_price,
+        if alert.user_id and alert.product_id and alert.platform_product_id:
+            notifications.append(
+                _TriggeredAlertNotification(
+                    user_id=alert.user_id,
+                    user_email=alert.user.email if alert.user else None,
+                    product_id=alert.product_id,
+                    platform_product_id=alert.platform_product_id,
+                    product_name=_notification_product_name(alert),
+                    current_price=current_price,
+                    target_price=alert.target_price,
+                )
             )
 
         alert.status = 1
@@ -237,7 +320,36 @@ async def check_and_trigger_user_alerts(
         "checked_products": checked_products,
         "triggered_alerts": triggered_alerts,
         "skipped_without_price": skipped_without_price,
+        "notifications": notifications,
     }
+
+
+async def check_and_trigger_system_alerts(
+    db: AsyncSession,
+    bg_tasks: BackgroundTasks | None = None,
+    email_sender: EmailSender = send_price_drop_email_async,
+) -> dict[str, int]:
+    stmt_alerts = (
+        select(PriceAlert)
+        .options(
+            selectinload(PriceAlert.product),
+            selectinload(PriceAlert.user),
+            selectinload(PriceAlert.platform_product),
+        )
+        .where(PriceAlert.status == 0)
+    )
+    result_alerts = await db.execute(stmt_alerts)
+    active_alerts = result_alerts.scalars().all()
+
+    result = await _trigger_alert_rows(db, active_alerts)
+    notifications = result.pop("notifications")
+    notification_stats = await _dispatch_triggered_notifications(
+        db,
+        notifications,
+        bg_tasks,
+        email_sender,
+    )
+    return {**result, **notification_stats}
 
 # ==========================================
 #! 2. HÀM DÀNH CHO HỆ THỐNG (Crawler gọi để check)
@@ -269,36 +381,8 @@ async def check_and_trigger_alerts(
     )
     result_alert = await db.execute(stmt_alert)
     candidate_alerts = result_alert.scalars().all()
-
-    triggered_alerts = []
-    for alert in candidate_alerts:
-        current_price = await _get_current_platform_price(db, alert.platform_product_id)
-        if current_price is not None and alert.target_price >= current_price:
-            triggered_alerts.append((alert, current_price))
-
-    if not triggered_alerts:
-        return float(current_lowest_price)
-
-    for alert, current_price in triggered_alerts:
-        if alert.user and alert.product:
-            # 3. Add tác vụ gửi mail vào Background
-            bg_tasks.add_task(
-                send_price_drop_email_async,
-                to_email=alert.user.email,
-                product_name=(
-                    alert.platform_product.raw_name
-                    if alert.platform_product and alert.platform_product.raw_name
-                    else alert.product.normalized_name
-                ),
-                current_price=current_price,
-                target_price=alert.target_price
-            )
-            
-        # 4. Cập nhật trạng thái alert
-        alert.status = 1
-    
-    # 5. Commit lưu thay đổi status
-    await db.commit()
+    result = await _trigger_alert_rows(db, candidate_alerts)
+    await _dispatch_triggered_notifications(db, result["notifications"], bg_tasks)
     return float(current_lowest_price)
 
 async def remove_price_alert(db: AsyncSession, user_id: UUID, platform_product_id: UUID) -> None:

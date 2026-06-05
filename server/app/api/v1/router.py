@@ -13,6 +13,7 @@ from app.api.v1 import advisor
 from app.api.v1 import agent
 from app.api.v1 import payments
 from app.api.v1 import admin
+from app.api.v1 import device_tokens
 
 api_router = APIRouter()
 api_router.include_router(products.router, prefix="/products", tags=["products"])
@@ -30,3 +31,4 @@ api_router.include_router(agent.router, prefix="/agent", tags=["agent"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(device_tokens.router, prefix="/device_tokens", tags=["device_tokens"])

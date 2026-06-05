@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
 
+    FCM_ENABLED: bool = False
+    FCM_SERVICE_ACCOUNT_FILE: str = ""
+    PRICE_ALERT_CHECK_INTERVAL_SECONDS: int = 120
+
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GITHUB_CLIENT_ID: str = ""

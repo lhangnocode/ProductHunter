@@ -148,6 +148,24 @@ CREATE TABLE price_alerts (
     UNIQUE(user_id, platform_product_id)
 );
 
+-- =========================
+-- USER_DEVICE_TOKENS
+-- =========================
+CREATE TABLE user_device_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    platform VARCHAR(32) NOT NULL DEFAULT 'android',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
 -- payment
 CREATE TABLE payment_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -190,6 +208,13 @@ ON price_alerts(product_id);
 
 CREATE INDEX idx_price_alert_platform_product
 ON price_alerts(platform_product_id);
+
+CREATE INDEX idx_user_device_tokens_user
+ON user_device_tokens(user_id);
+
+CREATE INDEX idx_user_device_tokens_active_user
+ON user_device_tokens(user_id)
+WHERE is_active = TRUE;
 
 CREATE INDEX idx_payment_requests_user
 ON payment_requests(user_id);
